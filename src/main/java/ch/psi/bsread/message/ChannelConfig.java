@@ -6,17 +6,13 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 @JsonInclude(Include.NON_DEFAULT)
 public class ChannelConfig {
 
-	public static final String DEFAULT_TYPE = "double";
-	public static final int[] DEFAULT_SHAPE = {1};
-	public static final double DEFAULT_FREQUENCY = 100;
-	public static final int DEFAULT_OFFSET = 0;
-	
+	public  enum Type {Double, String, Long, ULong, Short, UShort};
 	
 	private String name;
-	private String type = DEFAULT_TYPE;
-	private int[] shape = DEFAULT_SHAPE;
-	private double frequency = DEFAULT_FREQUENCY;
-	private int offset = DEFAULT_OFFSET;
+	private String type = Type.Double.name().toLowerCase();
+	private int[] shape = {1};
+	private double frequency = 100;
+	private int offset = 0;
 
 	public ChannelConfig() {
 	}
@@ -42,7 +38,7 @@ public class ChannelConfig {
 	}
 
 	public void setType(String type) {
-		this.type = type;
+		this.type = type.toLowerCase();
 	}
 
 	public int[] getShape() {

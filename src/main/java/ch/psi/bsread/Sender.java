@@ -72,7 +72,8 @@ public class Sender {
 			Iterator<ByteArrayConverter<?,?,?>> iconverters = converters.iterator();
 			for(DataChannel<?> channel: channels){
 				Object value = channel.getValue(pulseId);
-				socket.sendMore("");
+				socket.sendByteBuffer(iconverters.next().convertObject(value, byteOrder), ZMQ.SNDMORE);
+				
 				Timestamp timestamp = new Timestamp(System.currentTimeMillis(), 0L);
 				socket.sendByteBuffer(timestampConverter.convert(timestamp.getAsLongArray(), byteOrder), ZMQ.SNDMORE);
 			}
@@ -95,6 +96,7 @@ public class Sender {
 		
 		for(DataChannel<?> channel: channels){
 			dataHeader.getChannels().add(channel.getConfig());
+			// TODO need to setup converter list
 		}
 		
 		try {
