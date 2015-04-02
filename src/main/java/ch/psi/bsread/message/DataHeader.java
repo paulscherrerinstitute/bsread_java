@@ -62,4 +62,14 @@ public class DataHeader {
 			return ByteOrder.LITTLE_ENDIAN;
 		}
 	}
+	
+	@JsonIgnore
+	public void setByteOrder(ByteOrder byteOrder){
+		if (byteOrder.equals(ByteOrder.BIG_ENDIAN)) {
+			encoding = DataHeader.ENCODING_BIG_ENDIAN;
+		}
+		else{
+			encoding = DataHeader.ENCODING_LITTLE_ENDIAN;
+		}
+	}
 }

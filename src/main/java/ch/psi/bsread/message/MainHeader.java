@@ -8,13 +8,13 @@ public class MainHeader {
 	
 	private String htype = DEFAULT_HTYPE;
 	private long pulseId;
-	private GlobalTimestamp globalTimestamp;
+	private Timestamp globalTimestamp;
 	private String hash;
 
 	public MainHeader() {
 	}
 
-	public MainHeader(String htype, long pulseId, GlobalTimestamp globalTimestamp, String hash) {
+	public MainHeader(String htype, long pulseId, Timestamp globalTimestamp, String hash) {
 		this.htype = htype;
 		this.pulseId = pulseId;
 		this.globalTimestamp = globalTimestamp;
@@ -40,12 +40,12 @@ public class MainHeader {
 	}
 
 	@JsonProperty("global_timestamp")
-	public GlobalTimestamp getGlobalTimestamp() {
+	public Timestamp getGlobalTimestamp() {
 		return this.globalTimestamp;
 	}
 
 	@JsonProperty("global_timestamp")
-	public void setGlobalTimestamp(GlobalTimestamp globalTimestamp) {
+	public void setGlobalTimestamp(Timestamp globalTimestamp) {
 		this.globalTimestamp = globalTimestamp;
 	}
 

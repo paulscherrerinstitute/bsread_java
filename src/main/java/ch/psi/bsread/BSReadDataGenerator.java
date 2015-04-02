@@ -109,7 +109,7 @@ public class BSReadDataGenerator implements DataSource, DataSink {
 			throw new RuntimeException(message, e);
 		}
 
-		this.mainHeader = new MainHeader("bsr_m-1.0", 0L, new GlobalTimestamp(), DigestUtils.md5Hex(this.dataHeaderStr));
+		this.mainHeader = new MainHeader("bsr_m-1.0", 0L, new Timestamp(), DigestUtils.md5Hex(this.dataHeaderStr));
 
 		// # Config for underlying DefaultEventEmitter #
 		// #############################################
@@ -242,7 +242,7 @@ public class BSReadDataGenerator implements DataSource, DataSink {
 			long delay100HZ;
 
 			this.mainHeader.setPulseId(pulseId);
-			GlobalTimestamp globalTimestamp = this.mainHeader.getGlobalTimestamp();
+			Timestamp globalTimestamp = this.mainHeader.getGlobalTimestamp();
 			globalTimestamp.setEpoch(timeMillis);
 			globalTimestamp.setNs(timeNano);
 

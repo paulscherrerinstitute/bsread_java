@@ -1,14 +1,14 @@
 package ch.psi.bsread.message;
 
-public class GlobalTimestamp {
+public class Timestamp {
 	
 	private long epoch;
 	private long ns;
 
-	public GlobalTimestamp() {
+	public Timestamp() {
 	}
 
-	public GlobalTimestamp(long epoch, long ns) {
+	public Timestamp(long epoch, long ns) {
 		this.epoch = epoch;
 		this.ns = ns;
 	}
@@ -27,5 +27,9 @@ public class GlobalTimestamp {
 
 	public void setNs(long ns) {
 		this.ns = ns;
+	}
+	
+	public long[] getAsLongArray(){
+		return new long[] {epoch, ns};
 	}
 }

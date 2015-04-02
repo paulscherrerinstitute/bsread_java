@@ -27,7 +27,7 @@ public class MainHeaderTest {
 		MainHeader header = new MainHeader();
 		header.setHash("50acfbebaa30924c857740b5a4d770b5");
 		header.setPulseId(0);
-		header.setGlobalTimestamp(new GlobalTimestamp(1427960013647L, 0));
+		header.setGlobalTimestamp(new Timestamp(1427960013647L, 0));
 		
 		ObjectMapper mapper = new ObjectMapper();
 		String json = mapper.writeValueAsString(header);

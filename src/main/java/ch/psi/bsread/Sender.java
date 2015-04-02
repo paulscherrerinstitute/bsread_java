@@ -1,21 +1,44 @@
 package ch.psi.bsread;
 
+import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
-import ch.psi.bsread.message.GlobalTimestamp;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
+import ch.psi.bsread.message.Timestamp;
+import ch.psi.daq.data.db.converters.ByteArrayConverter;
+import ch.psi.daq.data.db.converters.impl.LongArrayByteConverter;
 
 public class Sender {
-	
+		
 	public static final int HIGH_WATER_MARK = 10;
 	
 	private Context context;
 	private Socket socket;
 	
+	private ObjectMapper mapper = new ObjectMapper();
+	
+	
 	private MainHeader mainHeader = new MainHeader();
+	private String dataHeaderString;
+	private String dataHeaderMD5 = "";
+	
 	private long pulseId = 0;
+	
+	private List<DataChannel<?>> channels = new ArrayList<>();
+	private List<ByteArrayConverter<?,?,?>> converters = new ArrayList<>();
+	private final LongArrayByteConverter timestampConverter = new LongArrayByteConverter();
+	private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
 	
 	public void bind(){
 		bind("tcp://*:9999");
@@ -34,16 +57,77 @@ public class Sender {
 	}
 
 	public void send() {
+		
 		mainHeader.setPulseId(pulseId);
-		mainHeader.setGlobalTimestamp(new GlobalTimestamp(System.currentTimeMillis(), 0L));
-		mainHeader.setHash("");
-		// Send header
-		// Send data header
-		// Send data
+		mainHeader.setGlobalTimestamp(new Timestamp(System.currentTimeMillis(), 0L));
+		mainHeader.setHash(dataHeaderMD5);
+		
+		try {
+			// Send header
+			socket.sendMore(mapper.writeValueAsString(mainHeader));
+			// Send data header
+			socket.sendMore(dataHeaderString);
+			// Send data
+			
+			Iterator<ByteArrayConverter<?,?,?>> iconverters = converters.iterator();
+			for(DataChannel<?> channel: channels){
+				Object value = channel.getValue(pulseId);
+				socket.sendMore("");
+				Timestamp timestamp = new Timestamp(System.currentTimeMillis(), 0L);
+				socket.sendByteBuffer(timestampConverter.convert(timestamp.getAsLongArray(), byteOrder), ZMQ.SNDMORE);
+			}
+			
+			socket.send("");
+		} catch (JsonProcessingException e) {
+			throw new RuntimeException("Unable to serialize message", e);
+		}
 		
 		pulseId++;
 	}
 	
 	
+	/**
+	 * (Re)Generate the data header based on the configured data channels
+	 */
+	private void generateDataHeader(){
+		DataHeader dataHeader = new DataHeader();
+		dataHeader.setByteOrder(byteOrder);
+		
+		for(DataChannel<?> channel: channels){
+			dataHeader.getChannels().add(channel.getConfig());
+		}
+		
+		try {
+			dataHeaderString = mapper.writeValueAsString(dataHeader);
+			dataHeaderMD5 = Utils.computeMD5(dataHeaderString);
+		} catch (JsonProcessingException e) {
+			throw new RuntimeException("Unable to generate data header", e);
+		}
+	}
+	
+	public void addSource(DataChannel<?> channel){
+		channels.add(channel);
+		generateDataHeader();
+	}
+	
+	public void removeSource(DataChannel<?> channel){
+		channels.remove(channel);
+		generateDataHeader();
+	}
+	
+	/**
+	 * Returns the currently configured data channels as an unmodifiable list
+	 * @return	Unmodifiable list of data channels
+	 */
+	public List<DataChannel<?>> getChannels(){
+		return Collections.unmodifiableList(channels);
+	}
 
+	public void setByteOrder(ByteOrder byteOrder) {
+		this.byteOrder = byteOrder;
+	}
+
+	public ByteOrder getByteOrder() {
+		return byteOrder;
+	}
 }
