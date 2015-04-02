@@ -1,0 +1,31 @@
+{
+  "channels": [
+    {
+      "type": "double",
+      "name": "CHANNEL-0"
+    },
+    {
+      "type": "double",
+      "name": "CHANNEL-1"
+    },
+    {
+      "type": "double",
+      "name": "CHANNEL-2"
+    },
+    {
+      "type": "double",
+      "name": "CHANNEL-3"
+    },
+    {
+      "type": "string",
+      "name": "CHANNEL-STRING"
+    },
+    {
+      "shape": [2],
+      "type": "integer",
+      "name": "CHANNEL-ARRAY_1"
+    }
+  ],
+  "htype": "bsr_d-1.0",
+  "encoding": "little"
+}
