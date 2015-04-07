@@ -14,6 +14,11 @@ public class Timestamp {
 		this.epoch = epoch;
 		this.ns = ns;
 	}
+	
+	public Timestamp(long[] values){
+		this.epoch = values[0];
+		this.ns = values[1];
+	}
 
 	public long getEpoch() {
 		return epoch;
