@@ -43,10 +43,9 @@ public class ReceiverTest {
 //		receiver.connect();
 //
 //		// Receive data
-////		while(Thread.currentThread().isInterrupted()){
+//		while(!Thread.currentThread().isInterrupted()){
 //		while(true){
 //			receiver.receive();
-////			System.out.println(message.getValues().get(0).getTimestamp().getEpoch());
 //		}
 
 //		receiver.close();

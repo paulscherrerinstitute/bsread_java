@@ -10,7 +10,6 @@ import ch.psi.daq.data.db.converters.impl.ULongByteConverter;
 import ch.psi.daq.data.db.converters.impl.UShortByteConverter;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-//import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum Type {
@@ -19,7 +18,7 @@ public enum Type {
     Integer("integer", new IntegerByteConverter()),
     Long("long", new LongByteConverter()),
     ULong("ulong",  new ULongByteConverter()),
-    Short("short", new ShortByteConverter()),
+    Short("short", new ShortByteConverter()),	
     UShort("ushort", new UShortByteConverter());
     
     private String key;
@@ -28,6 +27,7 @@ public enum Type {
     Type(String key, ByteConverter<?, ?, ?> converter) {
         this.key = key;
         this.converter = converter;
+        System.out.println("haha - "+key);
     }
 
     @JsonValue
