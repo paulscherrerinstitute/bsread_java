@@ -1,23 +1,22 @@
 package ch.psi.bsread.message;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-
-@JsonInclude(Include.NON_DEFAULT)
 public class ChannelConfig {
 
-	public  enum Type {Double, String, Long, ULong, Short, UShort};
-	
 	private String name;
-	private String type = Type.Double.name().toLowerCase();
+	private Type type = Type.Double;
 	private int[] shape = {1};
 	private double frequency = 100;
 	private int offset = 0;
 
 	public ChannelConfig() {
 	}
+	
+	public ChannelConfig(String name, Type type) {
+		this.name = name;
+		this.type = type;
+	}
 
-	public ChannelConfig(String name, String type, int[] shape, double frequency, int offset) {
+	public ChannelConfig(String name, Type type, int[] shape, double frequency, int offset) {
 		this.name = name;
 		this.type = type;
 		this.shape = shape;
@@ -33,12 +32,12 @@ public class ChannelConfig {
 		this.name = name;
 	}
 
-	public String getType() {
+	public Type getType() {
 		return this.type;
 	}
 
-	public void setType(String type) {
-		this.type = type.toLowerCase();
+	public void setType(Type type) {
+		this.type = type;
 	}
 
 	public int[] getShape() {

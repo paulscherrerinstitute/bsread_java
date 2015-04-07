@@ -1,5 +1,7 @@
 package ch.psi.bsread.message;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class Timestamp {
 	
 	private long epoch;
@@ -29,6 +31,7 @@ public class Timestamp {
 		this.ns = ns;
 	}
 	
+	@JsonIgnore
 	public long[] getAsLongArray(){
 		return new long[] {epoch, ns};
 	}

@@ -16,12 +16,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
-import ch.psi.daq.data.db.converters.ByteArrayConverter;
+import ch.psi.daq.data.db.converters.ByteConverter;
 import ch.psi.daq.data.db.converters.impl.LongArrayByteConverter;
 
 public class Sender {
-		
-	public static final int HIGH_WATER_MARK = 10;
+	
+	public static final int HIGH_WATER_MARK = 100;
 	
 	private Context context;
 	private Socket socket;
@@ -30,13 +30,13 @@ public class Sender {
 	
 	
 	private MainHeader mainHeader = new MainHeader();
-	private String dataHeaderString;
+	private String dataHeaderString = "";
 	private String dataHeaderMD5 = "";
 	
 	private long pulseId = 0;
 	
 	private List<DataChannel<?>> channels = new ArrayList<>();
-	private List<ByteArrayConverter<?,?,?>> converters = new ArrayList<>();
+	private List<ByteConverter<?,?,?>> converters = new ArrayList<>();
 	private final LongArrayByteConverter timestampConverter = new LongArrayByteConverter();
 	private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
 	
@@ -46,8 +46,8 @@ public class Sender {
 	
 	public void bind(String address){
 		this.context = ZMQ.context(1);
-		this.socket = this.context.socket(ZMQ.PULL);
-		this.socket.setRcvHWM(HIGH_WATER_MARK);
+		this.socket = this.context.socket(ZMQ.PUSH);
+		this.socket.setSndHWM(HIGH_WATER_MARK);
 		this.socket.bind(address);
 	}
 	
@@ -64,12 +64,13 @@ public class Sender {
 		
 		try {
 			// Send header
-			socket.sendMore(mapper.writeValueAsString(mainHeader));
+			socket.sendMore(""+mapper.writeValueAsString(mainHeader));
+			
 			// Send data header
 			socket.sendMore(dataHeaderString);
 			// Send data
 			
-			Iterator<ByteArrayConverter<?,?,?>> iconverters = converters.iterator();
+			Iterator<ByteConverter<?,?,?>> iconverters = converters.iterator();
 			for(DataChannel<?> channel: channels){
 				Object value = channel.getValue(pulseId);
 				socket.sendByteBuffer(iconverters.next().convertObject(value, byteOrder), ZMQ.SNDMORE);
@@ -96,7 +97,9 @@ public class Sender {
 		
 		for(DataChannel<?> channel: channels){
 			dataHeader.getChannels().add(channel.getConfig());
-			// TODO need to setup converter list
+			
+			// Register required converters for performance reasons
+			converters.add(channel.getConfig().getType().getConverter());
 		}
 		
 		try {

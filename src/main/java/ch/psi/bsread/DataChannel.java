@@ -2,18 +2,18 @@ package ch.psi.bsread;
 
 import ch.psi.bsread.message.ChannelConfig;
 
-public class DataChannel<T> {
+public abstract class DataChannel<T> {
+	
+	private final ChannelConfig config;
+	
+	public DataChannel(ChannelConfig config){
+		this.config = config;
+	}
 	
 	public ChannelConfig getConfig(){
-		return new ChannelConfig();
-	}
-
-	
-	public T getValue(long pulseId){
-		return null;
+		return config;
 	}
 	
-	public long getTimestamp(){
-		return 0;
-	}
+	public abstract T getValue(long pulseId);
+	
 }

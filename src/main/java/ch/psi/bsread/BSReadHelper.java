@@ -205,7 +205,7 @@ public class BSReadHelper {
 		List<ChannelConfig> channelConfs = dataHeaderConf.getChannels();
 		Collection<InputSourceConfig> inSConfs = new ArrayList<>(channelConfs.size());
 		for (ChannelConfig config : channelConfs) {
-			valueClazz = DataType.getValueClass(config.getType());
+			valueClazz = Type.getValueClass(config.getType());
 			frequency = config.getFrequency();
 			arrayLength = BSReadHelper.getArrayLength(config.getShape());
 
