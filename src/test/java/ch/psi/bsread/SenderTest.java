@@ -12,7 +12,7 @@ public class SenderTest {
 		Sender sender = new Sender();
 		
 		// Register data sources ...
-		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Double)) {
+		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Double, new int[] {}, 10, 0)) {
 			@Override
 			public Double getValue(long pulseId) {
 				return (double)pulseId;
@@ -22,12 +22,14 @@ public class SenderTest {
 		sender.bind();
 		
 		// Send data
-		for(int pulse=0;pulse<10;pulse++){
+		for(int pulse=0;pulse<11;pulse++){
 			sender.send();
 		}
 		
 		sender.close();
 		
 	}
+	
+	
 
 }

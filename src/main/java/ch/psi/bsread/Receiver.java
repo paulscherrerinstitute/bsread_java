@@ -107,6 +107,9 @@ public class Receiver {
 					value.setTimestamp(new Timestamp(tsByteBuffer.getLong(), tsByteBuffer.getLong()));
 					values.add(value);
 				}
+				else{
+					values.add(null);
+				}
 			}
 			
 			for(Consumer<List<Value>> handler: valueHandlers){

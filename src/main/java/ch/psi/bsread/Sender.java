@@ -72,11 +72,19 @@ public class Sender {
 			
 			Iterator<ByteConverter<?,?,?>> iconverters = converters.iterator();
 			for(DataChannel<?> channel: channels){
-				Object value = channel.getValue(pulseId);
-				socket.sendByteBuffer(iconverters.next().convertObject(value, byteOrder), ZMQ.SNDMORE);
-				
-				Timestamp timestamp = new Timestamp(System.currentTimeMillis(), 0L);
-				socket.sendByteBuffer(timestampConverter.convert(timestamp.getAsLongArray(), byteOrder), ZMQ.SNDMORE);
+				if(pulseId % channel.getConfig().getFrequency()==0){
+					Object value = channel.getValue(pulseId);
+					socket.sendByteBuffer(iconverters.next().convertObject(value, byteOrder), ZMQ.SNDMORE);
+					
+					Timestamp timestamp = new Timestamp(System.currentTimeMillis(), 0L);
+					socket.sendByteBuffer(timestampConverter.convert(timestamp.getAsLongArray(), byteOrder), ZMQ.SNDMORE);
+				}
+				else{
+					// Send placeholder
+					System.out.println("skip");
+					socket.send(new byte[]{},ZMQ.SNDMORE);
+					socket.send(new byte[]{},ZMQ.SNDMORE);
+				}
 			}
 			
 			socket.send("");
