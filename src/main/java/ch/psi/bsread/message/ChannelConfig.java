@@ -16,6 +16,13 @@ public class ChannelConfig {
 		this.type = type;
 	}
 
+	public ChannelConfig(String name, Type type, double frequency, int offset) {
+		this.name = name;
+		this.type = type;
+		this.frequency = frequency;
+		this.offset = offset;
+	}
+	
 	public ChannelConfig(String name, Type type, int[] shape, double frequency, int offset) {
 		this.name = name;
 		this.type = type;

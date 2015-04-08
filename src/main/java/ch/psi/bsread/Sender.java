@@ -81,7 +81,6 @@ public class Sender {
 				}
 				else{
 					// Send placeholder
-					System.out.println("skip");
 					socket.send(new byte[]{},ZMQ.SNDMORE);
 					socket.send(new byte[]{},ZMQ.SNDMORE);
 				}
