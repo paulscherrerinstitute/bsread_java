@@ -1,8 +1,5 @@
 ch.psi.bsread.iml
 .idea
-.classpath
 .gradle
-.project
-.settings
 bin
 build
