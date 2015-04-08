@@ -72,7 +72,8 @@ public class Sender {
 			
 			Iterator<ByteConverter<?,?,?>> iconverters = converters.iterator();
 			for(DataChannel<?> channel: channels){
-				if(pulseId % channel.getConfig().getFrequency()==0){
+				// TODO 100 needs to be configurable
+				if(100 % ((int) channel.getConfig().getFrequency()) == 0){
 					Object value = channel.getValue(pulseId);
 					socket.sendByteBuffer(iconverters.next().convertObject(value, byteOrder), ZMQ.SNDMORE);
 					
