@@ -3,8 +3,8 @@ package ch.psi.bsread.configuration;
 public class Channel {
 	
 	private String name;
-	private int offset;
-	private int frequency;
+	private int offset = 0;
+	private int frequency = 100;
 	
 	public int getOffset() {
 		return offset;
