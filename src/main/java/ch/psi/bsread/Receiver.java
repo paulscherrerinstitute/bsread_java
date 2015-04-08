@@ -5,7 +5,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
 import org.zeromq.ZMQ;
@@ -16,10 +15,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
+import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Value;
 
-public class Receiver implements Callable<Boolean> {
+public class Receiver {
 	
 	public static final int HIGH_WATER_MARK = 100;
 	
@@ -35,18 +35,12 @@ public class Receiver implements Callable<Boolean> {
 	private String dataHeaderHash = "";
 	private ByteOrder endianess = null;
 	
-	private String address;
-	
-	public Receiver(){
-		this.address = "tcp://localhost:9999";
-	}
-	
-	
-	public Receiver(String address){
-		this.address = address;
-	}
 	
 	public void connect(){
+		connect("tcp://localhost:9999");
+	}
+	
+	public void connect(String address){
 		this.context = ZMQ.context(1);
 		this.socket = this.context.socket(ZMQ.PULL);
 		this.socket.setRcvHWM(HIGH_WATER_MARK);
@@ -60,11 +54,11 @@ public class Receiver implements Callable<Boolean> {
 		context = null;
 	}
 
-	public void receive() {
+	public Message receive() {
 		try {
-
-			MainHeader mainHeader;
-			DataHeader dataHeader;
+			Message message = new Message();
+			MainHeader mainHeader = null;
+			DataHeader dataHeader = null;
 
 			// Receive main header
 			mainHeader = mapper.readValue(socket.recv(), MainHeader.class);
@@ -97,25 +91,32 @@ public class Receiver implements Callable<Boolean> {
 			List<Value> values = new ArrayList<>();
 			while(socket.hasReceiveMore()){
 				
-				byte[] val = socket.recv(); // value
+				byte[] valueBytes = socket.recv(); // value
 				if(! socket.hasReceiveMore()){
 					// Ignore the last terminating message ...
 					break; 
 				}
 				
-				byte[] tsbytes = socket.recv();
+				byte[] timestampBytes = socket.recv();
 
 				// Create value object
-				Value value = new Value();
-				value.setValue(ByteBuffer.wrap(val).order(endianess));
-				ByteBuffer tsByteBuffer = ByteBuffer.wrap(tsbytes).order(endianess);
-				value.setTimestamp(new Timestamp(tsByteBuffer.getLong(), tsByteBuffer.getLong()));
-				values.add(value);
+				if(valueBytes.length>0){
+					Value value = new Value();
+					value.setValue(ByteBuffer.wrap(valueBytes).order(endianess));
+					ByteBuffer tsByteBuffer = ByteBuffer.wrap(timestampBytes).order(endianess);
+					value.setTimestamp(new Timestamp(tsByteBuffer.getLong(), tsByteBuffer.getLong()));
+					values.add(value);
+				}
 			}
 			
 			for(Consumer<List<Value>> handler: valueHandlers){
 				handler.accept(values);
 			}
+			
+			message.setMainHeader(mainHeader);
+			message.setDataHeader(dataHeader);
+			message.setValues(values);
+			return message;
 		
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to serialize message", e);
@@ -146,22 +147,4 @@ public class Receiver implements Callable<Boolean> {
 		dataHeaderHandlers.remove(handler);
 	}
 
-	public void setAddress(String address){
-		// Check whether there is currently no connection open.
-		if(socket==null || context==null){
-			throw new IllegalStateException("Receiver currently has a connection open ...");
-		}
-		this.address = address;
-	}
-	
-	
-	@Override
-	public Boolean call() throws Exception {
-		connect();
-		while(!Thread.currentThread().isInterrupted()){
-			receive();
-		}
-		close();
-		return true;
-	}
 }

@@ -1,7 +1,7 @@
 {
   "channels": [
     {
-      "type": "double",
+      "type": "Double",
       "name": "CHANNEL-0"
     },
     {

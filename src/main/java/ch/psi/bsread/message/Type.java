@@ -9,6 +9,7 @@ import ch.psi.daq.data.db.converters.impl.StringByteConverter;
 import ch.psi.daq.data.db.converters.impl.ULongByteConverter;
 import ch.psi.daq.data.db.converters.impl.UShortByteConverter;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonValue;
 
@@ -27,7 +28,6 @@ public enum Type {
     Type(String key, ByteConverter<?, ?, ?> converter) {
         this.key = key;
         this.converter = converter;
-        System.out.println("haha - "+key);
     }
 
     @JsonValue
@@ -38,5 +38,15 @@ public enum Type {
     @JsonIgnore
     public ByteConverter<?, ?, ?> getConverter(){
     	return converter;
+    }
+    
+    @JsonCreator
+    public static Type newInstance(String key) {
+    	for (Type type : Type.values()) {
+            if (key.equalsIgnoreCase(type.key)) {
+              return type;
+            }
+        }
+    	throw new NullPointerException("Type does not exist");
     }
 }
