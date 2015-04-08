@@ -33,6 +33,7 @@ public class Receiver {
 	private List<Consumer<List<Value>>> valueHandlers = new ArrayList<>();
 	
 	private String dataHeaderHash = "";
+	private int numberOfChannels;
 	private ByteOrder endianess = null;
 	
 	
@@ -77,6 +78,7 @@ public class Receiver {
 					dataHeaderHash = mainHeader.getHash();
 					dataHeader = mapper.readValue(socket.recv(), DataHeader.class);
 					endianess = dataHeader.getByteOrder();
+					numberOfChannels = dataHeader.getChannels().size();
 					
 					for(Consumer<DataHeader> handler: dataHeaderHandlers){
 						handler.accept(dataHeader);
@@ -110,6 +112,11 @@ public class Receiver {
 				else{
 					values.add(null);
 				}
+			}
+
+			// Sanity check of value list 
+			if(values.size()!=numberOfChannels){
+				throw new RuntimeException("Number of received values does not match number of channels");
 			}
 			
 			for(Consumer<List<Value>> handler: valueHandlers){

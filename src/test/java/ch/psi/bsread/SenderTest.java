@@ -30,6 +30,8 @@ public class SenderTest {
 		
 	}
 	
-	
+	// TODO Test whether expected messages are created
+	// TODO Test different frequency sources
+	// TODO Test different offset sources
 
 }
