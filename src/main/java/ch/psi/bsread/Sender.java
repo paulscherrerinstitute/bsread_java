@@ -9,13 +9,13 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
 import ch.psi.data.DataConverter;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class Sender {
 
@@ -52,50 +52,63 @@ public class Sender {
 	}
 
 	public void send() {
-		mainHeader.setPulseId(pulseId);
-		mainHeader.setGlobalTimestamp(new Timestamp(System.currentTimeMillis(), 0L));
-		mainHeader.setHash(dataHeaderMD5);
+		boolean sendNeeded = false;
+		long delay100HZ;
+		DataChannel<?> channel;
+		// check if it is realy necessary to send something (e.g. if there is
+		// only only a 10Hz it should send only every 10th call)
+		for (int i = 0; i < channels.size() && !sendNeeded; ++i) {
+			channel = channels.get(i);
+			delay100HZ = (long) ((1.0 / channel.getConfig().getFrequency()) * 100L);
+			// check if this channel sends data in this iteration
+			sendNeeded = ((pulseId + channel.getConfig().getOffset()) % delay100HZ) == 0;
+		}
 
-		try {
-			// Send header
-			socket.sendMore(mapper.writeValueAsString(mainHeader));
+		if (sendNeeded) {
+			mainHeader.setPulseId(pulseId);
+			mainHeader.setGlobalTimestamp(new Timestamp(System.currentTimeMillis(), 0L));
+			mainHeader.setHash(dataHeaderMD5);
 
-			// Send data header
-			socket.sendMore(dataHeaderString);
-			// Send data
+			try {
+				// Send header
+				socket.sendMore(mapper.writeValueAsString(mainHeader));
 
-			int lastSendMore;
-			long delay100HZ;
-			boolean sendData;
-			DataChannel<?> channel;
-			for (int i = 0; i < channels.size(); ++i) {
-				channel = channels.get(i);
-				lastSendMore = ((i + 1) < channels.size() ? ZMQ.SNDMORE : 0);
-				// 100L represents the highest supported frequency. This
-				// calculation also supports frequencies < 1Hz
-				// (??? -> TODO 100 needs to be configurable)
-				delay100HZ = (long) ((1.0 / channel.getConfig().getFrequency()) * 100L);
-				// check if this channel sends data in this iteration
-				sendData = ((pulseId + channel.getConfig().getOffset()) % delay100HZ) == 0;
+				// Send data header
+				socket.sendMore(dataHeaderString);
+				// Send data
 
-				if (sendData) {
-					Object value = channel.getValue(pulseId);
+				int lastSendMore;
+				boolean sendData;
+				for (int i = 0; i < channels.size(); ++i) {
+					channel = channels.get(i);
+					lastSendMore = ((i + 1) < channels.size() ? ZMQ.SNDMORE : 0);
+					// 100L represents the highest supported frequency. This
+					// calculation also supports frequencies < 1Hz
+					// (??? -> TODO 100 needs to be configurable)
+					delay100HZ = (long) ((1.0 / channel.getConfig().getFrequency()) * 100L);
+					// check if this channel sends data in this iteration
+					sendData = ((pulseId + channel.getConfig().getOffset()) % delay100HZ) == 0;
 
-					socket.sendByteBuffer(DataConverter.getAsBytes(value, byteOrder), ZMQ.SNDMORE);
+					if (sendData) {
+						Object value = channel.getValue(pulseId);
 
-					// TODO: Use same time for all channels (performance - same
-					// ByteBuffer for all)?
-					Timestamp timestamp = new Timestamp(System.currentTimeMillis(), 0L);
-					socket.sendByteBuffer(DataConverter.getAsBytes(timestamp.getAsLongArray(), byteOrder), lastSendMore);
+						socket.sendByteBuffer(DataConverter.getAsBytes(value, byteOrder), ZMQ.SNDMORE);
+
+						// TODO: Use same time for all channels (performance -
+						// same
+						// ByteBuffer for all)?
+						Timestamp timestamp = new Timestamp(System.currentTimeMillis(), 0L);
+						socket.sendByteBuffer(DataConverter.getAsBytes(timestamp.getAsLongArray(), byteOrder), lastSendMore);
+					}
+					else {
+						// Send placeholder
+						socket.send((byte[]) null, ZMQ.SNDMORE);
+						socket.send((byte[]) null, lastSendMore);
+					}
 				}
-				else {
-					// Send placeholder
-					socket.send((byte[]) null, ZMQ.SNDMORE);
-					socket.send((byte[]) null, lastSendMore);
-				}
+			} catch (JsonProcessingException e) {
+				throw new IllegalStateException("Unable to serialize message", e);
 			}
-		} catch (JsonProcessingException e) {
-			throw new IllegalStateException("Unable to serialize message", e);
 		}
 
 		pulseId++;

@@ -3,9 +3,9 @@ package ch.psi.bsread.message;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class MainHeader {
+	public static final String HTYPE_VALUE_NO_VERSION = "bsr_m";
+	public static final String DEFAULT_HTYPE = HTYPE_VALUE_NO_VERSION + "-1.0";
 
-	public static final String DEFAULT_HTYPE = "bsr_m-1.0";
-	
 	private String htype = DEFAULT_HTYPE;
 	private long pulseId;
 	private Timestamp globalTimestamp;
@@ -56,5 +56,5 @@ public class MainHeader {
 	public void setHash(String hash) {
 		this.hash = hash;
 	}
-	
+
 }

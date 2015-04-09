@@ -3,14 +3,13 @@ package ch.psi.bsread.message;
 import java.nio.ByteBuffer;
 
 public class Value {
-	
 	private ByteBuffer value;
 	private Timestamp timestamp;
 
 	public Value(){
 	}
-
-	public Value(ByteBuffer value, Timestamp timestamp){
+	
+	public Value(String channelName, ByteBuffer value, Timestamp timestamp){
 		this.value = value;
 		this.timestamp = timestamp;
 	}
