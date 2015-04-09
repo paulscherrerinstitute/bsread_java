@@ -3,7 +3,6 @@ package ch.psi.bsread;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 import org.zeromq.ZMQ;
@@ -16,100 +15,104 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
-import ch.psi.daq.data.db.converters.ByteConverter;
-import ch.psi.daq.data.db.converters.impl.LongArrayByteConverter;
+import ch.psi.data.DataConverter;
 
 public class Sender {
-	
+
 	public static final int HIGH_WATER_MARK = 100;
-	
+
 	private Context context;
 	private Socket socket;
-	
+
 	private ObjectMapper mapper = new ObjectMapper();
-	
-	
+
 	private MainHeader mainHeader = new MainHeader();
 	private String dataHeaderString = "";
 	private String dataHeaderMD5 = "";
-	
+
 	private long pulseId = 0;
-	
+
 	private List<DataChannel<?>> channels = new ArrayList<>();
-	private List<ByteConverter<?,?,?>> converters = new ArrayList<>();
-	private final LongArrayByteConverter timestampConverter = new LongArrayByteConverter();
 	private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
-	
-	public void bind(){
+
+	public void bind() {
 		bind("tcp://*:9999");
 	}
-	
-	public void bind(String address){
+
+	public void bind(String address) {
 		this.context = ZMQ.context(1);
 		this.socket = this.context.socket(ZMQ.PUSH);
 		this.socket.setSndHWM(HIGH_WATER_MARK);
 		this.socket.bind(address);
 	}
-	
-	public void close(){
+
+	public void close() {
 		socket.close();
 		context.close();
 	}
 
 	public void send() {
-		
+
 		mainHeader.setPulseId(pulseId);
 		mainHeader.setGlobalTimestamp(new Timestamp(System.currentTimeMillis(), 0L));
 		mainHeader.setHash(dataHeaderMD5);
-		
+
 		try {
 			// Send header
-			socket.sendMore(""+mapper.writeValueAsString(mainHeader));
-			
+			socket.sendMore("" + mapper.writeValueAsString(mainHeader));
+
 			// Send data header
 			socket.sendMore(dataHeaderString);
 			// Send data
-			
-			Iterator<ByteConverter<?,?,?>> iconverters = converters.iterator();
-			for(DataChannel<?> channel: channels){
-				// TODO 100 needs to be configurable
-				if(100 % ((int) channel.getConfig().getFrequency()) == 0){
+
+			int lastSendMore;
+			long delay100HZ;
+			boolean sendData;
+			DataChannel<?> channel;
+			for (int i = 0; i < channels.size(); ++i) {
+				channel = channels.get(i);
+				lastSendMore = ((i + 1) < channels.size() ? ZMQ.SNDMORE : 0);
+				// 100L represents the highest supported frequency. This
+				// calculation also supports frequencies < 1Hz
+				// (??? -> TODO 100 needs to be configurable)
+				delay100HZ = (long) ((1.0 / channel.getConfig().getFrequency()) * 100L);
+				// check if this channel sends data in this iteration
+				sendData = ((pulseId + channel.getConfig().getOffset()) % delay100HZ) == 0;
+
+				if (sendData) {
 					Object value = channel.getValue(pulseId);
-					socket.sendByteBuffer(iconverters.next().convertObject(value, byteOrder), ZMQ.SNDMORE);
-					
+
+					socket.sendByteBuffer(DataConverter.getAsBytes(value, byteOrder), ZMQ.SNDMORE);
+
+					// TODO: Use same time for all channels (performance - same
+					// ByteBuffer for all)?
 					Timestamp timestamp = new Timestamp(System.currentTimeMillis(), 0L);
-					socket.sendByteBuffer(timestampConverter.convert(timestamp.getAsLongArray(), byteOrder), ZMQ.SNDMORE);
+					socket.sendByteBuffer(DataConverter.getAsBytes(timestamp.getAsLongArray(), byteOrder), lastSendMore);
 				}
-				else{
+				else {
 					// Send placeholder
-					socket.send(new byte[]{},ZMQ.SNDMORE);
-					socket.send(new byte[]{},ZMQ.SNDMORE);
+					socket.send((byte[]) null, ZMQ.SNDMORE);
+					socket.send((byte[]) null, lastSendMore);
 				}
 			}
-			
-			socket.send("");
 		} catch (JsonProcessingException e) {
 			throw new RuntimeException("Unable to serialize message", e);
 		}
-		
+
 		pulseId++;
 	}
-	
-	
+
 	/**
 	 * (Re)Generate the data header based on the configured data channels
 	 */
-	private void generateDataHeader(){
+	private void generateDataHeader() {
 		DataHeader dataHeader = new DataHeader();
 		dataHeader.setByteOrder(byteOrder);
-		
-		for(DataChannel<?> channel: channels){
+
+		for (DataChannel<?> channel : channels) {
 			dataHeader.getChannels().add(channel.getConfig());
-			
-			// Register required converters for performance reasons
-			converters.add(channel.getConfig().getType().getConverter());
 		}
-		
+
 		try {
 			dataHeaderString = mapper.writeValueAsString(dataHeader);
 			dataHeaderMD5 = Utils.computeMD5(dataHeaderString);
@@ -117,22 +120,23 @@ public class Sender {
 			throw new RuntimeException("Unable to generate data header", e);
 		}
 	}
-	
-	public void addSource(DataChannel<?> channel){
+
+	public void addSource(DataChannel<?> channel) {
 		channels.add(channel);
 		generateDataHeader();
 	}
-	
-	public void removeSource(DataChannel<?> channel){
+
+	public void removeSource(DataChannel<?> channel) {
 		channels.remove(channel);
 		generateDataHeader();
 	}
-	
+
 	/**
 	 * Returns the currently configured data channels as an unmodifiable list
-	 * @return	Unmodifiable list of data channels
+	 * 
+	 * @return Unmodifiable list of data channels
 	 */
-	public List<DataChannel<?>> getChannels(){
+	public List<DataChannel<?>> getChannels() {
 		return Collections.unmodifiableList(channels);
 	}
 

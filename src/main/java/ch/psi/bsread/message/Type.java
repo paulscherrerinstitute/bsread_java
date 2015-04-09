@@ -1,43 +1,33 @@
 package ch.psi.bsread.message;
 
-import ch.psi.daq.data.db.converters.ByteConverter;
-import ch.psi.daq.data.db.converters.impl.DoubleByteConverter;
-import ch.psi.daq.data.db.converters.impl.IntegerByteConverter;
-import ch.psi.daq.data.db.converters.impl.LongByteConverter;
-import ch.psi.daq.data.db.converters.impl.ShortByteConverter;
-import ch.psi.daq.data.db.converters.impl.StringByteConverter;
-import ch.psi.daq.data.db.converters.impl.ULongByteConverter;
-import ch.psi.daq.data.db.converters.impl.UShortByteConverter;
+import ch.psi.data.converters.ConverterProvider;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum Type {
-    Double("double", new DoubleByteConverter()), 
-    String("string", new StringByteConverter()),
-    Integer("integer", new IntegerByteConverter()),
-    Long("long", new LongByteConverter()),
-    ULong("ulong",  new ULongByteConverter()),
-    Short("short", new ShortByteConverter()),	
-    UShort("ushort", new UShortByteConverter());
+	Boolean(ConverterProvider.TYPE_BOOLEAN),
+	Byte(ConverterProvider.TYPE_BYTE),
+	UByte(ConverterProvider.TYPE_UBYTE),
+	Short(ConverterProvider.TYPE_SHORT),
+	UShort(ConverterProvider.TYPE_USHORT),
+    Integer(ConverterProvider.TYPE_INTEGER),
+    UInteger(ConverterProvider.TYPE_UINTEGER),
+    Long(ConverterProvider.TYPE_LONG),
+    ULong(ConverterProvider.TYPE_ULONG),
+    Float(ConverterProvider.TYPE_FLOAT),
+    Double(ConverterProvider.TYPE_DOUBLE), 
+    String(ConverterProvider.TYPE_STRING);
     
     private String key;
-    private ByteConverter<?, ?, ?> converter;
 
-    Type(String key, ByteConverter<?, ?, ?> converter) {
+    Type(String key) {
         this.key = key;
-        this.converter = converter;
     }
 
     @JsonValue
     public String getKey() {
         return key;
-    }
-    
-    @JsonIgnore
-    public ByteConverter<?, ?, ?> getConverter(){
-    	return converter;
     }
     
     @JsonCreator
