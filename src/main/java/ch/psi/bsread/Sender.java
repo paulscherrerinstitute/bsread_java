@@ -52,14 +52,13 @@ public class Sender {
 	}
 
 	public void send() {
-
 		mainHeader.setPulseId(pulseId);
 		mainHeader.setGlobalTimestamp(new Timestamp(System.currentTimeMillis(), 0L));
 		mainHeader.setHash(dataHeaderMD5);
 
 		try {
 			// Send header
-			socket.sendMore("" + mapper.writeValueAsString(mainHeader));
+			socket.sendMore(mapper.writeValueAsString(mainHeader));
 
 			// Send data header
 			socket.sendMore(dataHeaderString);
@@ -96,7 +95,7 @@ public class Sender {
 				}
 			}
 		} catch (JsonProcessingException e) {
-			throw new RuntimeException("Unable to serialize message", e);
+			throw new IllegalStateException("Unable to serialize message", e);
 		}
 
 		pulseId++;
