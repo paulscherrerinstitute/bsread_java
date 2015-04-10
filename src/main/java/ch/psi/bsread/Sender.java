@@ -52,19 +52,15 @@ public class Sender {
 	}
 
 	public void send() {
-		boolean sendNeeded = false;
-		long delay100HZ;
+		boolean isSendNeeded = false;
 		DataChannel<?> channel;
 		// check if it is realy necessary to send something (e.g. if there is
 		// only only a 10Hz it should send only every 10th call)
-		for (int i = 0; i < channels.size() && !sendNeeded; ++i) {
-			channel = channels.get(i);
-			delay100HZ = (long) ((1.0 / channel.getConfig().getFrequency()) * 100L);
-			// check if this channel sends data in this iteration
-			sendNeeded = ((pulseId + channel.getConfig().getOffset()) % delay100HZ) == 0;
+		for (int i = 0; i < channels.size() && !isSendNeeded; ++i) {
+			isSendNeeded = isSendNeeded(pulseId, channels.get(i));
 		}
 
-		if (sendNeeded) {
+		if (isSendNeeded) {
 			mainHeader.setPulseId(pulseId);
 			mainHeader.setGlobalTimestamp(new Timestamp(System.currentTimeMillis(), 0L));
 			mainHeader.setHash(dataHeaderMD5);
@@ -78,25 +74,18 @@ public class Sender {
 				// Send data
 
 				int lastSendMore;
-				boolean sendData;
 				for (int i = 0; i < channels.size(); ++i) {
 					channel = channels.get(i);
 					lastSendMore = ((i + 1) < channels.size() ? ZMQ.SNDMORE : 0);
-					// 100L represents the highest supported frequency. This
-					// calculation also supports frequencies < 1Hz
-					// (??? -> TODO 100 needs to be configurable)
-					delay100HZ = (long) ((1.0 / channel.getConfig().getFrequency()) * 100L);
-					// check if this channel sends data in this iteration
-					sendData = ((pulseId + channel.getConfig().getOffset()) % delay100HZ) == 0;
+					isSendNeeded = isSendNeeded(pulseId, channel);
 
-					if (sendData) {
+					if (isSendNeeded) {
 						Object value = channel.getValue(pulseId);
 
 						socket.sendByteBuffer(DataConverter.getAsBytes(value, byteOrder), ZMQ.SNDMORE);
 
 						// TODO: Use same time for all channels (performance -
-						// same
-						// ByteBuffer for all)?
+						// same ByteBuffer for all)?
 						Timestamp timestamp = new Timestamp(System.currentTimeMillis(), 0L);
 						socket.sendByteBuffer(DataConverter.getAsBytes(timestamp.getAsLongArray(), byteOrder), lastSendMore);
 					}
@@ -112,6 +101,15 @@ public class Sender {
 		}
 
 		pulseId++;
+	}
+
+	private boolean isSendNeeded(long pulseId, DataChannel<?> channel) {
+		// 100L represents the highest supported frequency. 
+		// (??? -> TODO 100 needs to be configurable)
+		// This calculation also supports frequencies < 1Hz
+		long numberOfPulsesBetweenSends = (long) ((1.0 / channel.getConfig().getFrequency()) * 100L);
+		// check if this channel sends data for given pulseId
+		return ((pulseId + channel.getConfig().getOffset()) % numberOfPulsesBetweenSends) == 0;
 	}
 
 	/**
