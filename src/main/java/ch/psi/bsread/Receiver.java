@@ -132,6 +132,8 @@ public class Receiver {
 				// Create value object
 				if (valueBytes != null && valueBytes.length > 0) {
 					Value value = new Value();
+					
+					// TODO always convert to BigEndian byte order!
 					value.setValue(valueBytes);
 					ByteBuffer tsByteBuffer = ByteBuffer.wrap(timestampBytes).order(dataHeader.getByteOrder());
 					value.setTimestamp(new Timestamp(tsByteBuffer.getLong(), tsByteBuffer.getLong()));
