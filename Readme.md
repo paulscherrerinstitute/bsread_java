@@ -6,8 +6,14 @@ It provides a `Receiver` as well as an `Sender` implementation to send/receive B
 
 This project can be build by executing
 
-```
+```bash
 ./gradlew build
 ```
 
 _Note:_ The first time you execute this command the required jars for the build system will be automatically downloaded and the build will start afterwards. The next time you execute the command the build should be faster.
+
+To upload the built jar to the Maven repository use:
+
+```bash
+./gradlew uploadArchives
+```
