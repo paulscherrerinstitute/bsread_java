@@ -3,7 +3,9 @@ package ch.psi.bsread;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -13,8 +15,6 @@ import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
@@ -34,7 +34,7 @@ public class Receiver {
 
 	private List<Consumer<MainHeader>> mainHeaderHandlers = new ArrayList<>();
 	private List<Consumer<DataHeader>> dataHeaderHandlers = new ArrayList<>();
-	private List<Consumer<Multimap<String, Value>>> valueHandlers = new ArrayList<>();
+	private List<Consumer<Map<String, Value>>> valueHandlers = new ArrayList<>();
 
 	private String dataHeaderHash = "";
 	private DataHeader dataHeader = null;
@@ -96,7 +96,7 @@ public class Receiver {
 			Message message = new Message();
 			message.setMainHeader(mainHeader);
 			message.setDataHeader(dataHeader);
-			Multimap<String, Value> values = ArrayListMultimap.create();
+			Map<String, Value> values = new HashMap<>();
 			message.setValues(values);
 			List<ChannelConfig> channelConfigs = dataHeader.getChannels();
 			int i = 0;
@@ -106,20 +106,18 @@ public class Receiver {
 				// # read data blob #
 				// ##################
 				if (!this.socket.hasReceiveMore()) {
-					LOGGER.log(Level.WARNING, () -> String.format("There is no data for channel '%s'.", currentConfig.getName()));
-					// return what we have so far
-					this.updateValueHandler(values);
-					return message;
+					final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
+					LOGGER.log(Level.WARNING, errorMessage);
+					throw new RuntimeException(errorMessage);
 				}
 				byte[] valueBytes = socket.recv(); // value
 
 				// # read timestamp blob #
 				// #######################
 				if (!this.socket.hasReceiveMore()) {
-					LOGGER.log(Level.WARNING, () -> String.format("There is no timestamp for channel '%s'.", currentConfig.getName()));
-					// return what we have so far
-					this.updateValueHandler(values);
-					return message;
+					final String errorMessage = String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
+					LOGGER.log(Level.WARNING, errorMessage);
+					throw new RuntimeException(errorMessage);
 				}
 				byte[] timestampBytes = socket.recv();
 
@@ -138,14 +136,19 @@ public class Receiver {
 				LOGGER.log(Level.WARNING, () -> "Number of received values does not match number of channels.");
 			}
 			if (this.socket.hasReceiveMore()) {
-				// some sender implementations add an empty additional message
-				// at the end -> ???
-				LOGGER.log(Level.INFO, () -> "ZMQ socket was not empty after reading all channels.");
-				this.drain(this.socket);
+				// Some sender implementations add an empty additional message
+				// at the end
+				// If there is more than 1 trailing message something is wrong!
+				int messagesDrained = this.drain(this.socket);
+				if(messagesDrained>1){
+					throw new RuntimeException("There were more than 1 trailing submessages to the message than expected");
+				}
 			}
 
 			// notify hooks with complete values
-			this.updateValueHandler(values);
+			if (!values.isEmpty()) {
+				valueHandlers.parallelStream().forEach(handler -> handler.accept(values));
+			}
 
 			return message;
 
@@ -154,24 +157,21 @@ public class Receiver {
 		}
 	}
 
-	private void drain(Socket socket) {
+	private int drain(Socket socket) {
+		int count = 0;
 		while (socket.hasReceiveMore()) {
 			// is there a way to avoid copying data to user space here?
 			socket.recv();
+			count++;
 		}
+		return count;
 	}
 
-	private void updateValueHandler(Multimap<String, Value> values) {
-		if (!values.isEmpty()) {
-			valueHandlers.parallelStream().forEach(handler -> handler.accept(values));
-		}
-	}
-	
-	public void addValueHandler(Consumer<Multimap<String, Value>> handler) {
+	public void addValueHandler(Consumer<Map<String, Value>> handler) {
 		valueHandlers.add(handler);
 	}
 
-	public void removeValueHandler(Consumer<Multimap<String, Value>> handler) {
+	public void removeValueHandler(Consumer<Map<String, Value>> handler) {
 		valueHandlers.remove(handler);
 	}
 

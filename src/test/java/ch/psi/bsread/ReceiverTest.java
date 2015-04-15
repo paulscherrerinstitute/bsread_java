@@ -21,14 +21,12 @@ import ch.psi.bsread.message.Type;
 import ch.psi.bsread.message.Value;
 import ch.psi.data.DataConverter;
 
-import com.google.common.collect.Multimap;
-
 public class ReceiverTest {
 	private MainHeader hookMainHeader;
 	private boolean hookMainHeaderCalled;
 	private DataHeader hookDataHeader;
 	private boolean hookDataHeaderCalled;
-	private Multimap<String, Value> hookValues;
+	private Map<String, Value> hookValues;
 	private boolean hookValuesCalled;
 	private Map<String, ChannelConfig> channelConfigs = new HashMap<>();
 
@@ -285,16 +283,16 @@ public class ReceiverTest {
 				channelName = "ABC_10";
 				chConf = this.channelConfigs.get(channelName);
 				assertTrue(hookValues.containsKey(channelName));
-				assertEquals(hookValues.get(channelName).size(), 1, 0.00000000001);
-				value = hookValues.get(channelName).iterator().next();
+				assertTrue(hookValues.containsKey(channelName));
+				value = hookValues.get(channelName);
 				javaVal = DataConverter.getValue(value.getValue(), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 
 				channelName = "ABC_100";
 				chConf = this.channelConfigs.get(channelName);
 				assertTrue(hookValues.containsKey(channelName));
-				assertEquals(hookValues.get(channelName).size(), 1, 0.00000000001);
-				value = hookValues.get(channelName).iterator().next();
+				assertTrue(hookValues.containsKey(channelName));
+				value = hookValues.get(channelName);
 				javaVal = DataConverter.getValue(value.getValue(), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 			} else {
@@ -303,8 +301,8 @@ public class ReceiverTest {
 				channelName = "ABC_100";
 				chConf = this.channelConfigs.get(channelName);
 				assertTrue(hookValues.containsKey(channelName));
-				assertEquals(hookValues.get(channelName).size(), 1, 0.00000000001);
-				value = hookValues.get(channelName).iterator().next();
+				assertTrue(hookValues.containsKey(channelName));
+				value = hookValues.get(channelName);
 				javaVal = DataConverter.getValue(value.getValue(), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 			}
@@ -330,7 +328,7 @@ public class ReceiverTest {
 		}
 	}
 
-	public void setValues(Multimap<String, Value> values) {
+	public void setValues(Map<String, Value> values) {
 		this.hookValues = values;
 		this.hookValuesCalled = true;
 	}

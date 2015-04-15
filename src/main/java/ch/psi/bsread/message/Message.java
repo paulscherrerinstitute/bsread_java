@@ -1,7 +1,7 @@
 package ch.psi.bsread.message;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Complete data message send from a BSREAD source
@@ -9,7 +9,11 @@ import com.google.common.collect.Multimap;
 public class Message {
 	private MainHeader mainHeader = null;
 	private DataHeader dataHeader = null;
-	private Multimap<String, Value> values = ArrayListMultimap.create();
+	
+	/**
+	 * Map holding all values of a channel - key: channel name value: value
+	 */
+	private Map<String, Value> values = new HashMap<>();
 
 	public void setDataHeader(DataHeader dataHeader) {
 		this.dataHeader = dataHeader;
@@ -27,11 +31,11 @@ public class Message {
 		return mainHeader;
 	}
 
-	public void setValues(Multimap<String, Value> values) {
+	public void setValues(Map<String, Value> values) {
 		this.values = values;
 	}
 
-	public Multimap<String, Value> getValues() {
+	public Map<String, Value> getValues() {
 		return values;
 	}
 }
