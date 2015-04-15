@@ -5,6 +5,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -285,7 +286,7 @@ public class ReceiverTest {
 				assertTrue(hookValues.containsKey(channelName));
 				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = DataConverter.getValue(value.getValue(), chConf.getType().getKey(), chConf.getShape());
+				javaVal = DataConverter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 
 				channelName = "ABC_100";
@@ -293,7 +294,7 @@ public class ReceiverTest {
 				assertTrue(hookValues.containsKey(channelName));
 				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = DataConverter.getValue(value.getValue(), chConf.getType().getKey(), chConf.getShape());
+				javaVal = DataConverter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 			} else {
 				assertEquals(hookValues.size(), 1);
@@ -303,7 +304,7 @@ public class ReceiverTest {
 				assertTrue(hookValues.containsKey(channelName));
 				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = DataConverter.getValue(value.getValue(), chConf.getType().getKey(), chConf.getShape());
+				javaVal = DataConverter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 			}
 		}

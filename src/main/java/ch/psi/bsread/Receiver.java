@@ -132,7 +132,7 @@ public class Receiver {
 				// Create value object
 				if (valueBytes != null && valueBytes.length > 0) {
 					Value value = new Value();
-					value.setValue(ByteBuffer.wrap(valueBytes).order(dataHeader.getByteOrder()));
+					value.setValue(valueBytes);
 					ByteBuffer tsByteBuffer = ByteBuffer.wrap(timestampBytes).order(dataHeader.getByteOrder());
 					value.setTimestamp(new Timestamp(tsByteBuffer.getLong(), tsByteBuffer.getLong()));
 					values.put(currentConfig.getName(), value);
