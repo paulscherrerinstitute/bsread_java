@@ -1,12 +1,16 @@
 package ch.psi.bsread.message;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Complete data message send from a BSREAD source
  */
-public class Message {
+public class Message implements Serializable {
+	
+	private static final long serialVersionUID = 1L;
+	
 	private MainHeader mainHeader = null;
 	private DataHeader dataHeader = null;
 	

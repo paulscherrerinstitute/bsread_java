@@ -1,7 +1,11 @@
 package ch.psi.bsread.message;
 
-public class ChannelConfig {
+import java.io.Serializable;
 
+public class ChannelConfig implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+	
 	private String name;
 	private Type type = Type.Double;
 	private int[] shape = {1};

@@ -1,8 +1,12 @@
 package ch.psi.bsread.message;
 
+import java.io.Serializable;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-public class Timestamp {
+public class Timestamp implements Serializable {
+	
+	private static final long serialVersionUID = 1L;
 	
 	private long epoch;
 	private long ns;

@@ -1,8 +1,12 @@
 package ch.psi.bsread.message;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 
-public class Value {
+public class Value implements Serializable {
+	
+	private static final long serialVersionUID = 1L;
+	
 	private ByteBuffer value;
 	private Timestamp timestamp;
 

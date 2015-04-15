@@ -1,11 +1,13 @@
 package ch.psi.bsread.message;
 
+import java.io.Serializable;
+
 import ch.psi.data.converters.ConverterProvider;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
-public enum Type {
+public enum Type implements Serializable {
 	Boolean(ConverterProvider.TYPE_BOOLEAN),
 	Byte(ConverterProvider.TYPE_BYTE),
 	UByte(ConverterProvider.TYPE_UBYTE),

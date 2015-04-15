@@ -1,12 +1,15 @@
 package ch.psi.bsread.message;
 
+import java.io.Serializable;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-public class DataHeader {
+public class DataHeader implements Serializable {
+	
+	private static final long serialVersionUID = 1L;
 	
 	public static final String ENCODING_BIG_ENDIAN = "big";
 	public static final String ENCODING_LITTLE_ENDIAN = "little";

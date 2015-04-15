@@ -1,8 +1,13 @@
 package ch.psi.bsread.message;
 
+import java.io.Serializable;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class MainHeader {
+public class MainHeader implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+	
 	public static final String HTYPE_VALUE_NO_VERSION = "bsr_m";
 	public static final String DEFAULT_HTYPE = HTYPE_VALUE_NO_VERSION + "-1.0";
 
