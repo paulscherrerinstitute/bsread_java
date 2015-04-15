@@ -69,7 +69,11 @@ public class Receiver {
 			}
 
 			// notify hooks with current main header
-			mainHeaderHandlers.parallelStream().forEach(handler -> handler.accept(mainHeader));
+			// Note: This notification MUST not be parallel as they need to 
+			// be in the same thread than this function to prevent the incorrect
+			// trigger of the different callbacks (e.g. main header next message is triggered
+			// before the actual value trigger)
+			mainHeaderHandlers.forEach(handler -> handler.accept(mainHeader));
 
 			// Receive data header
 			if (socket.hasReceiveMore()) {
@@ -82,7 +86,11 @@ public class Receiver {
 					dataHeaderHash = mainHeader.getHash();
 					dataHeader = mapper.readValue(socket.recv(), DataHeader.class);
 					// notify hooks with new data header
-					dataHeaderHandlers.parallelStream().forEach(handler -> handler.accept(dataHeader));
+					// Note: This notification MUST not be parallel as they need to 
+					// be in the same thread than this function to prevent the incorrect
+					// trigger of the different callbacks (e.g. main header next message is triggered
+					// before the actual value trigger)
+					dataHeaderHandlers.forEach(handler -> handler.accept(dataHeader));
 				}
 			}
 			else {
@@ -147,7 +155,11 @@ public class Receiver {
 
 			// notify hooks with complete values
 			if (!values.isEmpty()) {
-				valueHandlers.parallelStream().forEach(handler -> handler.accept(values));
+				// Note: This notification MUST not be parallel as they need to 
+				// be in the same thread than this function to prevent the incorrect
+				// trigger of the different callbacks (e.g. main header next message is triggered
+				// before the actual value trigger)
+				valueHandlers.forEach(handler -> handler.accept(values));
 			}
 
 			return message;
