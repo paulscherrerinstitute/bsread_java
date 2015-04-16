@@ -1,7 +1,6 @@
 package ch.psi.bsread.message;
 
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 
 public class Value implements Serializable {
 	
