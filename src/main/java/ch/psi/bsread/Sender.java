@@ -35,6 +35,13 @@ public class Sender {
 	private List<DataChannel<?>> channels = new ArrayList<>();
 	private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
 
+	public Sender(){
+	}
+	
+	public Sender(long pulseId){
+		this.pulseId = pulseId;
+	}
+	
 	public void bind() {
 		bind("tcp://*:9999");
 	}
