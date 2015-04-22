@@ -30,16 +30,17 @@ public class Sender {
 	private String dataHeaderString = "";
 	private String dataHeaderMD5 = "";
 
-	private long pulseId = 0;
+	private final PulseIdProvider pulseIdProvider;
 
 	private List<DataChannel<?>> channels = new ArrayList<>();
 	private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
 
 	public Sender(){
+		this.pulseIdProvider = new StandardPulseIdProvider();
 	}
 	
-	public Sender(long pulseId){
-		this.pulseId = pulseId;
+	public Sender(PulseIdProvider provider){
+		this.pulseIdProvider = provider;
 	}
 	
 	public void bind() {
@@ -59,6 +60,7 @@ public class Sender {
 	}
 
 	public void send() {
+		long pulseId = pulseIdProvider.getNextPulseId();
 		boolean isSendNeeded = false;
 		DataChannel<?> channel;
 		// check if it is realy necessary to send something (e.g. if there is
@@ -106,8 +108,6 @@ public class Sender {
 				throw new IllegalStateException("Unable to serialize message", e);
 			}
 		}
-
-		pulseId++;
 	}
 
 	private boolean isSendNeeded(long pulseId, DataChannel<?> channel) {
