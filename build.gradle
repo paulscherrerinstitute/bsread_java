@@ -27,7 +27,7 @@ uploadArchives {
             	authentication(userName: "upload", password: "{DESede}eWKHxAtQ2Dc=")
             }
             pom.groupId = 'ch.psi'
-            pom.artifactId = 'ch.psi.bsread'
+            pom.artifactId = 'bsread'
         }
     }
 }
