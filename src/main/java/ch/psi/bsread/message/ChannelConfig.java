@@ -2,13 +2,18 @@ package ch.psi.bsread.message;
 
 import java.io.Serializable;
 
-public class ChannelConfig implements Serializable {
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
+@JsonInclude(Include.NON_DEFAULT)
+public class ChannelConfig implements Serializable {
 	private static final long serialVersionUID = 1L;
+	// use a static variable due to Include.NON_DEFAULT
+	private static final int[] DEFAULT_SHAPE = {1};
 	
 	private String name;
 	private Type type = Type.Double;
-	private int[] shape = {1};
+	private int[] shape = DEFAULT_SHAPE;
 	private double frequency = 100;
 	private int offset = 0;
 
