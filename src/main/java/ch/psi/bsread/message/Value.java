@@ -12,7 +12,7 @@ public class Value implements Serializable {
 	public Value(){
 	}
 	
-	public Value(String channelName, byte[] value, Timestamp timestamp){
+	public Value(byte[] value, Timestamp timestamp){
 		this.value = value;
 		this.timestamp = timestamp;
 	}

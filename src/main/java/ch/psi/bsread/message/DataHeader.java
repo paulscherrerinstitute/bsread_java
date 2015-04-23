@@ -6,7 +6,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
+@JsonInclude(Include.NON_DEFAULT)
 public class DataHeader implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
