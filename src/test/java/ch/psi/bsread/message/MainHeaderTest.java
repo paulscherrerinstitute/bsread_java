@@ -31,7 +31,7 @@ public class MainHeaderTest {
 		
 		ObjectMapper mapper = new ObjectMapper();
 		String json = mapper.writeValueAsString(header);
-		String expected = "{\"htype\":\"bsr_m-1.0\",\"hash\":\"50acfbebaa30924c857740b5a4d770b5\",\"pulse_id\":0,\"global_timestamp\":{\"epoch\":1427960013647,\"ns\":0}}";
+		String expected = "{\"htype\":\"bsr_m-1.0\",\"hash\":\"50acfbebaa30924c857740b5a4d770b5\",\"global_timestamp\":{\"epoch\":1427960013647,\"ns\":0}}";
 		assertEquals(expected, json);
 		
 		System.out.println(json);

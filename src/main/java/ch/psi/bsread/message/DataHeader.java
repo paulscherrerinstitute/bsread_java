@@ -19,7 +19,7 @@ public class DataHeader implements Serializable {
 	public static final String DEFAULT_ENCODING = ENCODING_LITTLE_ENDIAN;
 	public static final String DEFAULT_HTYPE = "bsr_d-1.0";
 	
-	
+	@JsonInclude
 	private String htype = DEFAULT_HTYPE;
 	private String encoding = DEFAULT_ENCODING;
 	private List<ChannelConfig> channels = new ArrayList<>();

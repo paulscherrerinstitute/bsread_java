@@ -14,6 +14,7 @@ public class MainHeader implements Serializable {
 	public static final String HTYPE_VALUE_NO_VERSION = "bsr_m";
 	public static final String DEFAULT_HTYPE = HTYPE_VALUE_NO_VERSION + "-1.0";
 
+	@JsonInclude
 	private String htype = DEFAULT_HTYPE;
 	private long pulseId;
 	private Timestamp globalTimestamp;
