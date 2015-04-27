@@ -3,7 +3,6 @@ package ch.psi.bsread;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +35,7 @@ public class Receiver {
 	private List<Consumer<MainHeader>> mainHeaderHandlers = new ArrayList<>();
 	private List<Consumer<DataHeader>> dataHeaderHandlers = new ArrayList<>();
 	private List<Consumer<Map<String, Value>>> valueHandlers = new ArrayList<>();
+	private boolean parallelProcessing = false;
 
 	private String dataHeaderHash = "";
 	private DataHeader dataHeader = null;
@@ -70,11 +70,16 @@ public class Receiver {
 			}
 
 			// notify hooks with current main header
-			// Note: This notification MUST not be parallel as they need to 
+			// Note: This notification MUST not be parallel as they need to
 			// be in the same thread than this function to prevent the incorrect
-			// trigger of the different callbacks (e.g. main header next message is triggered
+			// trigger of the different callbacks (e.g. main header next message
+			// is triggered
 			// before the actual value trigger)
-			mainHeaderHandlers.forEach(handler -> handler.accept(mainHeader));
+			if (this.parallelProcessing) {
+				mainHeaderHandlers.parallelStream().forEach(handler -> handler.accept(mainHeader));
+			} else {
+				mainHeaderHandlers.forEach(handler -> handler.accept(mainHeader));
+			}
 
 			// Receive data header
 			if (socket.hasReceiveMore()) {
@@ -87,11 +92,18 @@ public class Receiver {
 					dataHeaderHash = mainHeader.getHash();
 					dataHeader = mapper.readValue(socket.recv(), DataHeader.class);
 					// notify hooks with new data header
-					// Note: This notification MUST not be parallel as they need to 
-					// be in the same thread than this function to prevent the incorrect
-					// trigger of the different callbacks (e.g. main header next message is triggered
+					// Note: This notification MUST not be parallel as they need
+					// to
+					// be in the same thread than this function to prevent the
+					// incorrect
+					// trigger of the different callbacks (e.g. main header next
+					// message is triggered
 					// before the actual value trigger)
-					dataHeaderHandlers.forEach(handler -> handler.accept(dataHeader));
+					if (this.parallelProcessing) {
+						dataHeaderHandlers.parallelStream().forEach(handler -> handler.accept(dataHeader));
+					} else {
+						dataHeaderHandlers.forEach(handler -> handler.accept(dataHeader));
+					}
 				}
 			}
 			else {
@@ -133,7 +145,7 @@ public class Receiver {
 				// Create value object
 				if (valueBytes != null && valueBytes.length > 0) {
 					Value value = new Value();
-					
+
 					// TODO always convert to BigEndian byte order!
 					value.setValue(valueBytes);
 					ByteBuffer tsByteBuffer = ByteBuffer.wrap(timestampBytes).order(dataHeader.getByteOrder());
@@ -151,18 +163,25 @@ public class Receiver {
 				// at the end
 				// If there is more than 1 trailing message something is wrong!
 				int messagesDrained = this.drain(this.socket);
-				if(messagesDrained>1){
+				if (messagesDrained > 1) {
 					throw new RuntimeException("There were more than 1 trailing submessages to the message than expected");
 				}
 			}
 
 			// notify hooks with complete values
 			if (!values.isEmpty()) {
-				// Note: This notification MUST not be parallel as they need to 
-				// be in the same thread than this function to prevent the incorrect
-				// trigger of the different callbacks (e.g. main header next message is triggered
+				// Note: This notification MUST not be parallel as they need to
+				// be in the same thread than this function to prevent the
+				// incorrect
+				// trigger of the different callbacks (e.g. main header next
+				// message is triggered
 				// before the actual value trigger)
-				valueHandlers.forEach(handler -> handler.accept(values));
+				if (this.parallelProcessing) {
+					valueHandlers.parallelStream().forEach(handler -> handler.accept(values));
+				}
+				else {
+					valueHandlers.forEach(handler -> handler.accept(values));
+				}
 			}
 
 			return message;
@@ -204,5 +223,13 @@ public class Receiver {
 
 	public void removeDataHeaderHandler(Consumer<DataHeader> handler) {
 		dataHeaderHandlers.remove(handler);
+	}
+
+	public void setParallelProcessing(boolean parallelProcessing) {
+		this.parallelProcessing = parallelProcessing;
+	}
+
+	public boolean isParallelProcessing() {
+		return this.parallelProcessing;
 	}
 }
