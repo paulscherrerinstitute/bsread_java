@@ -91,7 +91,7 @@ public class Sender {
 					if (isSendNeeded) {
 						Object value = channel.getValue(pulseId);
 
-						socket.sendByteBuffer(DataConverter.getAsBytes(value, byteOrder), ZMQ.SNDMORE);
+						socket.sendByteBuffer(DataConverter.getAsBytes(value, byteOrder, channel.getConfig().getType().getKey()), ZMQ.SNDMORE);
 
 						// TODO: Use same time for all channels (performance -
 						// same ByteBuffer for all)?
