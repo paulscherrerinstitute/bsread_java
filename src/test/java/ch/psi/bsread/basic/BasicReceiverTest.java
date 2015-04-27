@@ -38,7 +38,6 @@ public class BasicReceiverTest {
 		
 		for(double i=0;i<50;i++){
 			Double value = (Double) receiver.receive().getValues().get(testChannel).getValue();
-			System.out.println("Received: "+value);
 			assertEquals(i, value, 0.001);
 		}
 
