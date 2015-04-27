@@ -31,16 +31,29 @@ public class Sender {
 	private String dataHeaderMD5 = "";
 
 	private final PulseIdProvider pulseIdProvider;
+	private final TimeProvider globalTimeProvider;
 
 	private List<DataChannel<?>> channels = new ArrayList<>();
 	private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
 
 	public Sender(){
 		this.pulseIdProvider = new StandardPulseIdProvider();
+		this.globalTimeProvider = new StandardTimeProvider();
 	}
 	
 	public Sender(PulseIdProvider provider){
 		this.pulseIdProvider = provider;
+		this.globalTimeProvider = new StandardTimeProvider();
+	}
+	
+	public Sender(TimeProvider globalTimeProvider){
+		this.pulseIdProvider = new StandardPulseIdProvider();
+		this.globalTimeProvider = globalTimeProvider;
+	}
+	
+	public Sender(PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider){
+		this.pulseIdProvider = pulseIdProvider;
+		this.globalTimeProvider = globalTimeProvider;
 	}
 	
 	public void bind() {
@@ -71,7 +84,7 @@ public class Sender {
 
 		if (isSendNeeded) {
 			mainHeader.setPulseId(pulseId);
-			mainHeader.setGlobalTimestamp(new Timestamp(System.currentTimeMillis(), 0L));
+			mainHeader.setGlobalTimestamp(this.globalTimeProvider.getTime(pulseId));
 			mainHeader.setHash(dataHeaderMD5);
 
 			try {
@@ -93,9 +106,7 @@ public class Sender {
 
 						socket.sendByteBuffer(DataConverter.getAsBytes(value, byteOrder, channel.getConfig().getType().getKey()), ZMQ.SNDMORE);
 
-						// TODO: Use same time for all channels (performance -
-						// same ByteBuffer for all)?
-						Timestamp timestamp = new Timestamp(System.currentTimeMillis(), 0L);
+						Timestamp timestamp = channel.getTime(pulseId);
 						socket.sendByteBuffer(DataConverter.getAsBytes(timestamp.getAsLongArray(), byteOrder), lastSendMore);
 					}
 					else {
