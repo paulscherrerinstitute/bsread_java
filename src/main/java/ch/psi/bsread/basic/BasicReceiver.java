@@ -7,7 +7,6 @@ import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Value;
-import ch.psi.data.DataConverter;
 
 /**
  * A simplified receiver delivering values as real values and not byte blobs.
@@ -44,7 +43,7 @@ public class BasicReceiver {
 			final Value value = message.getValues().get(channel);
 
 			// Convert byte blob into type
-			nMessage.getValues().put(channel, new BasicValue<>(DataConverter.getValue(ByteBuffer.wrap(value.getValue()).order(dataHeader.getByteOrder()), channelConfig.getType().name().toLowerCase(), channelConfig.getShape()), value.getTimestamp()));
+			nMessage.getValues().put(channel, new BasicValue<>(Converter.getValue(ByteBuffer.wrap(value.getValue()).order(dataHeader.getByteOrder()), channelConfig.getType().name().toLowerCase(), channelConfig.getShape()), value.getTimestamp()));
 		}
 		
 		return nMessage;
