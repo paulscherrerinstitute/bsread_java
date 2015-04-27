@@ -44,7 +44,7 @@ public class BasicReceiver {
 			final Value value = message.getValues().get(channel);
 
 			// Convert byte blob into type
-			nMessage.getValues().put(channel, new BasicValue<>(DataConverter.getValue(ByteBuffer.wrap(value.getValue()).order(dataHeader.getByteOrder()), channelConfig.getType().name(), channelConfig.getShape()), value.getTimestamp()));
+			nMessage.getValues().put(channel, new BasicValue<>(DataConverter.getValue(ByteBuffer.wrap(value.getValue()).order(dataHeader.getByteOrder()), channelConfig.getType().name().toLowerCase(), channelConfig.getShape()), value.getTimestamp()));
 		}
 		
 		return nMessage;

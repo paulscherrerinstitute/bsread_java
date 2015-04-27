@@ -44,6 +44,7 @@ public class ReceiverTest {
 		});
 
 		sender.bind();
+		// We schedule faster as we want to have the testcase execute faster
 		ScheduledFuture<?> sendFuture = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 100, 2, TimeUnit.MILLISECONDS);
 
 		Receiver receiver = new Receiver();
@@ -103,6 +104,7 @@ public class ReceiverTest {
 		});
 
 		sender.bind();
+		// We schedule faster as we want to have the testcase execute faster 
 		ScheduledFuture<?> sendFuture = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 100, 2, TimeUnit.MILLISECONDS);
 
 		Receiver receiver = new Receiver();
@@ -162,6 +164,7 @@ public class ReceiverTest {
 		});
 
 		sender.bind();
+		// We schedule faster as we want to have the testcase execute faster
 		ScheduledFuture<?> sendFuture = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 100, 2, TimeUnit.MILLISECONDS);
 
 		Receiver receiver = new Receiver();
@@ -227,6 +230,7 @@ public class ReceiverTest {
 		});
 
 		sender.bind();
+		// We schedule faster as we want to have the testcase execute faster
 		ScheduledFuture<?> sendFuture = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 100, 2, TimeUnit.MILLISECONDS);
 
 		Receiver receiver = new Receiver();
