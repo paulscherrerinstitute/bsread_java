@@ -4,6 +4,8 @@ This package can be use to receive data from the beam synchronous data acquisiti
 
 The latest stable package can be downloaded [here](http://slsyoke4.psi.ch:8081/artifactory/releases/bsread_java_matlab-1.4.0.jar).
 
+The *prerequisites* for this package is *Matlab2015a* or later.
+
 To be able to use the package, include the full qualified path of the jar in the *javaclasspath.txt* within the Matlab home folder. For example:
 
 ```
