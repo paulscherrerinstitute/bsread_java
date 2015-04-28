@@ -4,16 +4,13 @@ This package can be use to receive data from the beam synchronous data acquisiti
 
 The latest stable package can be downloaded [here](http://slsyoke4.psi.ch:8081/artifactory/releases/bsread_java_matlab-1.4.0.jar).
 
-To be able to use the package, include the full qualified path of the jar in the `javaclasspath.txt` within the Matlab home folder.
+To be able to use the package, include the full qualified path of the jar in the *javaclasspath.txt* within the Matlab home folder. For example:
 
-For example:
 ```
 /Users/ebner/Documents/MATLAB/bsread_java_matlab-1.4.0.jar
 ```
 
-After altering the file you need to restart Matlab.
-
-Now you are able to use the package to receive data.
+After altering the file you need to restart Matlab. Now you are able to use the package to receive data.
 
 _Note:_ On information regarding how to build the Matlab jar please consult [Readme.md](Readme.md).
 
@@ -55,6 +52,7 @@ message.getMainHeader().getPulseId()
 ```
 
  * Get Global Timestamp (Unix-Time)
+
 ```
 timestamp = message.getMainHeader().getGlobalTimestamp()
 % Get milliseconds epoch
