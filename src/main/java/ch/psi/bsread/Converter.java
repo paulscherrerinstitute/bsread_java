@@ -90,7 +90,7 @@ public class Converter {
 			buffer = ByteBuffer.allocate(Double.BYTES).order(byteOrder);
 			buffer.asDoubleBuffer().put((Double) value);
 		}
-		if(value instanceof float[]){
+		else if(value instanceof float[]){
 			buffer = ByteBuffer.allocate(((float[])value).length * Float.BYTES).order(byteOrder);
 			buffer.asFloatBuffer().put((float[]) value);
 		}
@@ -98,7 +98,7 @@ public class Converter {
 			buffer = ByteBuffer.allocate(Float.BYTES).order(byteOrder);
 			buffer.asFloatBuffer().put((Float) value);
 		}
-		if(value instanceof int[]){
+		else if(value instanceof int[]){
 			buffer = ByteBuffer.allocate(((int[])value).length * Integer.BYTES).order(byteOrder);
 			buffer.asIntBuffer().put((int[]) value);
 		}
