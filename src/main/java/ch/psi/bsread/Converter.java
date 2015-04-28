@@ -31,35 +31,45 @@ public class Converter {
 		switch (type) {
 		case "double":
 			if(array){
-				return (T) byteValue.asDoubleBuffer().get(new double[byteValue.remaining() / Double.BYTES]);
+				double[] values = new double[byteValue.remaining() / Double.BYTES];
+				byteValue.asDoubleBuffer().get(values);
+				return (T) values;
 			}
 			else{
 				return (T)((Double) byteValue.asDoubleBuffer().get());
 			}
 		case "float":
 			if(array){
-				return (T) byteValue.asFloatBuffer().get(new float[byteValue.remaining() / Float.BYTES]);
+				float[] values = new float[byteValue.remaining() / Float.BYTES];
+				byteValue.asFloatBuffer().get(values);
+				return (T) values;
 			}
 			else {
 				return (T)((Float)byteValue.asFloatBuffer().get());
 			}
 		case "integer":
 			if(array){
-				return (T) byteValue.asIntBuffer().get(new int[byteValue.remaining() / Integer.BYTES]);
+				int[] values = new int[byteValue.remaining() / Integer.BYTES];
+				 byteValue.asIntBuffer().get(values);
+				return (T) values;
 			}
 			else{
 				return (T)((Integer)byteValue.asIntBuffer().get());
 			}
 		case "long":
 			if(array){
-				return (T) byteValue.asLongBuffer().get(new long[byteValue.remaining() / Long.BYTES]);
+				long[] values = new long[byteValue.remaining() / Long.BYTES];
+				byteValue.asLongBuffer().get(values);
+				return (T) values;
 			}
 			else{
 				return (T)((Long)byteValue.asLongBuffer().get());
 			}
 		case "short":
 			if(array){
-				return (T) byteValue.asShortBuffer().get(new short[byteValue.remaining() / Short.BYTES]);
+				short[] values = new short[byteValue.remaining() / Short.BYTES];
+				byteValue.asShortBuffer().get(values);
+				return (T) values;
 			}
 			else{
 				return (T)((Short)byteValue.asShortBuffer().get());
