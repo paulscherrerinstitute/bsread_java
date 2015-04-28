@@ -1,6 +1,12 @@
 # Overview
-This is the java implementation for bsread.
-It provides a `Receiver` as well as an `Sender` implementation to send/receive BSREAD compliant messages.
+This is the java implementation for bsread the beam synchronous data acquisition for SwissFEL. 
+
+This project provides a `Receiver` as well as an `Sender` implementation to send and receive BSREAD compliant messages.
+
+The specification of bsread can be found [here](https://docs.google.com/document/d/1BynCjz5Ax-onDW0y8PVQnYmSssb6fAyHkdDl1zh21yY/edit?usp=sharing).
+
+This library can also be used within Matlab to receive data.
+The documenation on how to use the library can be found in [Matlab.md](Matlab.md)
 
 # Examples
 
