@@ -46,3 +46,10 @@ uploadArchives {
         }
     }
 }
+
+
+task matlabJar(type: Jar) {
+    baseName = project.name + '_matlab'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
