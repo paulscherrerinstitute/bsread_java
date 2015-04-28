@@ -156,7 +156,7 @@ public class Receiver {
 
 			// Sanity check of value list
 			if (i != channelConfigs.size()) {
-				LOGGER.log(Level.WARNING, () -> "Number of received values does not match number of channels.");
+				LOGGER.log(Level.WARNING, "Number of received values does not match number of channels.");
 			}
 			if (this.socket.hasReceiveMore()) {
 				// Some sender implementations add an empty additional message

@@ -5,6 +5,8 @@ To be able to generate the Matlab jar, set source compatibility inside `build.gr
 
 Afterwards comment the three callbacks for main header, data header and values  in `Receiver.java`.
 
+Remove the Testcases in `ch.psi.bsread` and `ch.psi.bsread.basic`.
+
 Now build the package via:
 
 ```
