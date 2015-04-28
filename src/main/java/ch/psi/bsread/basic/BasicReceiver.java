@@ -2,6 +2,7 @@ package ch.psi.bsread.basic;
 
 import java.nio.ByteBuffer;
 
+import ch.psi.bsread.Converter;
 import ch.psi.bsread.Receiver;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;

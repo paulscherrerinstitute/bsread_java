@@ -2,24 +2,22 @@ package ch.psi.bsread.message;
 
 import java.io.Serializable;
 
-import ch.psi.data.converters.ConverterProvider;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum Type implements Serializable {
-	Boolean(ConverterProvider.TYPE_BOOLEAN),
-	Byte(ConverterProvider.TYPE_BYTE),
-	UByte(ConverterProvider.TYPE_UBYTE),
-	Short(ConverterProvider.TYPE_SHORT),
-	UShort(ConverterProvider.TYPE_USHORT),
-    Integer(ConverterProvider.TYPE_INTEGER),
-    UInteger(ConverterProvider.TYPE_UINTEGER),
-    Long(ConverterProvider.TYPE_LONG),
-    ULong(ConverterProvider.TYPE_ULONG),
-    Float(ConverterProvider.TYPE_FLOAT),
-    Double(ConverterProvider.TYPE_DOUBLE), 
-    String(ConverterProvider.TYPE_STRING);
+	Boolean("Boolean"),
+	Byte("Byte"),
+	UByte("UByte"),
+	Short("Short"),
+	UShort("UShort"),
+    Integer("Integer"),
+    UInteger("UInteger"),
+    Long("Long"),
+    ULong("ULong"),
+    Float("Float"),
+    Double("Double"), 
+    String("String");
     
     private String key;
 

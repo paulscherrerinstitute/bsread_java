@@ -12,7 +12,6 @@ import org.zeromq.ZMQ.Socket;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
-import ch.psi.data.DataConverter;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -91,12 +90,12 @@ public class Sender {
 					if (isSendNeeded) {
 						Object value = channel.getValue(pulseId);
 
-						socket.sendByteBuffer(DataConverter.getAsBytes(value, byteOrder), ZMQ.SNDMORE);
+						socket.sendByteBuffer(Converter.getBytes(value, byteOrder), ZMQ.SNDMORE);
 
 						// TODO: Use same time for all channels (performance -
 						// same ByteBuffer for all)?
 						Timestamp timestamp = new Timestamp(System.currentTimeMillis(), 0L);
-						socket.sendByteBuffer(DataConverter.getAsBytes(timestamp.getAsLongArray(), byteOrder), lastSendMore);
+						socket.sendByteBuffer(Converter.getBytes(timestamp.getAsLongArray(), byteOrder), lastSendMore);
 					}
 					else {
 						// Send placeholder

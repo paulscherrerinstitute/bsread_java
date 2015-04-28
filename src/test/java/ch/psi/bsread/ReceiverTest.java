@@ -20,7 +20,6 @@ import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Type;
 import ch.psi.bsread.message.Value;
-import ch.psi.data.DataConverter;
 
 public class ReceiverTest {
 	private MainHeader hookMainHeader;
@@ -290,7 +289,7 @@ public class ReceiverTest {
 				assertTrue(hookValues.containsKey(channelName));
 				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = DataConverter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
+				javaVal = Converter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 
 				channelName = "ABC_100";
@@ -298,7 +297,7 @@ public class ReceiverTest {
 				assertTrue(hookValues.containsKey(channelName));
 				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = DataConverter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
+				javaVal = Converter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 			} else {
 				assertEquals(hookValues.size(), 1);
@@ -308,7 +307,7 @@ public class ReceiverTest {
 				assertTrue(hookValues.containsKey(channelName));
 				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = DataConverter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
+				javaVal = Converter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 			}
 		}
