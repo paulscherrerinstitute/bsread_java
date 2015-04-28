@@ -1,6 +1,6 @@
 
 # Overview
-On information regarding how to build the Matlab jar please consult [Readme.md].
+On information regarding how to build the Matlab jar please consult [Readme.md](Readme.md).
 
 # Usage / Examples
 
