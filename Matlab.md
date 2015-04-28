@@ -74,3 +74,21 @@ message.getValues.keySet()
 ```
 message.getValues().get('CHANNEL_NAME').getValue()
 ```
+
+* Get IOC timestamp of a value
+
+```
+message.getValues().get('CHANNEL_NAME').getTimestamp()
+```
+
+* Iterate over the values
+
+```
+entryset = message.getValues.entrySet()
+iterator = entryset.iterator()
+while iterator.hasNext()
+	entry = iterator.next()
+	entry.getKey() % Get channel name
+	entry.getValue().getValue() % get value
+end
+```
