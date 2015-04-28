@@ -43,6 +43,8 @@ end
 receiver.close()
 ```
 
+After creating the BasicReceiver object and connecting to a stream (in the examples above a stream that comes from *localhost* port *9999*) you are able to receive messages via the *receive()* function. Consecutive calls to *receive()* will provide the messages for the consecutive pulse_id. 
+
 A message received contains a MainHeader containing the pulse id and global timestamp, a DataHeader describing the data channels within the stream and the actual Values of the channels for the pulse.
 
 Following some code snippets to show how to access these values:
