@@ -105,9 +105,7 @@ public class Sender {
 
 						socket.sendByteBuffer(Converter.getBytes(value, byteOrder), ZMQ.SNDMORE);
 
-						// TODO: Use same time for all channels (performance -
-						// same ByteBuffer for all)?
-						Timestamp timestamp = new Timestamp(System.currentTimeMillis(), 0L);
+						Timestamp timestamp = channel.getTime(pulseId);
 						socket.sendByteBuffer(Converter.getBytes(timestamp.getAsLongArray(), byteOrder), lastSendMore);
 					}
 					else {
