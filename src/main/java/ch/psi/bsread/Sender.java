@@ -9,6 +9,8 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
+import ch.psi.bsread.converter.ByteConverter;
+import ch.psi.bsread.converter.MatlabByteConverter;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
@@ -31,30 +33,21 @@ public class Sender {
 
 	private final PulseIdProvider pulseIdProvider;
 	private final TimeProvider globalTimeProvider;
+	private final ByteConverter byteConverter;
 
 	private List<DataChannel<?>> channels = new ArrayList<>();
 	private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
 
-	public Sender(){
-		this.pulseIdProvider = new StandardPulseIdProvider();
-		this.globalTimeProvider = new StandardTimeProvider();
+	public Sender() {
+		this(new StandardPulseIdProvider(), new StandardTimeProvider(), new MatlabByteConverter());
 	}
-	
-	public Sender(PulseIdProvider provider){
-		this.pulseIdProvider = provider;
-		this.globalTimeProvider = new StandardTimeProvider();
-	}
-	
-	public Sender(TimeProvider globalTimeProvider){
-		this.pulseIdProvider = new StandardPulseIdProvider();
-		this.globalTimeProvider = globalTimeProvider;
-	}
-	
-	public Sender(PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider){
+
+	public Sender(PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter) {
 		this.pulseIdProvider = pulseIdProvider;
 		this.globalTimeProvider = globalTimeProvider;
+		this.byteConverter = byteConverter;
 	}
-	
+
 	public void bind() {
 		bind("tcp://*:9999");
 	}
@@ -97,20 +90,21 @@ public class Sender {
 				int lastSendMore;
 				for (int i = 0; i < channels.size(); ++i) {
 					channel = channels.get(i);
-					lastSendMore = ((i + 1) < channels.size() ? ZMQ.SNDMORE : 0);
+					lastSendMore = ((i + 1) < channels.size() ? ZMQ.NOBLOCK | ZMQ.SNDMORE : ZMQ.NOBLOCK);
 					isSendNeeded = isSendNeeded(pulseId, channel);
 
 					if (isSendNeeded) {
 						Object value = channel.getValue(pulseId);
 
-						socket.sendByteBuffer(Converter.getBytes(value, byteOrder), ZMQ.SNDMORE);
+						socket.sendByteBuffer(this.byteConverter.getBytes(channel.getConfig().getType().getKey(), value, byteOrder), ZMQ.NOBLOCK | ZMQ.SNDMORE);
 
 						Timestamp timestamp = channel.getTime(pulseId);
-						socket.sendByteBuffer(Converter.getBytes(timestamp.getAsLongArray(), byteOrder), lastSendMore);
+						// c-implementation uses a unsigned long (Json::UInt64, uint64_t) for time -> decided to ignore this here
+						socket.sendByteBuffer(this.byteConverter.getBytes(timestamp.getAsLongArray(), byteOrder), lastSendMore);
 					}
 					else {
 						// Send placeholder
-						socket.send((byte[]) null, ZMQ.SNDMORE);
+						socket.send((byte[]) null, ZMQ.NOBLOCK | ZMQ.SNDMORE);
 						socket.send((byte[]) null, lastSendMore);
 					}
 				}
@@ -121,9 +115,8 @@ public class Sender {
 	}
 
 	private boolean isSendNeeded(long pulseId, DataChannel<?> channel) {
-		// 100L represents the highest supported frequency. 
-		// (??? -> TODO 100 needs to be configurable)
 		// This calculation also supports frequencies < 1Hz
+		// 100L represents the highest supported frequency.
 		long numberOfPulsesBetweenSends = (long) ((1.0 / channel.getConfig().getFrequency()) * 100L);
 		// check if this channel sends data for given pulseId
 		return ((pulseId + channel.getConfig().getOffset()) % numberOfPulsesBetweenSends) == 0;

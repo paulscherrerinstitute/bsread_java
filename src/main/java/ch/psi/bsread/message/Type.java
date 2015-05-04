@@ -6,18 +6,18 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum Type implements Serializable {
-	Boolean("Boolean"),
-	Byte("Byte"),
-	UByte("UByte"),
-	Short("Short"),
-	UShort("UShort"),
-    Integer("Integer"),
-    UInteger("UInteger"),
-    Long("Long"),
-    ULong("ULong"),
-    Float("Float"),
-    Double("Double"), 
-    String("String");
+	Boolean("boolean"),
+	Byte("byte"),
+	UByte("ubyte"),
+	Short("short"),
+	UShort("ushort"),
+    Integer("integer"),
+    UInteger("uinteger"),
+    Long("long"),
+    ULong("ulong"),
+    Float("float"),
+    Double("double"), 
+    String("string");
     
     private String key;
 

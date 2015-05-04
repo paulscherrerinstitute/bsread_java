@@ -14,6 +14,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
+import ch.psi.bsread.converter.ByteConverter;
+import ch.psi.bsread.converter.MatlabByteConverter;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
@@ -22,6 +24,7 @@ import ch.psi.bsread.message.Type;
 import ch.psi.bsread.message.Value;
 
 public class ReceiverTest {
+	private ByteConverter byteConverter = new MatlabByteConverter();
 	private MainHeader hookMainHeader;
 	private boolean hookMainHeaderCalled;
 	private DataHeader hookDataHeader;
@@ -211,7 +214,7 @@ public class ReceiverTest {
 	}
 
 	@Test
-	public void testSenderTwoChannel100HzAnd10Hz() {
+	public void testSenderTwoChannel100HzAnd10Hz() {		
 		Sender sender = new Sender();
 
 		// Register data sources ...
@@ -289,7 +292,7 @@ public class ReceiverTest {
 				assertTrue(hookValues.containsKey(channelName));
 				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = Converter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
+				javaVal = byteConverter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 
 				channelName = "ABC_100";
@@ -297,7 +300,7 @@ public class ReceiverTest {
 				assertTrue(hookValues.containsKey(channelName));
 				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = Converter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
+				javaVal = byteConverter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 			} else {
 				assertEquals(hookValues.size(), 1);
@@ -307,7 +310,7 @@ public class ReceiverTest {
 				assertTrue(hookValues.containsKey(channelName));
 				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = Converter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
+				javaVal = byteConverter.getValue(ByteBuffer.wrap(value.getValue()), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 			}
 		}

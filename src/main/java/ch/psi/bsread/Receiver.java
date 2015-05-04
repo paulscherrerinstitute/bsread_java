@@ -149,6 +149,7 @@ public class Receiver {
 					// TODO always convert to BigEndian byte order!
 					value.setValue(valueBytes);
 					ByteBuffer tsByteBuffer = ByteBuffer.wrap(timestampBytes).order(dataHeader.getByteOrder());
+					// c-implementation uses a unsigned long (Json::UInt64, uint64_t) for time -> decided to ignore this here
 					value.setTimestamp(new Timestamp(tsByteBuffer.getLong(), tsByteBuffer.getLong()));
 					values.put(currentConfig.getName(), value);
 				}

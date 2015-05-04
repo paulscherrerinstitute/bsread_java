@@ -2,8 +2,9 @@ package ch.psi.bsread.basic;
 
 import java.nio.ByteBuffer;
 
-import ch.psi.bsread.Converter;
 import ch.psi.bsread.Receiver;
+import ch.psi.bsread.converter.ByteConverter;
+import ch.psi.bsread.converter.MatlabByteConverter;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.Message;
@@ -15,6 +16,15 @@ import ch.psi.bsread.message.Value;
 public class BasicReceiver {
 
 	private Receiver receiver = new Receiver();
+	private ByteConverter byteConverter;
+	
+	public BasicReceiver(){
+		this(new MatlabByteConverter());
+	}
+	
+	public BasicReceiver(ByteConverter byteConverter){
+		this.byteConverter = byteConverter;
+	}
 	
 	public void connect() {
 		receiver.connect();
@@ -44,7 +54,7 @@ public class BasicReceiver {
 			final Value value = message.getValues().get(channel);
 
 			// Convert byte blob into type
-			nMessage.getValues().put(channel, new BasicValue<>(Converter.getValue(ByteBuffer.wrap(value.getValue()).order(dataHeader.getByteOrder()), channelConfig.getType().name().toLowerCase(), channelConfig.getShape()), value.getTimestamp()));
+			nMessage.getValues().put(channel, new BasicValue<>(this.byteConverter.getValue(ByteBuffer.wrap(value.getValue()).order(dataHeader.getByteOrder()), channelConfig.getType().name().toLowerCase(), channelConfig.getShape()), value.getTimestamp()));
 		}
 		
 		return nMessage;
