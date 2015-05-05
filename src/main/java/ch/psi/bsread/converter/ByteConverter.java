@@ -8,6 +8,7 @@ public interface ByteConverter {
 	/**
 	 * Converts a byte representation of a value into the actual value.
 	 * 
+	 * @param <T> The JAVA type
 	 * @param byteValue
 	 *            The byte representation of a value
 	 * @param type
@@ -21,6 +22,7 @@ public interface ByteConverter {
 	/**
 	 * Converts a value into its byte representation.
 	 * 
+	 * @param <T> The JAVA type
 	 * @param type
 	 *            The type of the value (needed for unsigned types since they
 	 *            are not part of JAVA)
@@ -35,6 +37,7 @@ public interface ByteConverter {
 	/**
 	 * Converts a value into its byte representation.
 	 * 
+	 * @param <T> The JAVA type
 	 * @param value
 	 *            The value
 	 * @param byteOrder

@@ -5,8 +5,6 @@ import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
 
-import ch.psi.data.converters.ConverterProvider;
-
 public abstract class AbstractByteConverter implements ByteConverter {
 
 	@Override
@@ -51,13 +49,13 @@ public abstract class AbstractByteConverter implements ByteConverter {
 			valueClazz = valueClazz.getComponentType();
 		}
 
-		Class<?> clazz = ConverterProvider.wrapperToPrimitive(valueClazz);
+		Class<?> clazz = AbstractByteConverter.wrapperToPrimitive(valueClazz);
 		// e.g. String.class has no primitive
 		if (clazz != null) {
 			valueClazz = clazz;
 		}
 
-		return ConverterProvider.getCorrectType(valueClazz.getSimpleName().toLowerCase());
+		return AbstractByteConverter.getCorrectType(valueClazz.getSimpleName().toLowerCase());
 	}
 
 	public static final String getCorrectType(String type) {
@@ -75,5 +73,9 @@ public abstract class AbstractByteConverter implements ByteConverter {
 		} else {
 			return false;
 		}
+	}
+	
+	public static Class<?> wrapperToPrimitive(final Class<?> cls) {
+		return WRAPPER_PRIMITIVE_MAP.get(cls);
 	}
 }
