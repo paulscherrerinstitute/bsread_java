@@ -4,9 +4,8 @@ import java.io.Serializable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-public class Timestamp implements Serializable {
-	
-	private static final long serialVersionUID = 1L;
+public class Timestamp implements Serializable {	
+	private static final long serialVersionUID = 2481654141864121974L;
 	
 	private long epoch;
 	private long ns;
@@ -43,5 +42,30 @@ public class Timestamp implements Serializable {
 	@JsonIgnore
 	public long[] getAsLongArray(){
 		return new long[] {epoch, ns};
+	}
+	
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + (int) (epoch ^ (epoch >>> 32));
+		result = prime * result + (int) (ns ^ (ns >>> 32));
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Timestamp other = (Timestamp) obj;
+		if (epoch != other.epoch)
+			return false;
+		if (ns != other.ns)
+			return false;
+		return true;
 	}
 }
