@@ -25,7 +25,7 @@ Receiving one message and printing the pulse id:
 ```
 import ch.psi.bsread.basic.*
 receiver = BasicReceiver()
-receiver.connect()
+receiver.connect("tcp://localhost:9999")
 message = receiver.receive()
 message.getMainHeader().getPulseId()
 receiver.close()
@@ -36,7 +36,7 @@ Simple receiver loop printing the pulse id of the message:
 ```
 import ch.psi.bsread.basic.*
 receiver = BasicReceiver()
-receiver.connect()
+receiver.connect("tcp://localhost:9999")
 while 1
 	disp(receiver.receive().getMainHeader().getPulseId())
 end
