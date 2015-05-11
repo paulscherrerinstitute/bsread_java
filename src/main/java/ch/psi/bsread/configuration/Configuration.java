@@ -1,5 +1,6 @@
 package ch.psi.bsread.configuration;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -8,7 +9,7 @@ import java.util.List;
  */
 public class Configuration {
 	
-	private List<Channel> channels;
+	private List<Channel> channels = new ArrayList<>();
 
 	public List<Channel> getChannels() {
 		return channels;

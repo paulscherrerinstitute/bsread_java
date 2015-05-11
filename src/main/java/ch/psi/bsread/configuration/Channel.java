@@ -4,7 +4,20 @@ public class Channel {
 	
 	private String name;
 	private int offset = 0;
-	private int frequency = 100;
+	private double frequency = 100;
+	
+	public Channel(){
+	}
+	
+	public Channel(String name){
+		this.name = name;
+	}
+	
+	public Channel(String name, int offset, double frequency){
+		this.name = name;
+		this.offset = offset;
+		this.frequency = frequency;
+	}
 	
 	public int getOffset() {
 		return offset;
@@ -14,11 +27,11 @@ public class Channel {
 		this.offset = offset;
 	}
 	
-	public int getFrequency() {
+	public double getFrequency() {
 		return frequency;
 	}
 
-	public void setFrequency(int frequency) {
+	public void setFrequency(double frequency) {
 		this.frequency = frequency;
 	}
 	
