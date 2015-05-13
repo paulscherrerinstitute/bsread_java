@@ -16,21 +16,23 @@ import ch.psi.bsread.message.Value;
 public class BasicReceiver {
 
 	private Receiver receiver = new Receiver();
-	private ByteConverter byteConverter;
+	private final ByteConverter byteConverter;
+	private final String address;
 	
 	public BasicReceiver(){
-		this(new MatlabByteConverter());
+		this("tcp://localhost:9999");
 	}
 	
-	public BasicReceiver(ByteConverter byteConverter){
+	public BasicReceiver(String address){
+		this(address, new MatlabByteConverter());
+	}
+	
+	public BasicReceiver(String address, ByteConverter byteConverter){
+		this.address = address;
 		this.byteConverter = byteConverter;
 	}
 	
 	public void connect() {
-		receiver.connect();
-	}
-
-	public void connect(String address) {
 		receiver.connect(address);
 	}
 
