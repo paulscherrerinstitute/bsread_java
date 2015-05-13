@@ -11,14 +11,14 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
 @JsonInclude(Include.NON_DEFAULT)
 public class DataHeader implements Serializable {
-	
+
 	private static final long serialVersionUID = 1L;
-	
+
 	public static final String ENCODING_BIG_ENDIAN = "big";
 	public static final String ENCODING_LITTLE_ENDIAN = "little";
 	public static final String DEFAULT_ENCODING = ENCODING_LITTLE_ENDIAN;
 	public static final String DEFAULT_HTYPE = "bsr_d-1.0";
-	
+
 	@JsonInclude
 	private String htype = DEFAULT_HTYPE;
 	private String encoding = DEFAULT_ENCODING;
@@ -39,7 +39,7 @@ public class DataHeader implements Serializable {
 	public void setHtype(String htype) {
 		this.htype = htype;
 	}
-	
+
 	public String getEncoding() {
 		return encoding;
 	}
@@ -56,25 +56,34 @@ public class DataHeader implements Serializable {
 		this.channels = channels;
 	}
 	
+	public void addChannel(ChannelConfig channel) {
+		this.channels.add(channel);
+	}
+
 	/**
 	 * Get the byte order based on the specified endianess
-	 * @return	ByteOrder of data
+	 * 
+	 * @return ByteOrder of data
 	 */
 	@JsonIgnore
 	public ByteOrder getByteOrder() {
-		if (this.encoding != null && this.encoding.contains(ENCODING_BIG_ENDIAN)) {
+		return DataHeader.getByteOrder(this.encoding);
+	}
+
+	public static ByteOrder getByteOrder(String byteOrder) {
+		if (byteOrder != null && byteOrder.contains(ENCODING_BIG_ENDIAN)) {
 			return ByteOrder.BIG_ENDIAN;
 		} else {
 			return ByteOrder.LITTLE_ENDIAN;
 		}
 	}
-	
+
 	@JsonIgnore
-	public void setByteOrder(ByteOrder byteOrder){
+	public void setByteOrder(ByteOrder byteOrder) {
 		if (byteOrder.equals(ByteOrder.BIG_ENDIAN)) {
 			encoding = DataHeader.ENCODING_BIG_ENDIAN;
 		}
-		else{
+		else {
 			encoding = DataHeader.ENCODING_LITTLE_ENDIAN;
 		}
 	}
