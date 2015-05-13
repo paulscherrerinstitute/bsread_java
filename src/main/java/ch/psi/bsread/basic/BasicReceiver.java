@@ -32,6 +32,10 @@ public class BasicReceiver {
 		this.byteConverter = byteConverter;
 	}
 	
+	public void connect(String address) {
+		receiver.connect(address);
+	}
+	
 	public void connect() {
 		receiver.connect(address);
 	}
