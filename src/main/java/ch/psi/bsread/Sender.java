@@ -81,10 +81,10 @@ public class Sender {
 
 			try {
 				// Send header
-				socket.sendMore(mapper.writeValueAsString(mainHeader));
+				socket.send(mapper.writeValueAsString(mainHeader), ZMQ.NOBLOCK | ZMQ.SNDMORE);
 
 				// Send data header
-				socket.sendMore(dataHeaderString);
+				socket.send(dataHeaderString, ZMQ.NOBLOCK | ZMQ.SNDMORE);
 				// Send data
 
 				int lastSendMore;
