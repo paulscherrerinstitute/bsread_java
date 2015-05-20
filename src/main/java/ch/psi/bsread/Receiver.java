@@ -45,9 +45,13 @@ public class Receiver {
 	}
 
 	public void connect(String address) {
+		this.connect(address, HIGH_WATER_MARK);
+	}
+	
+	public void connect(String address, int highWaterMark) {
 		this.context = ZMQ.context(1);
 		this.socket = this.context.socket(ZMQ.PULL);
-		this.socket.setRcvHWM(HIGH_WATER_MARK);
+		this.socket.setRcvHWM(highWaterMark);
 		this.socket.connect(address);
 	}
 
@@ -69,12 +73,6 @@ public class Receiver {
 				throw new IllegalStateException(message);
 			}
 
-			// notify hooks with current main header
-			// Note: This notification MUST not be parallel as they need to
-			// be in the same thread than this function to prevent the incorrect
-			// trigger of the different callbacks (e.g. main header next message
-			// is triggered
-			// before the actual value trigger)
 			if (this.parallelProcessing) {
 				mainHeaderHandlers.parallelStream().forEach(handler -> handler.accept(mainHeader));
 			} else {
@@ -91,14 +89,6 @@ public class Receiver {
 				else {
 					dataHeaderHash = mainHeader.getHash();
 					dataHeader = mapper.readValue(socket.recv(), DataHeader.class);
-					// notify hooks with new data header
-					// Note: This notification MUST not be parallel as they need
-					// to
-					// be in the same thread than this function to prevent the
-					// incorrect
-					// trigger of the different callbacks (e.g. main header next
-					// message is triggered
-					// before the actual value trigger)
 					if (this.parallelProcessing) {
 						dataHeaderHandlers.parallelStream().forEach(handler -> handler.accept(dataHeader));
 					} else {
@@ -147,6 +137,9 @@ public class Receiver {
 					Value value = new Value();
 
 					// TODO always convert to BigEndian byte order!
+					// Why? Leads to unnecessary conversion work during DAQ.
+					// Fabian objects to this TODO (or make it configurable with
+					// default "non conversion")
 					value.setValue(valueBytes);
 					ByteBuffer tsByteBuffer = ByteBuffer.wrap(timestampBytes).order(dataHeader.getByteOrder());
 					// c-implementation uses a unsigned long (Json::UInt64, uint64_t) for time -> decided to ignore this here
@@ -171,12 +164,6 @@ public class Receiver {
 
 			// notify hooks with complete values
 			if (!values.isEmpty()) {
-				// Note: This notification MUST not be parallel as they need to
-				// be in the same thread than this function to prevent the
-				// incorrect
-				// trigger of the different callbacks (e.g. main header next
-				// message is triggered
-				// before the actual value trigger)
 				if (this.parallelProcessing) {
 					valueHandlers.parallelStream().forEach(handler -> handler.accept(values));
 				}

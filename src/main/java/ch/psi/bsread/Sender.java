@@ -28,7 +28,7 @@ public class Sender {
 	private ObjectMapper mapper = new ObjectMapper();
 
 	private MainHeader mainHeader = new MainHeader();
-	private String dataHeaderString = "";
+	private byte[] dataHeaderBytes;
 	private String dataHeaderMD5 = "";
 
 	private final PulseIdProvider pulseIdProvider;
@@ -53,9 +53,13 @@ public class Sender {
 	}
 
 	public void bind(String address) {
+		this.bind(address, HIGH_WATER_MARK);
+	}
+	
+	public void bind(String address, int highWaterMark) {
 		this.context = ZMQ.context(1);
 		this.socket = this.context.socket(ZMQ.PUSH);
-		this.socket.setSndHWM(HIGH_WATER_MARK);
+		this.socket.setSndHWM(highWaterMark);
 		this.socket.bind(address);
 	}
 
@@ -81,10 +85,10 @@ public class Sender {
 
 			try {
 				// Send header
-				socket.send(mapper.writeValueAsString(mainHeader), ZMQ.NOBLOCK | ZMQ.SNDMORE);
+				socket.send(mapper.writeValueAsBytes(mainHeader), ZMQ.NOBLOCK | ZMQ.SNDMORE);
 
 				// Send data header
-				socket.send(dataHeaderString, ZMQ.NOBLOCK | ZMQ.SNDMORE);
+				socket.send(dataHeaderBytes, ZMQ.NOBLOCK | ZMQ.SNDMORE);
 				// Send data
 
 				int lastSendMore;
@@ -134,8 +138,8 @@ public class Sender {
 		}
 
 		try {
-			dataHeaderString = mapper.writeValueAsString(dataHeader);
-			dataHeaderMD5 = Utils.computeMD5(dataHeaderString);
+			dataHeaderBytes = mapper.writeValueAsBytes(dataHeader);
+			dataHeaderMD5 = Utils.computeMD5(dataHeaderBytes);
 		} catch (JsonProcessingException e) {
 			throw new RuntimeException("Unable to generate data header", e);
 		}
