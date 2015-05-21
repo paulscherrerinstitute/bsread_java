@@ -20,8 +20,8 @@ public class Utils {
 	/**
 	 * Generate the hexadecimal MD5 sum string of a byte array
 	 * 
-	 * @param string
-	 *            String to compute MD5 sum
+	 * @param bytes
+	 *            Bytes to compute MD5 sum
 	 * @return MD5 sum of bytes in hex format
 	 */
 	public static String computeMD5(byte[] bytes) {
