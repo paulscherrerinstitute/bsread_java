@@ -81,7 +81,7 @@ public class ReceiverTest {
 				assertEquals(hookDataHeader.getChannels().size(), 1);
 				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
 				assertEquals("ABC", channelConfig.getName());
-				assertEquals(10.0, channelConfig.getFrequency(), 0.00000000001);
+				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
 				assertEquals(Type.Double, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
@@ -98,7 +98,7 @@ public class ReceiverTest {
 		Sender sender = new Sender();
 
 		// Register data sources ...
-		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Double, 0.1, 0)) {
+		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Double, 1000, 0)) {
 			@Override
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
@@ -141,7 +141,7 @@ public class ReceiverTest {
 				assertEquals(hookDataHeader.getChannels().size(), 1);
 				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
 				assertEquals("ABC", channelConfig.getName());
-				assertEquals(0.1, channelConfig.getFrequency(), 0.00000000001);
+				assertEquals(1000, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
 				assertEquals(Type.Double, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
@@ -201,7 +201,7 @@ public class ReceiverTest {
 				assertEquals(hookDataHeader.getChannels().size(), 1);
 				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
 				assertEquals("ABC", channelConfig.getName());
-				assertEquals(10.0, channelConfig.getFrequency(), 0.00000000001);
+				assertEquals(10, channelConfig.getModulo(), 0.00000000001);
 				assertEquals(1, channelConfig.getOffset());
 				assertEquals(Type.Double, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
@@ -224,7 +224,7 @@ public class ReceiverTest {
 				return (double) pulseId;
 			}
 		});
-		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC_100", Type.Double, 100, 0)) {
+		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC_100", Type.Double, 1, 0)) {
 			@Override
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
@@ -266,14 +266,14 @@ public class ReceiverTest {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
 				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
 				assertEquals("ABC_10", channelConfig.getName());
-				assertEquals(10.0, channelConfig.getFrequency(), 0.00000000001);
+				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
 				assertEquals(Type.Double, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 
 				channelConfig = hookDataHeader.getChannels().get(1);
 				assertEquals("ABC_100", channelConfig.getName());
-				assertEquals(100.0, channelConfig.getFrequency(), 0.00000000001);
+				assertEquals(1, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
 				assertEquals(Type.Double, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());

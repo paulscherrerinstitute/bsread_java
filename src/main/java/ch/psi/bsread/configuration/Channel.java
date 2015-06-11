@@ -6,7 +6,7 @@ public class Channel implements Serializable {
 	private static final long serialVersionUID = 286422739407172968L;
 
 	private String name;
-	private double frequency = 100;
+	private int modulo = 1;
 	private int offset = 0;
 
 	public Channel() {
@@ -16,14 +16,14 @@ public class Channel implements Serializable {
 		this.name = name;
 	}
 
-	public Channel(String name, double frequency) {
+	public Channel(String name, int modulo) {
 		this.name = name;
-		this.frequency = frequency;
+		this.modulo = modulo;
 	}
 
-	public Channel(String name, double frequency, int offset) {
+	public Channel(String name, int modulo, int offset) {
 		this.name = name;
-		this.frequency = frequency;
+		this.modulo = modulo;
 		this.offset = offset;
 	}
 
@@ -35,12 +35,12 @@ public class Channel implements Serializable {
 		this.offset = offset;
 	}
 
-	public double getFrequency() {
-		return frequency;
+	public int getModulo() {
+		return modulo;
 	}
 
-	public void setFrequency(double frequency) {
-		this.frequency = frequency;
+	public void setModulo(int modulo) {
+		this.modulo = modulo;
 	}
 
 	public String getName() {
@@ -51,13 +51,14 @@ public class Channel implements Serializable {
 		this.name = name;
 	}
 
+	// Overwrites for hashCode and equals is need as we don't wan't to have duplicate entries
+	// in e.g. hashmaps for objects with the same values.
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		long temp;
-		temp = Double.doubleToLongBits(frequency);
-		result = prime * result + (int) (temp ^ (temp >>> 32));
+		result = prime * result + modulo;
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
 		result = prime * result + offset;
 		return result;
@@ -72,7 +73,7 @@ public class Channel implements Serializable {
 		if (getClass() != obj.getClass())
 			return false;
 		Channel other = (Channel) obj;
-		if (Double.doubleToLongBits(frequency) != Double.doubleToLongBits(other.frequency))
+		if (modulo != other.modulo)
 			return false;
 		if (name == null) {
 			if (other.name != null)
@@ -86,6 +87,6 @@ public class Channel implements Serializable {
 
 	@Override
 	public String toString() {
-		return name + " " + frequency + " " + offset;
+		return name + " " + modulo + " " + offset;
 	}
 }

@@ -14,7 +14,7 @@ public class ChannelConfig implements Serializable {
 	private String name;
 	private Type type = Type.Double;
 	private int[] shape = DEFAULT_SHAPE;
-	private double frequency = 100;
+	private int modulo = 1;
 	private int offset = 0;
 
 	public ChannelConfig() {
@@ -25,18 +25,18 @@ public class ChannelConfig implements Serializable {
 		this.type = type;
 	}
 
-	public ChannelConfig(String name, Type type, double frequency, int offset) {
+	public ChannelConfig(String name, Type type, int modulo, int offset) {
 		this.name = name;
 		this.type = type;
-		this.frequency = frequency;
+		this.modulo = modulo;
 		this.offset = offset;
 	}
 	
-	public ChannelConfig(String name, Type type, int[] shape, double frequency, int offset) {
+	public ChannelConfig(String name, Type type, int[] shape, int modulo, int offset) {
 		this.name = name;
 		this.type = type;
 		this.shape = shape;
-		this.frequency = frequency;
+		this.modulo = modulo;
 		this.offset = offset;
 	}
 
@@ -64,12 +64,12 @@ public class ChannelConfig implements Serializable {
 		this.shape = shape;
 	}
 
-	public double getFrequency() {
-		return this.frequency;
+	public int getModulo() {
+		return this.modulo;
 	}
 
-	public void setFrequency(double frequency) {
-		this.frequency = frequency;
+	public void setFrequency(int modulo) {
+		this.modulo = modulo;
 	}
 
 	public int getOffset() {

@@ -119,11 +119,8 @@ public class Sender {
 	}
 
 	private boolean isSendNeeded(long pulseId, DataChannel<?> channel) {
-		// This calculation also supports frequencies < 1Hz
-		// 100L represents the highest supported frequency.
-		long numberOfPulsesBetweenSends = (long) ((1.0 / channel.getConfig().getFrequency()) * 100L);
-		// check if this channel sends data for given pulseId
-		return ((pulseId + channel.getConfig().getOffset()) % numberOfPulsesBetweenSends) == 0;
+		// Check if this channel sends data for given pulseId
+		return ((pulseId + channel.getConfig().getOffset()) % channel.getConfig().getModulo()) == 0;
 	}
 
 	/**

@@ -2,11 +2,11 @@
 {
 "name":"BSREAD-TEST:TEST_1",
 "offset":0,
-"frequency":100
+"modulo":1
 }, 
 {
 "name":"BSREAD-TEST:TEST_2",
 "offset":2,
-"frequency":10
+"modulo":10
 }
 ]}
