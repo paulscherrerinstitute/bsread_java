@@ -63,8 +63,10 @@ Afterwards comment the three callbacks for main header, data header and values  
 
 Remove the Testcases in `ch.psi.bsread` and `ch.psi.bsread.basic`.
 
-Now build the package via:
+In gradle.build rename `pom.artifactId = 'bsread'` to `pom.artifactId = 'bsread_1_7'`
+
+Now build and upload the package via:
 
 ```
-./gradlew matlabJar
+./gradlew uploadArchives
 ```
