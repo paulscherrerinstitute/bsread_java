@@ -2,6 +2,7 @@ package ch.psi.bsread;
 
 import static org.junit.Assert.*;
 
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import org.junit.Test;
@@ -22,7 +23,7 @@ public class SenderTest {
 		Sender sender = new Sender();
 		
 		// Register data sources ...
-		sender.addSource(new DataChannel<Double>(new ChannelConfig(testChannel, Type.Double, 100, 0)) {
+		sender.addSource(new DataChannel<Double>(new ChannelConfig(testChannel, Type.Double, 1, 0)) {
 			@Override
 			public Double getValue(long pulseId) {
 				return (double)pulseId;
@@ -31,15 +32,24 @@ public class SenderTest {
 		
 		sender.bind();
 		
+		
+		
 		BasicReceiver receiver = new BasicReceiver();
 		receiver.connect();
+		
+		// Waiting some time to ensure the connection is established
+		try {
+			TimeUnit.MILLISECONDS.sleep(100);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		
 		// Send data
 		for(int pulse=0;pulse<11;pulse++){
 			logger.info("Sending for pulse "+pulse);
 			sender.send();
 			BasicMessage message = receiver.receive();
-			assertEquals((double) pulse, (double) message.getValues().get(testChannel).getValue(), 0.001);
+			assertEquals((double) pulse, (Double) message.getValues().get(testChannel).getValue(), 0.001);
 		}
 		
 		System.out.println("done");

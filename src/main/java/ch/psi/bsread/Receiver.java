@@ -69,7 +69,7 @@ public class Receiver {
 			if (!mainHeader.getHtype().startsWith(MainHeader.HTYPE_VALUE_NO_VERSION)) {
 				String message = String.format("Expect 'bsr_d-[version]' for 'htype' but was '%s'. Skip messge", mainHeader.getHtype());
 				LOGGER.log(Level.SEVERE, message);
-				this.drain(this.socket);
+				this.drain();
 				throw new IllegalStateException(message);
 			}
 
@@ -99,7 +99,7 @@ public class Receiver {
 			else {
 				String message = "There is no data header. Skip complete message.";
 				LOGGER.log(Level.SEVERE, message);
-				this.drain(this.socket);
+				this.drain();
 				throw new IllegalStateException(message);
 			}
 
@@ -156,7 +156,7 @@ public class Receiver {
 				// Some sender implementations add an empty additional message
 				// at the end
 				// If there is more than 1 trailing message something is wrong!
-				int messagesDrained = this.drain(this.socket);
+				int messagesDrained = this.drain();
 				if (messagesDrained > 1) {
 					throw new RuntimeException("There were more than 1 trailing submessages to the message than expected");
 				}
@@ -179,7 +179,7 @@ public class Receiver {
 		}
 	}
 
-	private int drain(Socket socket) {
+	public int drain() {
 		int count = 0;
 		while (socket.hasReceiveMore()) {
 			// is there a way to avoid copying data to user space here?

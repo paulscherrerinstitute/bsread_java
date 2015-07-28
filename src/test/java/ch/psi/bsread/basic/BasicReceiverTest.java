@@ -22,7 +22,7 @@ public class BasicReceiverTest {
 		Sender sender = new Sender();
 
 		// Register data sources ...
-		sender.addSource(new DataChannel<Double>(new ChannelConfig(testChannel, Type.Double, 100, 0)) {
+		sender.addSource(new DataChannel<Double>(new ChannelConfig(testChannel, Type.Double, 1, 0)) {
 			@Override
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
@@ -30,11 +30,13 @@ public class BasicReceiverTest {
 		});
 
 		sender.bind();
-		// We schedule faster than 100 HZ as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 10, TimeUnit.MILLISECONDS);
 		
 		BasicReceiver receiver = new BasicReceiver();
 		receiver.connect();
+		
+		// We schedule faster than 100 HZ as we want to have the testcase execute faster
+		ScheduledFuture<?> sendFuture = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 10, TimeUnit.MILLISECONDS);
+				
 		
 		for(double i=0;i<50;i++){
 			Double value = (Double) receiver.receive().getValues().get(testChannel).getValue();
