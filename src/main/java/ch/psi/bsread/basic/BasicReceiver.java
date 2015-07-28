@@ -65,4 +65,8 @@ public class BasicReceiver {
 		
 		return nMessage;
 	}
+	
+	public int drain(){
+		return receiver.drain();
+	}
 }
