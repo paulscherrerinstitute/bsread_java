@@ -62,7 +62,7 @@ public class Receiver {
 		context = null;
 	}
 
-	public Message receive() throws IllegalStateException {
+	public Message receive() throws RuntimeException {
 		try {
 			// Receive main header
 			MainHeader mainHeader = mapper.readValue(socket.recv(), MainHeader.class);
@@ -70,7 +70,7 @@ public class Receiver {
 				String message = String.format("Expect 'bsr_d-[version]' for 'htype' but was '%s'. Skip messge", mainHeader.getHtype());
 				LOGGER.log(Level.SEVERE, message);
 				this.drain();
-				throw new IllegalStateException(message);
+				throw new RuntimeException(message);
 			}
 
 			if (this.parallelProcessing) {
@@ -100,7 +100,7 @@ public class Receiver {
 				String message = "There is no data header. Skip complete message.";
 				LOGGER.log(Level.SEVERE, message);
 				this.drain();
-				throw new IllegalStateException(message);
+				throw new RuntimeException(message);
 			}
 
 			// Receiver data
@@ -175,7 +175,7 @@ public class Receiver {
 			return message;
 
 		} catch (IOException e) {
-			throw new IllegalStateException("Unable to serialize message", e);
+			throw new RuntimeException("Unable to deserialize message", e);
 		}
 	}
 
