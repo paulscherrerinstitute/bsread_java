@@ -7,7 +7,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 public class Timestamp implements Serializable {
 	private static final long serialVersionUID = 2481654141864121974L;
 
+	// the milliseconds (like UNIX or JAVA)
 	private long epoch;
+	// the ns offset (to millisecond)
 	private long ns;
 
 	public Timestamp() {

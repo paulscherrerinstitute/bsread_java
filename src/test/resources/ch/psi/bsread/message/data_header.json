@@ -26,6 +26,5 @@
       "name": "CHANNEL-ARRAY_1"
     }
   ],
-  "htype": "bsr_d-1.0",
-  "encoding": "little"
+  "htype": "bsr_d-1.0"
 }
