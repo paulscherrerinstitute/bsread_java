@@ -36,7 +36,6 @@ public class Sender {
 	private final ByteConverter byteConverter;
 
 	private List<DataChannel<?>> channels = new ArrayList<>();
-	private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
 
 	public Sender() {
 		this(new StandardPulseIdProvider(), new StandardTimeProvider(), new MatlabByteConverter());
@@ -72,6 +71,7 @@ public class Sender {
 		long pulseId = pulseIdProvider.getNextPulseId();
 		boolean isSendNeeded = false;
 		DataChannel<?> channel;
+		ByteOrder byteOrder;
 		// check if it is realy necessary to send something (e.g. if there is
 		// only only a 10Hz it should send only every 10th call)
 		for (int i = 0; i < channels.size() && !isSendNeeded; ++i) {
@@ -94,11 +94,12 @@ public class Sender {
 				int lastSendMore;
 				for (int i = 0; i < channels.size(); ++i) {
 					channel = channels.get(i);
+					byteOrder = channel.getConfig().getByteOrder();
 					lastSendMore = ((i + 1) < channels.size() ? ZMQ.NOBLOCK | ZMQ.SNDMORE : ZMQ.NOBLOCK);
 					isSendNeeded = isSendNeeded(pulseId, channel);
 
 					if (isSendNeeded) {
-						Object value = channel.getValue(pulseId);
+						final Object value = channel.getValue(pulseId);
 
 						socket.sendByteBuffer(this.byteConverter.getBytes(channel.getConfig().getType().getKey(), value, byteOrder), ZMQ.NOBLOCK | ZMQ.SNDMORE);
 
@@ -128,7 +129,6 @@ public class Sender {
 	 */
 	private void generateDataHeader() {
 		DataHeader dataHeader = new DataHeader();
-		dataHeader.setByteOrder(byteOrder);
 
 		for (DataChannel<?> channel : channels) {
 			dataHeader.getChannels().add(channel.getConfig());
@@ -159,13 +159,5 @@ public class Sender {
 	 */
 	public List<DataChannel<?>> getChannels() {
 		return Collections.unmodifiableList(channels);
-	}
-
-	public void setByteOrder(ByteOrder byteOrder) {
-		this.byteOrder = byteOrder;
-	}
-
-	public ByteOrder getByteOrder() {
-		return byteOrder;
 	}
 }

@@ -141,7 +141,7 @@ public class Receiver {
 					// Fabian objects to this TODO (or make it configurable with
 					// default "non conversion")
 					value.setValue(valueBytes);
-					ByteBuffer tsByteBuffer = ByteBuffer.wrap(timestampBytes).order(dataHeader.getByteOrder());
+					ByteBuffer tsByteBuffer = ByteBuffer.wrap(timestampBytes).order(currentConfig.getByteOrder());
 					// c-implementation uses a unsigned long (Json::UInt64, uint64_t) for time -> decided to ignore this here
 					value.setTimestamp(new Timestamp(tsByteBuffer.getLong(), tsByteBuffer.getLong()));
 					values.put(currentConfig.getName(), value);
