@@ -90,7 +90,7 @@ public class Receiver {
 		return receive(mainHaderBytes);
 	}
 
-	public Message receive(byte[] mainHaderBytes) throws RuntimeException {
+	private Message receive(byte[] mainHaderBytes) throws RuntimeException {
 		try {
 			// Receive main header
 			MainHeader mainHeader = mapper.readValue(mainHaderBytes, MainHeader.class);
