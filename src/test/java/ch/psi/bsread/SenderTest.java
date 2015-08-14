@@ -3,9 +3,10 @@ package ch.psi.bsread;
 import static org.junit.Assert.*;
 
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import ch.psi.bsread.basic.BasicMessage;
 import ch.psi.bsread.basic.BasicReceiver;
@@ -14,7 +15,7 @@ import ch.psi.bsread.message.Type;
 
 public class SenderTest {
 
-	private static final Logger logger = Logger.getLogger(SenderTest.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(SenderTest.class.getName());
 	
 	private final String testChannel = "ABC";
 	
@@ -46,7 +47,7 @@ public class SenderTest {
 		
 		// Send data
 		for(int pulse=0;pulse<11;pulse++){
-			logger.info("Sending for pulse "+pulse);
+			LOGGER.info("Sending for pulse '{}'.", pulse);
 			sender.send();
 			BasicMessage message = receiver.receive();
 			assertEquals((double) pulse, (Double) message.getValues().get(testChannel).getValue(), 0.001);

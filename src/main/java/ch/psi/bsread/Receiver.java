@@ -7,9 +7,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
@@ -24,7 +24,7 @@ import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Value;
 
 public class Receiver {
-	private static Logger LOGGER = Logger.getLogger(Receiver.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class.getName());
 	public static final int HIGH_WATER_MARK = 100;
 
 	private Context context;
@@ -39,6 +39,7 @@ public class Receiver {
 
 	private String dataHeaderHash = "";
 	private DataHeader dataHeader = null;
+	private boolean firstMessage = true;
 
 	public void connect() {
 		connect("tcp://localhost:9999");
@@ -47,7 +48,7 @@ public class Receiver {
 	public void connect(String address) {
 		this.connect(address, HIGH_WATER_MARK);
 	}
-	
+
 	public void connect(String address, int highWaterMark) {
 		this.context = ZMQ.context(1);
 		this.socket = this.context.socket(ZMQ.PULL);
@@ -63,12 +64,39 @@ public class Receiver {
 	}
 
 	public Message receive() throws RuntimeException {
+		byte[] mainHaderBytes = socket.recv();
+
+		/*
+		 * It can happen that first bytes received do not represent the start of
+		 * a new multipart message but the start of a submessage. Therefore,
+		 * make sure receiver is aligned with the start of the multipart message
+		 * (i.e., it is possible that we loose the first message)
+		 */
+		if (firstMessage) {
+			try {
+				// test if mainHaderBytes can be interpreted as MainHeader
+				mapper.readValue(mainHaderBytes, MainHeader.class);
+			} catch (IOException e) {
+				LOGGER.info("First bytes were not aligned with multipart message.");
+				// drain the socket
+				this.drain();
+				// and wait for the next (complete) multipart message
+				mainHaderBytes = socket.recv();
+			}
+
+			firstMessage = false;
+		}
+
+		return receive(mainHaderBytes);
+	}
+
+	private Message receive(byte[] mainHaderBytes) throws RuntimeException {
 		try {
 			// Receive main header
-			MainHeader mainHeader = mapper.readValue(socket.recv(), MainHeader.class);
+			MainHeader mainHeader = mapper.readValue(mainHaderBytes, MainHeader.class);
 			if (!mainHeader.getHtype().startsWith(MainHeader.HTYPE_VALUE_NO_VERSION)) {
 				String message = String.format("Expect 'bsr_d-[version]' for 'htype' but was '%s'. Skip messge", mainHeader.getHtype());
-				LOGGER.log(Level.SEVERE, message);
+				LOGGER.error(message);
 				this.drain();
 				throw new RuntimeException(message);
 			}
@@ -98,7 +126,7 @@ public class Receiver {
 			}
 			else {
 				String message = "There is no data header. Skip complete message.";
-				LOGGER.log(Level.SEVERE, message);
+				LOGGER.error(message);
 				this.drain();
 				throw new RuntimeException(message);
 			}
@@ -118,7 +146,7 @@ public class Receiver {
 				// ##################
 				if (!this.socket.hasReceiveMore()) {
 					final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
-					LOGGER.log(Level.WARNING, errorMessage);
+					LOGGER.error(errorMessage);
 					throw new RuntimeException(errorMessage);
 				}
 				byte[] valueBytes = socket.recv(); // value
@@ -127,7 +155,7 @@ public class Receiver {
 				// #######################
 				if (!this.socket.hasReceiveMore()) {
 					final String errorMessage = String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
-					LOGGER.log(Level.WARNING, errorMessage);
+					LOGGER.error(errorMessage);
 					throw new RuntimeException(errorMessage);
 				}
 				byte[] timestampBytes = socket.recv();
@@ -142,7 +170,8 @@ public class Receiver {
 					// default "non conversion")
 					value.setValue(valueBytes);
 					ByteBuffer tsByteBuffer = ByteBuffer.wrap(timestampBytes).order(currentConfig.getByteOrder());
-					// c-implementation uses a unsigned long (Json::UInt64, uint64_t) for time -> decided to ignore this here
+					// c-implementation uses a unsigned long (Json::UInt64,
+					// uint64_t) for time -> decided to ignore this here
 					value.setTimestamp(new Timestamp(tsByteBuffer.getLong(), tsByteBuffer.getLong()));
 					values.put(currentConfig.getName(), value);
 				}
@@ -150,7 +179,7 @@ public class Receiver {
 
 			// Sanity check of value list
 			if (i != channelConfigs.size()) {
-				LOGGER.log(Level.WARNING, "Number of received values does not match number of channels.");
+				LOGGER.warn("Number of received values does not match number of channels.");
 			}
 			if (this.socket.hasReceiveMore()) {
 				// Some sender implementations add an empty additional message
