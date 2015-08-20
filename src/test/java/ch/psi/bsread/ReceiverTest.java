@@ -5,7 +5,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -16,6 +15,7 @@ import org.junit.Test;
 
 import ch.psi.bsread.converter.ByteConverter;
 import ch.psi.bsread.converter.MatlabByteConverter;
+import ch.psi.bsread.impl.StandardPulseIdProvider;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
@@ -34,9 +34,23 @@ public class ReceiverTest {
 	private boolean hookValuesCalled;
 	private Map<String, ChannelConfig> channelConfigs = new HashMap<>();
 
+	protected Receiver getReceiver() {
+		return new Receiver();
+	}
+
 	@Test
 	public void testSenderOneChannel10Hz() {
-		Sender sender = new Sender();
+		Sender sender = new Sender(
+				new StandardPulseIdProvider(),
+				new TimeProvider() {
+
+					@Override
+					public Timestamp getTime(long pulseId) {
+						return new Timestamp(pulseId, 0L);
+					}
+				},
+				new MatlabByteConverter()
+				);
 
 		// Register data sources ...
 		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Double, 10, 0)) {
@@ -44,20 +58,24 @@ public class ReceiverTest {
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
 			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, 0L);
+			}
 		});
-
 		sender.bind();
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 100, 2, TimeUnit.MILLISECONDS);
 
-		Receiver receiver = new Receiver();
-
+		Receiver receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-
 		receiver.connect();
+
+		// We schedule faster as we want to have the testcase execute faster
+		ScheduledFuture<?> sendFuture =
+				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
 		Message message = null;
@@ -87,6 +105,25 @@ public class ReceiverTest {
 				assertEquals(Type.Double, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 			}
+
+			String channelName;
+			ChannelConfig chConf;
+			Value value;
+			Double javaVal;
+
+			assertEquals(hookValues.size(), 1);
+			assertEquals(i * 10, hookMainHeader.getPulseId());
+
+			channelName = "ABC";
+			chConf = this.channelConfigs.get(channelName);
+			assertTrue(hookValues.containsKey(channelName));
+			value = hookValues.get(channelName);
+			javaVal = byteConverter.getValue(value.getValue(), chConf.getType().getKey(), chConf.getShape());
+			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
+			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getEpoch());
+			assertEquals(0, value.getTimestamp().getNs());
+			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getEpoch());
+			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 		}
 
 		sendFuture.cancel(true);
@@ -96,7 +133,17 @@ public class ReceiverTest {
 
 	@Test
 	public void testSenderOneChannel01Hz() {
-		Sender sender = new Sender();
+		Sender sender = new Sender(
+				new StandardPulseIdProvider(),
+				new TimeProvider() {
+
+					@Override
+					public Timestamp getTime(long pulseId) {
+						return new Timestamp(pulseId, 0L);
+					}
+				},
+				new MatlabByteConverter()
+				);
 
 		// Register data sources ...
 		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Double, 1000, 0)) {
@@ -104,20 +151,24 @@ public class ReceiverTest {
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
 			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, 0L);
+			}
 		});
-
 		sender.bind();
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 100, 2, TimeUnit.MILLISECONDS);
 
-		Receiver receiver = new Receiver();
-
+		Receiver receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-
 		receiver.connect();
+
+		// We schedule faster as we want to have the testcase execute faster
+		ScheduledFuture<?> sendFuture =
+				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
 		Message message = null;
@@ -147,6 +198,25 @@ public class ReceiverTest {
 				assertEquals(Type.Double, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 			}
+
+			String channelName;
+			ChannelConfig chConf;
+			Value value;
+			Double javaVal;
+
+			assertEquals(hookValues.size(), 1);
+			assertEquals(i * 1000, hookMainHeader.getPulseId());
+
+			channelName = "ABC";
+			chConf = this.channelConfigs.get(channelName);
+			assertTrue(hookValues.containsKey(channelName));
+			value = hookValues.get(channelName);
+			javaVal = byteConverter.getValue(value.getValue(), chConf.getType().getKey(), chConf.getShape());
+			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
+			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getEpoch());
+			assertEquals(0, value.getTimestamp().getNs());
+			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getEpoch());
+			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 		}
 
 		sendFuture.cancel(true);
@@ -156,7 +226,17 @@ public class ReceiverTest {
 
 	@Test
 	public void testSenderOneChannel10HzOffset() {
-		Sender sender = new Sender();
+		Sender sender = new Sender(
+				new StandardPulseIdProvider(),
+				new TimeProvider() {
+
+					@Override
+					public Timestamp getTime(long pulseId) {
+						return new Timestamp(pulseId, 0L);
+					}
+				},
+				new MatlabByteConverter()
+				);
 
 		// Register data sources ...
 		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Double, 10, 1)) {
@@ -164,20 +244,24 @@ public class ReceiverTest {
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
 			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, 0L);
+			}
 		});
-
 		sender.bind();
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 100, 2, TimeUnit.MILLISECONDS);
 
-		Receiver receiver = new Receiver();
-
+		Receiver receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-
 		receiver.connect();
+
+		// We schedule faster as we want to have the testcase execute faster
+		ScheduledFuture<?> sendFuture =
+				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
 		Message message = null;
@@ -207,6 +291,25 @@ public class ReceiverTest {
 				assertEquals(Type.Double, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 			}
+
+			String channelName;
+			ChannelConfig chConf;
+			Value value;
+			Double javaVal;
+
+			assertEquals(hookValues.size(), 1);
+			assertEquals(((i + 1) * 10) - 1, hookMainHeader.getPulseId());
+
+			channelName = "ABC";
+			chConf = this.channelConfigs.get(channelName);
+			assertTrue(hookValues.containsKey(channelName));
+			value = hookValues.get(channelName);
+			javaVal = byteConverter.getValue(value.getValue(), chConf.getType().getKey(), chConf.getShape());
+			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
+			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getEpoch());
+			assertEquals(0, value.getTimestamp().getNs());
+			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getEpoch());
+			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 		}
 
 		sendFuture.cancel(true);
@@ -216,7 +319,17 @@ public class ReceiverTest {
 
 	@Test
 	public void testSenderTwoChannel100HzAnd10Hz() {
-		Sender sender = new Sender();
+		Sender sender = new Sender(
+				new StandardPulseIdProvider(),
+				new TimeProvider() {
+
+					@Override
+					public Timestamp getTime(long pulseId) {
+						return new Timestamp(pulseId, 0L);
+					}
+				},
+				new MatlabByteConverter()
+				);
 
 		// Register data sources ...
 		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC_10", Type.Double, 10, 0)) {
@@ -224,27 +337,35 @@ public class ReceiverTest {
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
 			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, 0L);
+			}
 		});
 		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC_100", Type.Double, 1, 0)) {
 			@Override
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
 			}
-		});
 
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, 0L);
+			}
+		});
 		sender.bind();
 
-		Receiver receiver = new Receiver();
-
+		Receiver receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-
 		receiver.connect();
 
 		// We schedule faster as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 100, 2, TimeUnit.MILLISECONDS);
+		ScheduledFuture<?> sendFuture =
+				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
 		Message message = null;
@@ -287,33 +408,45 @@ public class ReceiverTest {
 			Value value;
 			Double javaVal;
 			if (hookMainHeader.getPulseId() % 10 == 0) {
-				assertEquals(hookValues.size(), 2);
+				assertEquals(2, hookValues.size());
+				assertEquals(i, hookMainHeader.getPulseId());
 
 				channelName = "ABC_10";
 				chConf = this.channelConfigs.get(channelName);
 				assertTrue(hookValues.containsKey(channelName));
-				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = byteConverter.getValue(ByteBuffer.wrap(value.getValue()).order(chConf.getByteOrder()), chConf.getType().getKey(), chConf.getShape());
+				javaVal = byteConverter.getValue(value.getValue(), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getEpoch());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getEpoch());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 
 				channelName = "ABC_100";
 				chConf = this.channelConfigs.get(channelName);
 				assertTrue(hookValues.containsKey(channelName));
-				assertTrue(hookValues.containsKey(channelName));
+				assertEquals(i, hookMainHeader.getPulseId());
 				value = hookValues.get(channelName);
-				javaVal = byteConverter.getValue(ByteBuffer.wrap(value.getValue()).order(chConf.getByteOrder()), chConf.getType().getKey(), chConf.getShape());
+				javaVal = byteConverter.getValue(value.getValue(), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getEpoch());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getEpoch());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			} else {
-				assertEquals(hookValues.size(), 1);
+				assertEquals(1, hookValues.size());
+				assertEquals(i, hookMainHeader.getPulseId());
 
 				channelName = "ABC_100";
 				chConf = this.channelConfigs.get(channelName);
 				assertTrue(hookValues.containsKey(channelName));
-				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = byteConverter.getValue(ByteBuffer.wrap(value.getValue()).order(chConf.getByteOrder()), chConf.getType().getKey(), chConf.getShape());
+				javaVal = byteConverter.getValue(value.getValue(), chConf.getType().getKey(), chConf.getShape());
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getEpoch());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getEpoch());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			}
 		}
 
@@ -339,7 +472,8 @@ public class ReceiverTest {
 				byteConverter);
 
 		// Register data sources ...
-		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABC", Type.Long, new int[] { 1 }, 10, 0, ChannelConfig.ENCODING_LITTLE_ENDIAN)) {
+		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABC", Type.Long, new int[] { 1 }, 10, 0,
+				ChannelConfig.ENCODING_LITTLE_ENDIAN)) {
 			@Override
 			public Long getValue(long pulseId) {
 				return pulseId;
@@ -350,7 +484,8 @@ public class ReceiverTest {
 				return new Timestamp(pulseId, pulseId);
 			}
 		});
-		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABCD", Type.Long, new int[] { 1 }, 10, 0, ChannelConfig.ENCODING_BIG_ENDIAN)) {
+		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABCD", Type.Long, new int[] { 1 }, 10, 0,
+				ChannelConfig.ENCODING_BIG_ENDIAN)) {
 			@Override
 			public Long getValue(long pulseId) {
 				return pulseId + 1;
@@ -361,19 +496,18 @@ public class ReceiverTest {
 				return new Timestamp(pulseId + 1, pulseId + 1);
 			}
 		});
-
 		sender.bind();
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 100, 2, TimeUnit.MILLISECONDS);
 
-		Receiver receiver = new Receiver();
-
+		Receiver receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-
 		receiver.connect();
+
+		// We schedule faster as we want to have the testcase execute faster
+		ScheduledFuture<?> sendFuture =
+				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
 		Message message = null;
@@ -420,13 +554,13 @@ public class ReceiverTest {
 
 			for (int j = 0; j < hookDataHeader.getChannels().size(); ++j) {
 				ChannelConfig channelConfig = hookDataHeader.getChannels().get(j);
-				
+
 				Value value = hookValues.get(channelConfig.getName());
 				Timestamp iocTimestamp = value.getTimestamp();
 				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getEpoch());
 				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getNs());
 				Number val = this.byteConverter.getValue(
-						ByteBuffer.wrap(value.getValue()).order(channelConfig.getByteOrder()),
+						value.getValue(),
 						channelConfig.getType().name(),
 						channelConfig.getShape());
 				assertEquals(hookMainHeader.getPulseId() + j, val.longValue());

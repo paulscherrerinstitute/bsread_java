@@ -1,7 +1,5 @@
 package ch.psi.bsread.basic;
 
-import java.nio.ByteBuffer;
-
 import ch.psi.bsread.Receiver;
 import ch.psi.bsread.converter.ByteConverter;
 import ch.psi.bsread.converter.MatlabByteConverter;
@@ -61,7 +59,7 @@ public class BasicReceiver {
 					channel,
 					new BasicValue<>(
 							this.byteConverter.getValue(
-									ByteBuffer.wrap(value.getValue()).order(channelConfig.getByteOrder()),
+									value.getValue(),
 									channelConfig.getType().name().toLowerCase(),
 									channelConfig.getShape()),
 							value.getTimestamp()));

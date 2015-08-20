@@ -11,6 +11,8 @@ import org.zeromq.ZMQ.Socket;
 
 import ch.psi.bsread.converter.ByteConverter;
 import ch.psi.bsread.converter.MatlabByteConverter;
+import ch.psi.bsread.impl.StandardPulseIdProvider;
+import ch.psi.bsread.impl.StandardTimeProvider;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
@@ -54,7 +56,7 @@ public class Sender {
 	public void bind(String address) {
 		this.bind(address, HIGH_WATER_MARK);
 	}
-	
+
 	public void bind(String address, int highWaterMark) {
 		this.context = ZMQ.context(1);
 		this.socket = this.context.socket(ZMQ.PUSH);
@@ -104,7 +106,8 @@ public class Sender {
 						socket.sendByteBuffer(this.byteConverter.getBytes(channel.getConfig().getType().getKey(), value, byteOrder), ZMQ.NOBLOCK | ZMQ.SNDMORE);
 
 						Timestamp timestamp = channel.getTime(pulseId);
-						// c-implementation uses a unsigned long (Json::UInt64, uint64_t) for time -> decided to ignore this here
+						// c-implementation uses a unsigned long (Json::UInt64,
+						// uint64_t) for time -> decided to ignore this here
 						socket.sendByteBuffer(this.byteConverter.getBytes(timestamp.getAsLongArray(), byteOrder), lastSendMore);
 					}
 					else {

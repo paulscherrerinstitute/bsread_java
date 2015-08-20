@@ -67,15 +67,37 @@ public abstract class AbstractByteConverter implements ByteConverter {
 		return type;
 	}
 
-	public boolean isArray(int[] shape) {
+	public static Class<?> wrapperToPrimitive(final Class<?> cls) {
+		return WRAPPER_PRIMITIVE_MAP.get(cls);
+	}
+
+	/**
+	 * Determines if a shape is an array.
+	 * 
+	 * @param shape
+	 *            The shape
+	 * @return boolean <tt>true</tt> if it is an array, <tt>false</tt> otherwise
+	 */
+	public static boolean isArray(int[] shape) {
 		if (shape != null) {
 			return (shape.length > 1) ? true : shape[0] > 1;
 		} else {
 			return false;
 		}
 	}
-	
-	public static Class<?> wrapperToPrimitive(final Class<?> cls) {
-		return WRAPPER_PRIMITIVE_MAP.get(cls);
+
+	/**
+	 * Determines the length of the corresponding array.
+	 * 
+	 * @param shape
+	 *            The shape
+	 * @return int The length
+	 */
+	public static int getArrayLength(int[] shape) {
+		int length = 1;
+		for (int i : shape) {
+			length *= i;
+		}
+		return length;
 	}
 }
