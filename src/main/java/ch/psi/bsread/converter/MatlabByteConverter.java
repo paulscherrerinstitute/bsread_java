@@ -19,26 +19,30 @@ public class MatlabByteConverter extends AbstractByteConverter {
 	@Override
 	public <T> T getValue(ByteBuffer byteValue, String type, int[] shape) {
 		type = type.toLowerCase();
-		final boolean array = this.isArray(shape);
+		final boolean array = isArray(shape);
 
 		switch (type) {
-		case "double":
+		case "byte":
 			if (array) {
-				double[] values = new double[byteValue.remaining() / Double.BYTES];
-				byteValue.asDoubleBuffer().get(values);
+				if (byteValue.hasArray()) {
+					return (T) byteValue.array();
+				} else {
+					byte[] values = new byte[byteValue.remaining() / Byte.BYTES];
+					byteValue.duplicate().get(values);
+					return (T) values;
+				}
+			}
+			else {
+				return (T) ((Short) byteValue.asShortBuffer().get());
+			}
+		case "short":
+			if (array) {
+				short[] values = new short[byteValue.remaining() / Short.BYTES];
+				byteValue.asShortBuffer().get(values);
 				return (T) values;
 			}
 			else {
-				return (T) ((Double) byteValue.asDoubleBuffer().get());
-			}
-		case "float":
-			if (array) {
-				float[] values = new float[byteValue.remaining() / Float.BYTES];
-				byteValue.asFloatBuffer().get(values);
-				return (T) values;
-			}
-			else {
-				return (T) ((Float) byteValue.asFloatBuffer().get());
+				return (T) ((Short) byteValue.asShortBuffer().get());
 			}
 		case "integer":
 			if (array) {
@@ -58,14 +62,23 @@ public class MatlabByteConverter extends AbstractByteConverter {
 			else {
 				return (T) ((Long) byteValue.asLongBuffer().get());
 			}
-		case "short":
+		case "float":
 			if (array) {
-				short[] values = new short[byteValue.remaining() / Short.BYTES];
-				byteValue.asShortBuffer().get(values);
+				float[] values = new float[byteValue.remaining() / Float.BYTES];
+				byteValue.asFloatBuffer().get(values);
 				return (T) values;
 			}
 			else {
-				return (T) ((Short) byteValue.asShortBuffer().get());
+				return (T) ((Float) byteValue.asFloatBuffer().get());
+			}
+		case "double":
+			if (array) {
+				double[] values = new double[byteValue.remaining() / Double.BYTES];
+				byteValue.asDoubleBuffer().get(values);
+				return (T) values;
+			}
+			else {
+				return (T) ((Double) byteValue.asDoubleBuffer().get());
 			}
 		case "string":
 			return (T) new String(byteValue.array());
@@ -80,21 +93,20 @@ public class MatlabByteConverter extends AbstractByteConverter {
 	public <T> ByteBuffer getBytes(String type, T value, ByteOrder byteOrder) {
 		ByteBuffer buffer;
 
-		if (value instanceof double[]) {
-			buffer = ByteBuffer.allocate(((double[]) value).length * Double.BYTES).order(byteOrder);
-			buffer.asDoubleBuffer().put((double[]) value);
+		if (value instanceof byte[]) {
+			buffer = ByteBuffer.wrap((byte[]) value).order(byteOrder);
 		}
-		else if (value instanceof Double) {
-			buffer = ByteBuffer.allocate(Double.BYTES).order(byteOrder);
-			buffer.asDoubleBuffer().put((Double) value);
+		else if (value instanceof Byte) {
+			buffer = ByteBuffer.allocate(Byte.BYTES).order(byteOrder);
+			buffer.duplicate().put((Byte) value);
 		}
-		else if (value instanceof float[]) {
-			buffer = ByteBuffer.allocate(((float[]) value).length * Float.BYTES).order(byteOrder);
-			buffer.asFloatBuffer().put((float[]) value);
+		else if (value instanceof short[]) {
+			buffer = ByteBuffer.allocate(((short[]) value).length * Short.BYTES).order(byteOrder);
+			buffer.asShortBuffer().put((short[]) value);
 		}
-		else if (value instanceof Float) {
-			buffer = ByteBuffer.allocate(Float.BYTES).order(byteOrder);
-			buffer.asFloatBuffer().put((Float) value);
+		else if (value instanceof Short) {
+			buffer = ByteBuffer.allocate(Short.BYTES).order(byteOrder);
+			buffer.asShortBuffer().put((Short) value);
 		}
 		else if (value instanceof int[]) {
 			buffer = ByteBuffer.allocate(((int[]) value).length * Integer.BYTES).order(byteOrder);
@@ -112,13 +124,21 @@ public class MatlabByteConverter extends AbstractByteConverter {
 			buffer = ByteBuffer.allocate(Long.BYTES).order(byteOrder);
 			buffer.asLongBuffer().put((Long) value);
 		}
-		else if (value instanceof short[]) {
-			buffer = ByteBuffer.allocate(((short[]) value).length * Short.BYTES).order(byteOrder);
-			buffer.asShortBuffer().put((short[]) value);
+		else if (value instanceof float[]) {
+			buffer = ByteBuffer.allocate(((float[]) value).length * Float.BYTES).order(byteOrder);
+			buffer.asFloatBuffer().put((float[]) value);
 		}
-		else if (value instanceof Short) {
-			buffer = ByteBuffer.allocate(Short.BYTES).order(byteOrder);
-			buffer.asShortBuffer().put((Short) value);
+		else if (value instanceof Float) {
+			buffer = ByteBuffer.allocate(Float.BYTES).order(byteOrder);
+			buffer.asFloatBuffer().put((Float) value);
+		}
+		else if (value instanceof double[]) {
+			buffer = ByteBuffer.allocate(((double[]) value).length * Double.BYTES).order(byteOrder);
+			buffer.asDoubleBuffer().put((double[]) value);
+		}
+		else if (value instanceof Double) {
+			buffer = ByteBuffer.allocate(Double.BYTES).order(byteOrder);
+			buffer.asDoubleBuffer().put((Double) value);
 		}
 		else if (value instanceof String) {
 			return ByteBuffer.wrap(((String) value).getBytes());

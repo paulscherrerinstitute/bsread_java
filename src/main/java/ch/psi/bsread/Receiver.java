@@ -1,9 +1,7 @@
 package ch.psi.bsread;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -16,16 +14,16 @@ import org.zeromq.ZMQ.Socket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import ch.psi.bsread.message.ChannelConfig;
+import ch.psi.bsread.impl.StandardMessageExtractor;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
-import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Value;
 
 public class Receiver {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class.getName());
 	public static final int HIGH_WATER_MARK = 100;
+	private static final int MAX_ALIGNMENT_RETRY = 10;
 
 	private Context context;
 	private Socket socket;
@@ -36,10 +34,21 @@ public class Receiver {
 	private List<Consumer<DataHeader>> dataHeaderHandlers = new ArrayList<>();
 	private List<Consumer<Map<String, Value>>> valueHandlers = new ArrayList<>();
 	private boolean parallelProcessing = false;
+	private MessageExtractor messageExtractor;
 
 	private String dataHeaderHash = "";
 	private DataHeader dataHeader = null;
-	private boolean firstMessage = true;
+
+	public Receiver() {
+		this(false, new StandardMessageExtractor());
+	}
+
+	public Receiver(boolean parallelProcessing, MessageExtractor messageExtractor) {
+		this.parallelProcessing = parallelProcessing;
+		this.messageExtractor = messageExtractor;
+
+		this.dataHeaderHandlers.add(this.messageExtractor);
+	}
 
 	public void connect() {
 		connect("tcp://localhost:9999");
@@ -64,40 +73,39 @@ public class Receiver {
 	}
 
 	public Message receive() throws RuntimeException {
-		byte[] mainHaderBytes = socket.recv();
+		// Receive main header
+		MainHeader mainHeader = null;
+		int nrOfAlignmentTrys = 0;
 
-		/*
-		 * It can happen that first bytes received do not represent the start of
-		 * a new multipart message but the start of a submessage. Therefore,
-		 * make sure receiver is aligned with the start of the multipart message
-		 * (i.e., it is possible that we loose the first message)
-		 */
-		if (firstMessage) {
+		while (mainHeader == null && nrOfAlignmentTrys < MAX_ALIGNMENT_RETRY) {
+			/*
+			 * It can happen that bytes received do not represent the start of a
+			 * new multipart message but the start of a submessage (e.g. after
+			 * connection or when messages get lost). Therefore, make sure
+			 * receiver is aligned with the start of the multipart message
+			 * (i.e., it is possible that we loose the first message)
+			 */
 			try {
 				// test if mainHaderBytes can be interpreted as MainHeader
-				mapper.readValue(mainHaderBytes, MainHeader.class);
+				mainHeader = mapper.readValue(socket.recv(), MainHeader.class);
 			} catch (IOException e) {
-				LOGGER.info("First bytes were not aligned with multipart message.");
+				++nrOfAlignmentTrys;
+				LOGGER.info("Received bytes were not aligned with multipart message.");
 				// drain the socket
-				this.drain();
-				// and wait for the next (complete) multipart message
-				mainHaderBytes = socket.recv();
+				drain();
 			}
-
-			firstMessage = false;
 		}
 
-		return receive(mainHaderBytes);
+		return receive(mainHeader);
 	}
 
-	private Message receive(byte[] mainHaderBytes) throws RuntimeException {
+	private Message receive(MainHeader mainHeader) throws RuntimeException {
 		try {
-			// Receive main header
-			MainHeader mainHeader = mapper.readValue(mainHaderBytes, MainHeader.class);
 			if (!mainHeader.getHtype().startsWith(MainHeader.HTYPE_VALUE_NO_VERSION)) {
-				String message = String.format("Expect 'bsr_d-[version]' for 'htype' but was '%s'. Skip messge", mainHeader.getHtype());
+				String message =
+						String.format("Expect 'bsr_d-[version]' for 'htype' but was '%s'. Skip messge", mainHeader.getHtype());
 				LOGGER.error(message);
-				this.drain();
+				drain();
 				throw new RuntimeException(message);
 			}
 
@@ -127,60 +135,14 @@ public class Receiver {
 			else {
 				String message = "There is no data header. Skip complete message.";
 				LOGGER.error(message);
-				this.drain();
+				drain();
 				throw new RuntimeException(message);
 			}
 
 			// Receiver data
-			Message message = new Message();
-			message.setMainHeader(mainHeader);
-			message.setDataHeader(dataHeader);
-			Map<String, Value> values = new HashMap<>();
-			message.setValues(values);
-			List<ChannelConfig> channelConfigs = dataHeader.getChannels();
-			int i = 0;
-			for (; i < channelConfigs.size() && this.socket.hasReceiveMore(); ++i) {
-				ChannelConfig currentConfig = channelConfigs.get(i);
+			Message message = messageExtractor.extractMessage(socket, mainHeader);
+			Map<String, Value> values = message.getValues();
 
-				// # read data blob #
-				// ##################
-				if (!this.socket.hasReceiveMore()) {
-					final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
-					LOGGER.error(errorMessage);
-					throw new RuntimeException(errorMessage);
-				}
-				byte[] valueBytes = socket.recv(); // value
-
-				// # read timestamp blob #
-				// #######################
-				if (!this.socket.hasReceiveMore()) {
-					final String errorMessage = String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
-					LOGGER.error(errorMessage);
-					throw new RuntimeException(errorMessage);
-				}
-				byte[] timestampBytes = socket.recv();
-
-				// Create value object
-				if (valueBytes != null && valueBytes.length > 0) {
-					Value value = new Value();
-
-					// TODO always convert to BigEndian byte order!
-					// Why? Leads to unnecessary conversion work during DAQ.
-					// Fabian objects to this TODO (or make it configurable with
-					// default "non conversion")
-					value.setValue(valueBytes);
-					ByteBuffer tsByteBuffer = ByteBuffer.wrap(timestampBytes).order(currentConfig.getByteOrder());
-					// c-implementation uses a unsigned long (Json::UInt64,
-					// uint64_t) for time -> decided to ignore this here
-					value.setTimestamp(new Timestamp(tsByteBuffer.getLong(), tsByteBuffer.getLong()));
-					values.put(currentConfig.getName(), value);
-				}
-			}
-
-			// Sanity check of value list
-			if (i != channelConfigs.size()) {
-				LOGGER.warn("Number of received values does not match number of channels.");
-			}
 			if (this.socket.hasReceiveMore()) {
 				// Some sender implementations add an empty additional message
 				// at the end
@@ -190,7 +152,6 @@ public class Receiver {
 					throw new RuntimeException("There were more than 1 trailing submessages to the message than expected");
 				}
 			}
-
 			// notify hooks with complete values
 			if (!values.isEmpty()) {
 				if (this.parallelProcessing) {
@@ -240,13 +201,5 @@ public class Receiver {
 
 	public void removeDataHeaderHandler(Consumer<DataHeader> handler) {
 		dataHeaderHandlers.remove(handler);
-	}
-
-	public void setParallelProcessing(boolean parallelProcessing) {
-		this.parallelProcessing = parallelProcessing;
-	}
-
-	public boolean isParallelProcessing() {
-		return this.parallelProcessing;
 	}
 }

@@ -8,12 +8,11 @@ import java.util.Map;
  * Complete data message send from a BSREAD source
  */
 public class Message implements Serializable {
-	
-	private static final long serialVersionUID = 1L;
-	
+	private static final long serialVersionUID = -5438664019568662396L;
+
 	private MainHeader mainHeader = null;
 	private DataHeader dataHeader = null;
-	
+
 	/**
 	 * Map holding all values of a channel - key: channel name value: value
 	 */
