@@ -124,7 +124,7 @@ public class Sender {
 
 	private boolean isSendNeeded(long pulseId, DataChannel<?> channel) {
 		// Check if this channel sends data for given pulseId
-		return ((pulseId + channel.getConfig().getOffset()) % channel.getConfig().getModulo()) == 0;
+		return ((pulseId - channel.getConfig().getOffset()) % channel.getConfig().getModulo()) == 0;
 	}
 
 	/**

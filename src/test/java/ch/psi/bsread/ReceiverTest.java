@@ -281,7 +281,7 @@ public class ReceiverTest {
 			assertSame(hookDataHeader, message.getDataHeader());
 			assertSame(hookValues, message.getValues());
 
-			assertTrue("Is a 10Hz Channel with offset 1", (hookMainHeader.getPulseId() + 1) % 10 == 0);
+			assertTrue("Is a 10Hz Channel with offset 1", (hookMainHeader.getPulseId() - 1) % 10 == 0);
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 1);
 				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
@@ -298,7 +298,7 @@ public class ReceiverTest {
 			Double javaVal;
 
 			assertEquals(hookValues.size(), 1);
-			assertEquals(((i + 1) * 10) - 1, hookMainHeader.getPulseId());
+			assertEquals((i * 10) + 1, hookMainHeader.getPulseId());
 
 			channelName = "ABC";
 			chConf = this.channelConfigs.get(channelName);
