@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -139,6 +140,10 @@ public class Receiver {
 				throw new RuntimeException(message);
 			}
 
+			if (LOGGER.isDebugEnabled()) {
+				LOGGER.debug("Receive message for pulse '{}' and channels '{}'.", mainHeader.getPulseId(),
+						dataHeader.getChannels().stream().map(channel -> channel.getName()).collect(Collectors.joining(", ")));
+			}
 			// Receiver data
 			Message message = messageExtractor.extractMessage(socket, mainHeader);
 			Map<String, Value> values = message.getValues();

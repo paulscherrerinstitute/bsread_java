@@ -4,7 +4,10 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
@@ -21,6 +24,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class Sender {
+	private static final Logger LOGGER = LoggerFactory.getLogger(Sender.class.getName());
 
 	public static final int HIGH_WATER_MARK = 100;
 
@@ -91,8 +95,12 @@ public class Sender {
 
 				// Send data header
 				socket.send(dataHeaderBytes, ZMQ.NOBLOCK | ZMQ.SNDMORE);
+				
+				if (LOGGER.isDebugEnabled()) {
+					LOGGER.debug("Send message for pulse '{}' and channels '{}'.", mainHeader.getPulseId(),
+							channels.stream().map(dataChannel -> dataChannel.getConfig().getName()).collect(Collectors.joining(", ")));
+				}
 				// Send data
-
 				int lastSendMore;
 				for (int i = 0; i < channels.size(); ++i) {
 					channel = channels.get(i);

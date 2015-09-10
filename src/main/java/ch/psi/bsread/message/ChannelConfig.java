@@ -40,13 +40,13 @@ public class ChannelConfig implements Serializable {
 
 	public ChannelConfig(String name, Type type, int[] shape, int modulo, int offset) {
 		this(name, type, modulo, offset);
-		
+
 		this.shape = shape;
 	}
-	
+
 	public ChannelConfig(String name, Type type, int[] shape, int modulo, int offset, String encoding) {
 		this(name, type, shape, modulo, offset);
-		
+
 		this.encoding = encoding;
 	}
 
@@ -116,9 +116,17 @@ public class ChannelConfig implements Serializable {
 		}
 	}
 
+	public static String getEncoding(ByteOrder byteOrder) {
+		if (byteOrder != null && byteOrder.equals(ByteOrder.BIG_ENDIAN)) {
+			return ENCODING_BIG_ENDIAN;
+		} else {
+			return ENCODING_LITTLE_ENDIAN;
+		}
+	}
+
 	@JsonIgnore
 	public void setByteOrder(ByteOrder byteOrder) {
-		if (byteOrder.equals(ByteOrder.BIG_ENDIAN)) {
+		if (byteOrder != null && byteOrder.equals(ByteOrder.BIG_ENDIAN)) {
 			encoding = ChannelConfig.ENCODING_BIG_ENDIAN;
 		}
 		else {
