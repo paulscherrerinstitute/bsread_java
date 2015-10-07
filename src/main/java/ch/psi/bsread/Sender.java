@@ -19,6 +19,7 @@ import ch.psi.bsread.impl.StandardTimeProvider;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
+import ch.psi.bsread.message.Type;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -116,7 +117,7 @@ public class Sender {
 						Timestamp timestamp = channel.getTime(pulseId);
 						// c-implementation uses a unsigned long (Json::UInt64,
 						// uint64_t) for time -> decided to ignore this here
-						socket.sendByteBuffer(this.byteConverter.getBytes(timestamp.getAsLongArray(), byteOrder), lastSendMore);
+						socket.sendByteBuffer(this.byteConverter.getBytes(Type.Long.getKey(), timestamp.getAsLongArray(), byteOrder), lastSendMore);
 					}
 					else {
 						// Send placeholder
