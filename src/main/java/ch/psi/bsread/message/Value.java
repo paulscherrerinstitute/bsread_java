@@ -63,13 +63,11 @@ public class Value<V> implements Serializable {
 	}
 
 	public <W> W getValue(Class<W> clazz) {
-		Object val = getValue();
-		if (clazz.isAssignableFrom(val.getClass())) {
-			return clazz.cast(val);
+		Object value = getValue();
+		if (clazz.isAssignableFrom(value.getClass())) {
+			return clazz.cast(value);
 		} else {
-			LOGGER.warn("Cast from '{}' to '{}' not possible. Check your code!", val.getClass(), clazz,
-					new RuntimeException() /* show stacktrace */);
-			return null;
+			throw new ClassCastException("Cast from '" + value.getClass().getName() + "' to '" + clazz.getClass().getName() + "' not possible.");
 		}
 	}
 
