@@ -1,11 +1,13 @@
 package ch.psi.bsread;
 
+import ch.psi.bsread.converter.MatlabByteConverter;
+import ch.psi.bsread.impl.StandardMessageExtractor;
 import ch.psi.bsread.message.Message;
 
 public class ReceiverExample {
 
 	public static void main(String[] args) {
-		Receiver receiver = new Receiver();
+		Receiver<Object> receiver = new Receiver<Object>(new StandardMessageExtractor<Object>(new MatlabByteConverter()));
 		
 		receiver.connect("tcp://localhost:9000");
 
@@ -18,7 +20,7 @@ public class ReceiverExample {
 //		receiver.addValueHandler(data -> System.out.println(data));
 		
 		while(!Thread.currentThread().isInterrupted()){
-			Message message = receiver.receive();
+			Message<Object> message = receiver.receive();
 			
 			System.out.println(message.getMainHeader());
 			System.out.println(message.getDataHeader());

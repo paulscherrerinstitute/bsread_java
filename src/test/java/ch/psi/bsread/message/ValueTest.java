@@ -14,9 +14,9 @@ public class ValueTest {
 		ByteBuffer buf = ByteBuffer.allocate(Integer.BYTES).order(ByteOrder.BIG_ENDIAN);
 		int intVal = Integer.MAX_VALUE / 3;
 		buf.asIntBuffer().put(intVal);
-		Value val = new Value(buf, new Timestamp(10, 2));
+		Value<ByteBuffer> val = new Value<>(buf, new Timestamp(10, 2));
 
-		Value copy = SerializationHelper.copy(val);
+		Value<ByteBuffer> copy = SerializationHelper.copy(val);
 		assertEquals(val.getTimestamp().getEpoch(), copy.getTimestamp().getEpoch());
 		assertEquals(val.getTimestamp().getNs(), copy.getTimestamp().getNs());
 		assertEquals(val.getValue().isDirect(), copy.getValue().isDirect());
@@ -28,7 +28,7 @@ public class ValueTest {
 		buf = ByteBuffer.allocate(Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
 		intVal = Integer.MAX_VALUE / 5;
 		buf.asIntBuffer().put(intVal);
-		val = new Value(buf, new Timestamp(Long.MAX_VALUE / 2, 459));
+		val = new Value<>(buf, new Timestamp(Long.MAX_VALUE / 2, 459));
 
 		copy = SerializationHelper.copy(val);
 		assertEquals(val.getTimestamp().getEpoch(), copy.getTimestamp().getEpoch());
@@ -42,7 +42,7 @@ public class ValueTest {
 		buf = ByteBuffer.allocateDirect(Integer.BYTES).order(ByteOrder.BIG_ENDIAN);
 		intVal = Integer.MAX_VALUE / 9;
 		buf.asIntBuffer().put(intVal);
-		val = new Value(buf, new Timestamp(Long.MAX_VALUE / 5, 459));
+		val = new Value<>(buf, new Timestamp(Long.MAX_VALUE / 5, 459));
 
 		copy = SerializationHelper.copy(val);
 		assertEquals(val.getTimestamp().getEpoch(), copy.getTimestamp().getEpoch());
@@ -56,7 +56,7 @@ public class ValueTest {
 		buf = ByteBuffer.allocateDirect(Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
 		intVal = Integer.MAX_VALUE / 2;
 		buf.asIntBuffer().put(intVal);
-		val = new Value(buf, new Timestamp(Long.MAX_VALUE / 3, 459));
+		val = new Value<>(buf, new Timestamp(Long.MAX_VALUE / 3, 459));
 
 		copy = SerializationHelper.copy(val);
 		assertEquals(val.getTimestamp().getEpoch(), copy.getTimestamp().getEpoch());

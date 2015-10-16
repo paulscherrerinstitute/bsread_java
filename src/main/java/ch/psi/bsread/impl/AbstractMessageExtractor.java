@@ -4,6 +4,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +16,7 @@ import org.zeromq.ZMQ.Socket;
 import zmq.Msg;
 
 import ch.psi.bsread.MessageExtractor;
+import ch.psi.bsread.converter.ValueConverter;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
@@ -26,36 +30,28 @@ import ch.psi.bsread.message.Value;
  * OutOfMemoryError when Messages are buffered since the JAVA heap space will
  * not be the limiting factor.
  */
-public abstract class AbstractMessageExtractor implements MessageExtractor {
+public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMessageExtractor.class.getName());
 
-	private int directThreshold = Integer.MAX_VALUE;
+	private static final ExecutorService VALUE_CONVERSION_SERVICE = Executors.newWorkStealingPool(2 * Runtime.getRuntime().availableProcessors());
+	
 	private DataHeader dataHeader;
+	private ValueConverter valueConverter;
 
-	public AbstractMessageExtractor() {
+	public AbstractMessageExtractor(ValueConverter valueConverter) {
+		this.valueConverter = valueConverter;
 	}
 
-	/**
-	 * Constructor
-	 * 
-	 * @param directThreshold
-	 *            The number of byte threshold defining when direct ByteBuffers
-	 *            should be used
-	 */
-	public AbstractMessageExtractor(int directThreshold) {
-		this.directThreshold = directThreshold;
-	}
-
-	protected Value getValue(ChannelConfig channelConfig) {
-		return new Value(null, new Timestamp());
+	protected Value<V> getValue(ChannelConfig channelConfig) {
+		return new Value<V>((V) null, new Timestamp());
 	}
 
 	@Override
-	public Message extractMessage(Socket socket, MainHeader mainHeader) {
-		Message message = new Message();
+	public Message<V> extractMessage(Socket socket, MainHeader mainHeader) {
+		Message<V> message = new Message<V>();
 		message.setMainHeader(mainHeader);
 		message.setDataHeader(dataHeader);
-		Map<String, Value> values = message.getValues();
+		Map<String, Value<V>> values = message.getValues();
 		List<ChannelConfig> channelConfigs = dataHeader.getChannels();
 
 		int i = 0;
@@ -87,14 +83,14 @@ public abstract class AbstractMessageExtractor implements MessageExtractor {
 
 			// Create value object
 			if (valueBytes != null && valueBytes.remaining() > 0) {
-				final Value value = getValue(currentConfig);
+				final Value<V> value = getValue(currentConfig);
 				values.put(currentConfig.getName(), value);
 
-				if (valueMsg.size() > directThreshold) {
-					toDirect(value, valueBytes, currentConfig);
-				} else {
-					value.setValue(valueBytes);
-				}
+				// offload value conversion work from receiver thread
+				CompletableFuture<V> futureValue = CompletableFuture.supplyAsync(
+						() -> valueConverter.getValue(valueBytes, currentConfig.getType().getKey(), currentConfig.getShape()),
+						VALUE_CONVERSION_SERVICE);
+				value.setFutureValue(futureValue);
 
 				// c-implementation uses a unsigned long (Json::UInt64,
 				// uint64_t) for time -> decided to ignore this here
@@ -115,31 +111,6 @@ public abstract class AbstractMessageExtractor implements MessageExtractor {
 	@Override
 	public void accept(DataHeader dataHeader) {
 		this.dataHeader = dataHeader;
-	}
-
-	protected void toDirect(Value value, ByteBuffer valueBytes, ChannelConfig config) {
-		if (valueBytes.isDirect()) {
-			value.setValue(valueBytes);
-		}
-
-		ByteBuffer direct = value.getValue();
-		if (direct == null || !direct.isDirect()) {
-			direct = ByteBuffer.allocateDirect(valueBytes.remaining());
-		}
-		direct.position(0);
-		direct.limit(direct.capacity());
-		if (direct.remaining() < valueBytes.remaining()) {
-			// might happen for string or (when enabled) compressed channels
-			LOGGER.info("Realocate direct ByteBuffer for '{}' of type '{}'.", config.getName(), config
-					.getType().getKey());
-			direct = ByteBuffer.allocateDirect(valueBytes.remaining());
-		}
-
-		direct.order(valueBytes.order());
-		direct.put(valueBytes.duplicate());
-		direct.flip();
-
-		value.setValue(direct);
 	}
 
 	protected Msg receiveMsg(Socket socket) {

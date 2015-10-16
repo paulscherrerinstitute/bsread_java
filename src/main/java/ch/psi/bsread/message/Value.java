@@ -6,20 +6,33 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
-public class Value implements Serializable {
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class Value<V> implements Serializable {
 	private static final long serialVersionUID = -3889961098156334653L;
-	private static final byte DIRECT_POSITION = 0;
-	private static final byte ORDER_POSITION = 1;
+	private static final Logger LOGGER = LoggerFactory.getLogger(Value.class);
 
-	private transient ByteBuffer value;
+	private static final byte IS_JAVA_VALUE_POSITION = 0;
+	private static final byte DIRECT_POSITION = 1;
+	private static final byte ORDER_POSITION = 2;
+
+	private transient CompletableFuture<V> futureValue;
 	private Timestamp timestamp;
 
 	public Value() {
 	}
 
-	public Value(ByteBuffer value, Timestamp timestamp) {
-		this.value = value;
+	public Value(CompletableFuture<V> futureValue, Timestamp timestamp) {
+		this.futureValue = futureValue;
+		this.timestamp = timestamp;
+	}
+
+	public Value(V value, Timestamp timestamp) {
+		futureValue = CompletableFuture.completedFuture(value);
 		this.timestamp = timestamp;
 	}
 
@@ -31,12 +44,42 @@ public class Value implements Serializable {
 		return timestamp;
 	}
 
-	public void setValue(ByteBuffer value) {
-		this.value = value;
+	public void setFutureValue(CompletableFuture<V> futureValue) {
+		this.futureValue = futureValue;
 	}
 
-	public ByteBuffer getValue() {
-		return value;
+	public void setValue(V value) {
+		futureValue = CompletableFuture.completedFuture(value);
+	}
+
+	public V getValue() {
+		try {
+			return futureValue.get(30, TimeUnit.SECONDS);
+		} catch (Exception e) {
+			// log since exceptions can get lost (e.g.in JAVA Streams)
+			LOGGER.error("Could not load value from future.", e);
+			throw new RuntimeException(e);
+		}
+	}
+
+	public <W> W getValue(Class<W> clazz) {
+		Object val = getValue();
+		if (clazz.isAssignableFrom(val.getClass())) {
+			return clazz.cast(val);
+		} else {
+			LOGGER.warn("Cast from '{}' to '{}' not possible. Check your code!", val.getClass(), clazz,
+					new RuntimeException() /* show stacktrace */);
+			return null;
+		}
+	}
+
+	public <W> W getValueOrDefault(Class<W> clazz, W defaultValue) {
+		Object val = getValue();
+		if (clazz.isAssignableFrom(val.getClass())) {
+			return clazz.cast(val);
+		} else {
+			return defaultValue;
+		}
 	}
 
 	/*
@@ -48,27 +91,36 @@ public class Value implements Serializable {
 		// default serialization (all fields except ByteBuffer)
 		oos.defaultWriteObject();
 
+		Object val = getValue();
 		byte descriptor = 0;
-		if (value.isDirect()) {
-			descriptor = Value.setPosition(descriptor, DIRECT_POSITION);
-		}
-		if (ByteOrder.LITTLE_ENDIAN.equals(value.order())) {
-			descriptor = Value.setPosition(descriptor, ORDER_POSITION);
-		}
+		if (val instanceof ByteBuffer) {
+			ByteBuffer byteBuffer = (ByteBuffer) val;
 
-		oos.writeByte(descriptor);
-		oos.writeInt(value.remaining());
+			if (byteBuffer.isDirect()) {
+				descriptor = Value.setPosition(descriptor, DIRECT_POSITION);
+			}
+			if (ByteOrder.LITTLE_ENDIAN.equals(byteBuffer.order())) {
+				descriptor = Value.setPosition(descriptor, ORDER_POSITION);
+			}
 
-		// TODO: should we use compression for value-bytes
-		if (value.hasArray()) {
-			oos.write(value.array(), value.position(), value.remaining());
+			oos.writeByte(descriptor);
+			oos.writeInt(byteBuffer.remaining());
+
+			if (byteBuffer.hasArray()) {
+				oos.write(byteBuffer.array(), byteBuffer.position(), byteBuffer.remaining());
+			} else {
+				// Is there a way to overcome the allocation if this byte[],
+				// e.g.
+				// using ThreadLocal<byte[]>?
+				byte[] bytes = new byte[byteBuffer.remaining()];
+				// bulk methods are way faster than reading/writing single bytes
+				byteBuffer.duplicate().get(bytes);
+				oos.write(bytes);
+			}
 		} else {
-			// Is there a way to overcome the allocation if this byte[], e.g.
-			// using ThreadLocal<byte[]>?
-			byte[] bytes = new byte[value.remaining()];
-			// bulk methods are way faster than reading/writing single bytes
-			value.duplicate().get(bytes);
-			oos.write(bytes);
+			descriptor = Value.setPosition(descriptor, IS_JAVA_VALUE_POSITION);
+			oos.writeByte(descriptor);
+			oos.writeObject(val);
 		}
 	}
 
@@ -77,38 +129,45 @@ public class Value implements Serializable {
 	 * {@link ObjectInputStream#readSerialData} and the private constructor
 	 * {@link ObjectStreamClass#ObjectStreamClass(Class cl)}.
 	 */
+	@SuppressWarnings("unchecked")
 	private void readObject(ObjectInputStream ois)
 			throws ClassNotFoundException, IOException {
 		// default deserialization (all fields except ByteBuffer)
 		ois.defaultReadObject();
 
 		byte descriptor = ois.readByte();
-		int size = ois.readInt();
+		if (!Value.isPositionSet(descriptor, IS_JAVA_VALUE_POSITION)) {
+			int size = ois.readInt();
+			ByteBuffer byteBuffer;
 
-		boolean isDirect = Value.isPositionSet(descriptor, DIRECT_POSITION);
-		ByteOrder byteOrder =
-				Value.isPositionSet(descriptor, ORDER_POSITION) ? ByteOrder.LITTLE_ENDIAN
-						: ByteOrder.BIG_ENDIAN;
+			boolean isDirect = Value.isPositionSet(descriptor, DIRECT_POSITION);
+			ByteOrder byteOrder =
+					Value.isPositionSet(descriptor, ORDER_POSITION) ? ByteOrder.LITTLE_ENDIAN
+							: ByteOrder.BIG_ENDIAN;
 
-		if (isDirect) {
-			value = ByteBuffer.allocateDirect(size);
+			if (isDirect) {
+				byteBuffer = ByteBuffer.allocateDirect(size);
+			} else {
+				byteBuffer = ByteBuffer.allocate(size);
+			}
+			byteBuffer.order(byteOrder);
+
+			if (byteBuffer.hasArray()) {
+				ois.read(byteBuffer.array());
+			} else {
+				// Is there a way to overcome the allocation if this byte[],
+				// e.g. using ThreadLocal<byte[]>?
+				byte[] valBytes = new byte[size];
+				// bulk methods are way faster than reading/writing single bytes
+				ois.read(valBytes);
+				byteBuffer.put(valBytes);
+				// make ready for read
+				byteBuffer.flip();
+			}
+
+			futureValue = CompletableFuture.completedFuture((V) byteBuffer);
 		} else {
-			value = ByteBuffer.allocate(size);
-		}
-		value.order(byteOrder);
-
-		// TODO: should we use compression for value-bytes
-		if (value.hasArray()) {
-			ois.read(value.array());
-		} else {
-			// Is there a way to overcome the allocation if this byte[], e.g.
-			// using ThreadLocal<byte[]>?
-			byte[] valBytes = new byte[size];
-			// bulk methods are way faster than reading/writing single bytes
-			ois.read(valBytes);
-			value.put(valBytes);
-			// make ready for read
-			value.flip();
+			futureValue = CompletableFuture.completedFuture((V) ois.readObject());
 		}
 	}
 

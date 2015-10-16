@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * Complete data message send from a BSREAD source
  */
-public class Message implements Serializable {
+public class Message<V> implements Serializable {
 	private static final long serialVersionUID = -5438664019568662396L;
 
 	private MainHeader mainHeader = null;
@@ -16,7 +16,7 @@ public class Message implements Serializable {
 	/**
 	 * Map holding all values of a channel - key: channel name value: value
 	 */
-	private Map<String, Value> values = new HashMap<>();
+	private Map<String, Value<V>> values = new HashMap<>();
 
 	public void setDataHeader(DataHeader dataHeader) {
 		this.dataHeader = dataHeader;
@@ -34,11 +34,11 @@ public class Message implements Serializable {
 		return mainHeader;
 	}
 
-	public void setValues(Map<String, Value> values) {
+	public void setValues(Map<String, Value<V>> values) {
 		this.values = values;
 	}
 
-	public Map<String, Value> getValues() {
+	public Map<String, Value<V>> getValues() {
 		return values;
 	}
 }

@@ -3,26 +3,11 @@ package ch.psi.bsread.converter;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-public interface ByteConverter {
-
-	/**
-	 * Converts a byte representation of a value into the actual value.
-	 * 
-	 * @param <T> The JAVA type
-	 * @param byteValue
-	 *            The byte representation of a value
-	 * @param type
-	 *            The type of the value
-	 * @param shape
-	 *            The shape of the value
-	 * @return The converted value
-	 */
-	public <T> T getValue(ByteBuffer byteValue, String type, int[] shape);
+public interface ByteConverter extends ValueConverter {
 
 	/**
 	 * Converts a value into its byte representation.
 	 * 
-	 * @param <T> The JAVA type
 	 * @param type
 	 *            The type of the value (needed for unsigned types since they
 	 *            are not part of JAVA)
@@ -32,17 +17,16 @@ public interface ByteConverter {
 	 *            The byte order
 	 * @return The byte representation
 	 */
-	public <T> ByteBuffer getBytes(String type, T value, ByteOrder byteOrder);
+	public ByteBuffer getBytes(String type, Object value, ByteOrder byteOrder);
 	
 	/**
 	 * Converts a value into its byte representation.
 	 * 
-	 * @param <T> The JAVA type
 	 * @param value
 	 *            The value
 	 * @param byteOrder
 	 *            The byte order
 	 * @return The byte representation
 	 */
-	public <T> ByteBuffer getBytes(T value, ByteOrder byteOrder);
+	public ByteBuffer getBytes(Object value, ByteOrder byteOrder);
 }
