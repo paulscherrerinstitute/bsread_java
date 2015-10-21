@@ -16,7 +16,7 @@ import org.junit.Test;
 
 public class AsyncTransferSpliteratorTest {
    
-   private ExecutorService executor = Executors.newWorkStealingPool();
+   private ExecutorService executor = Executors.newWorkStealingPool(2 * Runtime.getRuntime().availableProcessors());
 
    @Test
    public void testPastFutureSize_0() {

@@ -39,9 +39,10 @@ public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>
    private AtomicLong idGenerator = new AtomicLong();
    private AtomicLong readyIndex;
    private AtomicLong processingIndex;
-   // might be better to use ManagedReentrantLock
+   // might be better/saver to use ManagedReentrantLock
    private ReentrantLock readyLock = new ReentrantLock(true);
    private Condition readyCondition = readyLock.newCondition();
+   // might be better/saver to use ManagedReentrantLock
    private ReentrantLock fullLock = new ReentrantLock(true);
    private Condition fullCondition = fullLock.newCondition();
    private ExecutorService mapperService;
@@ -155,6 +156,7 @@ public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>
       // consider backpressure
       ReentrantLock fLock = fullLock;
       Condition fCondition = fullCondition;
+
       while (isRunning.get() && processingIndex.get() + backpressureSize <= valueIndex) {
          fLock.lock();
          try {
@@ -203,36 +205,35 @@ public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>
 
    @Override
    public Spliterator<StreamSection<T>> trySplit() {
-      throw new UnsupportedOperationException("Not yet supported.");
-      // // process one at a time
-      // final StreamSection<T> section = getNext(true);
-      // if (section != null) {
-      // return new Spliterator<StreamSection<T>>() {
-      //
-      // @Override
-      // public boolean tryAdvance(Consumer<? super StreamSection<T>> action) {
-      // action.accept(section);
-      // return false;
-      // }
-      //
-      // @Override
-      // public Spliterator<StreamSection<T>> trySplit() {
-      // return null;
-      // }
-      //
-      // @Override
-      // public long estimateSize() {
-      // return 1;
-      // }
-      //
-      // @Override
-      // public int characteristics() {
-      // return CHARACTERISTICS;
-      // }
-      // };
-      // } else {
-      // return null;
-      // }
+      // process one at a time (for now?)
+      final StreamSection<T> section = getNext(true);
+      if (section != null) {
+         return new Spliterator<StreamSection<T>>() {
+
+            @Override
+            public boolean tryAdvance(Consumer<? super StreamSection<T>> action) {
+               action.accept(section);
+               return false;
+            }
+
+            @Override
+            public Spliterator<StreamSection<T>> trySplit() {
+               return null;
+            }
+
+            @Override
+            public long estimateSize() {
+               return 1;
+            }
+
+            @Override
+            public int characteristics() {
+               return CHARACTERISTICS;
+            }
+         };
+      } else {
+         return null;
+      }
    }
 
    /**

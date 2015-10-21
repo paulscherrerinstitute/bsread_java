@@ -8,9 +8,8 @@ import java.util.Iterator;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -32,6 +31,11 @@ import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Type;
 
 public class MessageStreamerTest {
+
+   // TODO: When ForkJoinPool.commonPool() is used (and all test of the project are executed) tests
+   // fail because runable is not executed (not enough threads available?)
+   private static ExecutorService EXECUTOR = Executors.newWorkStealingPool(2 * Runtime.getRuntime()
+         .availableProcessors());
 
    @Test
    public void test_01() throws InterruptedException {
@@ -69,7 +73,7 @@ public class MessageStreamerTest {
 
          // construct to receive messages
          ValueHandler<StreamSection<Message<Long>>> valueHandler = new ValueHandler<>();
-         ForkJoinPool.commonPool().execute(() -> {
+         EXECUTOR.execute(() -> {
             // should block here until MessageStreamer gets closed
                messageStreamer.getStream()
                      .forEach(value -> {
@@ -158,7 +162,7 @@ public class MessageStreamerTest {
 
          // construct to receive messages
          ValueHandler<StreamSection<Message<Long>>> valueHandler = new ValueHandler<>();
-         ForkJoinPool.commonPool().execute(() -> {
+         EXECUTOR.execute(() -> {
             // should block here until MessageStreamer gets closed
                messageStreamer.getStream()
                      .forEach(value -> {
@@ -250,16 +254,24 @@ public class MessageStreamerTest {
 
       } catch (Exception e) {
          e.printStackTrace();
-      } finally {
-         TimeUnit.MILLISECONDS.sleep(500);
-         assertTrue(exited.get());
       }
 
+      TimeUnit.MILLISECONDS.sleep(500);
       sender.close();
+      assertTrue(exited.get());
    }
 
    @Test
-   public void test_03() throws InterruptedException {
+   public void test_03_NoBackpressure() throws InterruptedException {
+      test_03(AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE);
+   }
+
+   @Test
+   public void test_03_WithBackpressure() throws InterruptedException {
+      test_03(1);
+   }
+
+   public void test_03(int backpressure) throws InterruptedException {
       String channelName = "ABC";
       Sender sender = new Sender(
             new StandardPulseIdProvider(),
@@ -287,77 +299,104 @@ public class MessageStreamerTest {
       });
       sender.bind();
 
-      AtomicBoolean exited = new AtomicBoolean(false);
       int pastElements = 3;
       int futureElements = 2;
+      long sleepTimeMillis = 1;
+      AtomicLong sentValues = new AtomicLong();
+      CountDownLatch latch = new CountDownLatch(1);
+
       try (MessageStreamer<Message<Long>, Long> messageStreamer =
-            new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, pastElements, futureElements,
+            new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, pastElements, futureElements, backpressure,
                   Function.identity(),
                   new MatlabByteConverter())) {
 
          // first value based on MessageStreamer config
          AtomicReference<Long> lastValue = new AtomicReference<Long>(Long.valueOf(pastElements - 1));
-         ForkJoinPool.commonPool()
+         EXECUTOR
                .execute(() -> {
                   // should block here until MessageStreamer gets closed
-                     messageStreamer.getStream()
-                           .forEach(
-                                 streamSection -> {
-                                    long currentValue = lastValue.get().longValue() + 1;
+               messageStreamer.getStream()
+                     .forEach(
+                           streamSection -> {
+                              long currentValue = lastValue.get().longValue() + 1;
 
-                                    Message<Long> message = streamSection.getCurrent();
-                                    assertEquals(Long.valueOf(currentValue), message.getValues().get(channelName)
-                                          .getValue());
+                              Message<Long> message = streamSection.getCurrent();
+                              assertEquals(Long.valueOf(currentValue), message.getValues().get(channelName)
+                                    .getValue());
 
-                                    int nrOfElements = 0;
-                                    currentValue -= pastElements;
-                                    Iterator<Message<Long>> iter = streamSection.getPast(true).iterator();
-                                    while (iter.hasNext()) {
-                                       assertEquals(Long.valueOf(currentValue++),
-                                             iter.next().getValues().get(channelName).getValue());
-                                       ++nrOfElements;
-                                    }
-                                    assertEquals(nrOfElements, pastElements);
+                              int nrOfElements = 0;
+                              currentValue -= pastElements;
+                              Iterator<Message<Long>> iter = streamSection.getPast(true).iterator();
+                              while (iter.hasNext()) {
+                                 assertEquals(Long.valueOf(currentValue++),
+                                       iter.next().getValues().get(channelName).getValue());
+                                 ++nrOfElements;
+                              }
+                              assertEquals(nrOfElements, pastElements);
 
-                                    nrOfElements = 0;
-                                    currentValue += 1;
-                                    iter = streamSection.getFuture(true).iterator();
+                              nrOfElements = 0;
+                              currentValue += 1;
+                              iter = streamSection.getFuture(true).iterator();
 
-                                    while (iter.hasNext()) {
-                                       assertEquals(Long.valueOf(currentValue++),
-                                             iter.next().getValues().get(channelName).getValue());
-                                       ++nrOfElements;
-                                    }
-                                    assertEquals(nrOfElements, futureElements);
+                              while (iter.hasNext()) {
+                                 assertEquals(Long.valueOf(currentValue++),
+                                       iter.next().getValues().get(channelName).getValue());
+                                 ++nrOfElements;
+                              }
+                              assertEquals(nrOfElements, futureElements);
 
-                                    lastValue.set(lastValue.get() + 1);
-                                 });
+                              lastValue.set(lastValue.get() + 1);
 
-                     exited.set(true);
-                  });
+                              try {
+                                 TimeUnit.MICROSECONDS.sleep(sleepTimeMillis);
+                              } catch (Exception e) {
+                                 e.printStackTrace();
+                              }
+                           });
 
-         ScheduledExecutorService executorService = Executors.newScheduledThreadPool(2);
-         ScheduledFuture<?> future =
-               executorService.scheduleAtFixedRate(() -> sender.send(), 10, 10, TimeUnit.MILLISECONDS);
+               latch.countDown();
+            });
+
+         ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
+         Future<?> future =
+               executorService.scheduleAtFixedRate(() -> {
+                  sender.send();
+                  sentValues.incrementAndGet();
+               }, 10, sleepTimeMillis, TimeUnit.MILLISECONDS);
 
          TimeUnit.SECONDS.sleep(5);
          future.cancel(true);
          executorService.shutdown();
 
-         // System.out.println("Nr of values checked: " + (lastValue.get() - pastElements));
+         System.out.println("Values send: " + sentValues.get() + " values received: "
+               + (lastValue.get() - pastElements));
 
       } catch (Exception e) {
          e.printStackTrace();
-      } finally {
-         TimeUnit.MILLISECONDS.sleep(500);
-         assertTrue(exited.get());
       }
 
+      TimeUnit.MILLISECONDS.sleep(1000);
       sender.close();
+
+      try {
+         assertTrue(latch.await(5000, TimeUnit.MILLISECONDS));
+      } catch (Exception e) {
+         e.printStackTrace();
+         assertTrue(false);
+      }
    }
 
    @Test
-   public void test_04() throws InterruptedException {
+   public void test_04_NoBackpressure() throws InterruptedException {
+      test_04(AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE);
+   }
+
+   @Test
+   public void test_04_WithBackpressure() throws InterruptedException {
+      test_04(1);
+   }
+
+   public void test_04(int backpressure) throws InterruptedException {
       String channelName = "ABC";
       Sender sender = new Sender(
             new StandardPulseIdProvider(),
@@ -385,18 +424,20 @@ public class MessageStreamerTest {
       });
       sender.bind();
 
-      AtomicBoolean exited = new AtomicBoolean(false);
+      CountDownLatch latch = new CountDownLatch(1);
       int pastElements = 3;
       int futureElements = 2;
       AtomicLong nrOfValues = new AtomicLong();
+      long sleepTimeMillis = 1;
+      AtomicLong sentValues = new AtomicLong();
+
       try (MessageStreamer<Message<Long>, Long> messageStreamer =
-            new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, pastElements, futureElements,
+            new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, pastElements, futureElements, backpressure,
                   Function.identity(),
                   new MatlabByteConverter())) {
 
          // StringBuilder output = new StringBuilder();
-         ExecutorService executors = Executors.newFixedThreadPool(2);
-         executors.execute(() -> {
+         EXECUTOR.execute(() -> {
             // should block here until MessageStreamer gets closed
                messageStreamer
                      .getStream()
@@ -448,33 +489,44 @@ public class MessageStreamerTest {
                            assertEquals(nrOfElements, futureElements);
 
                            nrOfValues.incrementAndGet();
+
+                           try {
+                              TimeUnit.MICROSECONDS.sleep(sleepTimeMillis);
+                           } catch (Exception e) {
+                              e.printStackTrace();
+                           }
                         });
 
-               exited.set(true);
+               latch.countDown();
 
                // System.out.println(output.toString());
             });
 
-         ScheduledExecutorService executorService = Executors.newScheduledThreadPool(2);
-         ScheduledFuture<?> future =
-               executorService.scheduleAtFixedRate(() -> sender.send(), 10, 10, TimeUnit.MILLISECONDS);
+         ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
+         Future<?> future =
+               executorService.scheduleAtFixedRate(() -> {
+                  sender.send();
+                  sentValues.incrementAndGet();
+               }, 10, sleepTimeMillis, TimeUnit.MILLISECONDS);
 
          TimeUnit.SECONDS.sleep(5);
          future.cancel(true);
          executorService.shutdown();
 
-         executors.shutdown();
-
-         // System.out.println("Nr of values checked: " + nrOfValues.get());
+         System.out.println("Values send: " + sentValues.get() + " values received: " + nrOfValues.get());
 
       } catch (Exception e) {
          e.printStackTrace();
-      } finally {
-         TimeUnit.MILLISECONDS.sleep(500);
-         assertTrue(exited.get());
       }
 
       sender.close();
+
+      try {
+         assertTrue(latch.await(5000, TimeUnit.MILLISECONDS));
+      } catch (Exception e) {
+         e.printStackTrace();
+         assertTrue(false);
+      }
    }
 
    private class ValueHandler<V> implements Consumer<V> {
