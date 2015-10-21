@@ -23,110 +23,119 @@ import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Value;
+import ch.psi.daq.common.concurrent.singleton.Deferred;
 
 /**
- * A MessageExtractor that allows to use DirectBuffers to store data blobs that
- * are bigger than a predefined threshold. This helps to overcome
- * OutOfMemoryError when Messages are buffered since the JAVA heap space will
- * not be the limiting factor.
+ * A MessageExtractor that allows to use DirectBuffers to store data blobs that are bigger than a
+ * predefined threshold. This helps to overcome OutOfMemoryError when Messages are buffered since
+ * the JAVA heap space will not be the limiting factor.
  */
 public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V> {
-	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMessageExtractor.class.getName());
+   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMessageExtractor.class.getName());
 
-	private static final ExecutorService VALUE_CONVERSION_SERVICE = Executors.newWorkStealingPool(2 * Runtime.getRuntime().availableProcessors());
-	
-	private DataHeader dataHeader;
-	private ValueConverter valueConverter;
+   private static final Deferred<ExecutorService> DEFAULT_CONVERSION_SERVICE = new Deferred<>(
+         () -> Executors.newWorkStealingPool(2 * Runtime.getRuntime().availableProcessors()));
 
-	public AbstractMessageExtractor(ValueConverter valueConverter) {
-		this.valueConverter = valueConverter;
-	}
+   private DataHeader dataHeader;
+   private ValueConverter valueConverter;
+   private ExecutorService valueConversionService;
 
-	protected Value<V> getValue(ChannelConfig channelConfig) {
-		return new Value<V>((V) null, new Timestamp());
-	}
+   public AbstractMessageExtractor(ValueConverter valueConverter) {
+      this(valueConverter, DEFAULT_CONVERSION_SERVICE.get());
+   }
 
-	@Override
-	public Message<V> extractMessage(Socket socket, MainHeader mainHeader) {
-		Message<V> message = new Message<V>();
-		message.setMainHeader(mainHeader);
-		message.setDataHeader(dataHeader);
-		Map<String, Value<V>> values = message.getValues();
-		List<ChannelConfig> channelConfigs = dataHeader.getChannels();
+   public AbstractMessageExtractor(ValueConverter valueConverter, ExecutorService valueConversionService) {
+      this.valueConverter = valueConverter;
+      this.valueConversionService = valueConversionService;
+   }
 
-		int i = 0;
-		for (; i < channelConfigs.size() && socket.hasReceiveMore(); ++i) {
-			final ChannelConfig currentConfig = channelConfigs.get(i);
-			final ByteOrder byteOrder = currentConfig.getByteOrder();
+   protected Value<V> getValue(ChannelConfig channelConfig) {
+      return new Value<V>((V) null, new Timestamp());
+   }
 
-			// # read data blob #
-			// ##################
-			if (!socket.hasReceiveMore()) {
-				final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
-				LOGGER.error(errorMessage);
-				throw new RuntimeException(errorMessage);
-			}
+   @Override
+   public Message<V> extractMessage(Socket socket, MainHeader mainHeader) {
+      Message<V> message = new Message<V>();
+      message.setMainHeader(mainHeader);
+      message.setDataHeader(dataHeader);
+      Map<String, Value<V>> values = message.getValues();
+      List<ChannelConfig> channelConfigs = dataHeader.getChannels();
 
-			final Msg valueMsg = receiveMsg(socket);
-			ByteBuffer valueBytes = valueMsg.buf().order(byteOrder);
+      int i = 0;
+      for (; i < channelConfigs.size() && socket.hasReceiveMore(); ++i) {
+         final ChannelConfig currentConfig = channelConfigs.get(i);
+         final ByteOrder byteOrder = currentConfig.getByteOrder();
 
-			// # read timestamp blob #
-			// #######################
-			if (!socket.hasReceiveMore()) {
-				final String errorMessage =
-						String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
-				LOGGER.error(errorMessage);
-				throw new RuntimeException(errorMessage);
-			}
-			final Msg timeMsg = receiveMsg(socket);
-			ByteBuffer timestampBytes = timeMsg.buf().order(byteOrder);
+         // # read data blob #
+         // ##################
+         if (!socket.hasReceiveMore()) {
+            final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
+            LOGGER.error(errorMessage);
+            throw new RuntimeException(errorMessage);
+         }
 
-			// Create value object
-			if (valueBytes != null && valueBytes.remaining() > 0) {
-				final Value<V> value = getValue(currentConfig);
-				values.put(currentConfig.getName(), value);
+         final Msg valueMsg = receiveMsg(socket);
+         ByteBuffer valueBytes = valueMsg.buf().order(byteOrder);
 
-				// offload value conversion work from receiver thread
-				CompletableFuture<V> futureValue = CompletableFuture.supplyAsync(
-						() -> valueConverter.getValue(valueBytes, currentConfig.getType().getKey(), currentConfig.getShape()),
-						VALUE_CONVERSION_SERVICE);
-				value.setFutureValue(futureValue);
+         // # read timestamp blob #
+         // #######################
+         if (!socket.hasReceiveMore()) {
+            final String errorMessage =
+                  String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
+            LOGGER.error(errorMessage);
+            throw new RuntimeException(errorMessage);
+         }
+         final Msg timeMsg = receiveMsg(socket);
+         ByteBuffer timestampBytes = timeMsg.buf().order(byteOrder);
 
-				// c-implementation uses a unsigned long (Json::UInt64,
-				// uint64_t) for time -> decided to ignore this here
-				final Timestamp timestamp = value.getTimestamp();
-				timestamp.setEpoch(timestampBytes.getLong(0));
-				timestamp.setNs(timestampBytes.getLong(Long.BYTES));
-			}
-		}
+         // Create value object
+         if (valueBytes != null && valueBytes.remaining() > 0) {
+            final Value<V> value = getValue(currentConfig);
+            values.put(currentConfig.getName(), value);
 
-		// Sanity check of value list
-		if (i != channelConfigs.size()) {
-			LOGGER.warn("Number of received values does not match number of channels.");
-		}
+            // offload value conversion work from receiver thread
+            CompletableFuture<V> futureValue =
+                  CompletableFuture.supplyAsync(
+                        () -> valueConverter.getValue(valueBytes, currentConfig.getType().getKey(),
+                              currentConfig.getShape()),
+                        valueConversionService);
+            value.setFutureValue(futureValue);
 
-		return message;
-	}
+            // c-implementation uses a unsigned long (Json::UInt64,
+            // uint64_t) for time -> decided to ignore this here
+            final Timestamp timestamp = value.getTimestamp();
+            timestamp.setEpoch(timestampBytes.getLong(0));
+            timestamp.setNs(timestampBytes.getLong(Long.BYTES));
+         }
+      }
 
-	@Override
-	public void accept(DataHeader dataHeader) {
-		this.dataHeader = dataHeader;
-	}
+      // Sanity check of value list
+      if (i != channelConfigs.size()) {
+         LOGGER.warn("Number of received values does not match number of channels.");
+      }
 
-	protected Msg receiveMsg(Socket socket) {
-		Msg msg = socket.base().recv(0);
+      return message;
+   }
 
-		if (msg == null) {
-			mayRaise(socket);
-		}
+   @Override
+   public void accept(DataHeader dataHeader) {
+      this.dataHeader = dataHeader;
+   }
 
-		return msg;
-	}
+   protected Msg receiveMsg(Socket socket) {
+      Msg msg = socket.base().recv(0);
 
-	private void mayRaise(Socket socket) {
-		int errno = socket.base().errno();
-		if (errno != 0 && errno != zmq.ZError.EAGAIN) {
-			throw new ZMQException(errno);
-		}
-	}
+      if (msg == null) {
+         mayRaise(socket);
+      }
+
+      return msg;
+   }
+
+   private void mayRaise(Socket socket) {
+      int errno = socket.base().errno();
+      if (errno != 0 && errno != zmq.ZError.EAGAIN) {
+         throw new ZMQException(errno);
+      }
+   }
 }

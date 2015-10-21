@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 public class Value<V> implements Serializable {
 	private static final long serialVersionUID = -3889961098156334653L;
 	private static final Logger LOGGER = LoggerFactory.getLogger(Value.class);
+	public static final long DEFAULT_TIMEOUT_IN_MILLIS = 30000;
 
 	private static final byte IS_JAVA_VALUE_POSITION = 0;
 	private static final byte DIRECT_POSITION = 1;
@@ -54,7 +55,7 @@ public class Value<V> implements Serializable {
 
 	public V getValue() {
 		try {
-			return futureValue.get(30, TimeUnit.SECONDS);
+			return futureValue.get(DEFAULT_TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS);
 		} catch (Exception e) {
 			// log since exceptions can get lost (e.g.in JAVA Streams)
 			LOGGER.error("Could not load value from future.", e);
