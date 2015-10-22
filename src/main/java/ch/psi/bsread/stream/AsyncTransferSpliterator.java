@@ -5,23 +5,19 @@ import java.util.NavigableMap;
 import java.util.Spliterator;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 import java.util.function.Function;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import ch.psi.daq.common.concurrent.singleton.Deferred;
 
 public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>> {
-   private static final Logger LOGGER = LoggerFactory.getLogger(AsyncTransferSpliterator.class);
 
    // using a big backpressure ensures that Events get buffered on the client
    // and if the client is not fast enough in processing elements it will
@@ -39,12 +35,8 @@ public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>
    private AtomicLong idGenerator = new AtomicLong();
    private AtomicLong readyIndex;
    private AtomicLong processingIndex;
-   // might be better/saver to use ManagedReentrantLock
-   private ReentrantLock readyLock = new ReentrantLock(true);
-   private Condition readyCondition = readyLock.newCondition();
-   // might be better/saver to use ManagedReentrantLock
-   private ReentrantLock fullLock = new ReentrantLock(true);
-   private Condition fullCondition = fullLock.newCondition();
+   private ConcurrentLinkedQueue<Thread> producers = new ConcurrentLinkedQueue<>();
+   private ConcurrentLinkedQueue<Thread> consumers = new ConcurrentLinkedQueue<>();
    private ExecutorService mapperService;
 
    /**
@@ -137,35 +129,19 @@ public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>
    protected void onAvailable(long valueIndex, CompletableFuture<T> futureValue) {
       values.put(valueIndex, futureValue);
 
-      ReentrantLock rLock = readyLock;
-      Condition rCondition = readyCondition;
       long index = readyIndex.get();
       while (isRunning.get() && values.get(index) != null && valueIndex - index >= futureElements
-            && readyIndex.compareAndSet(index, index + 1)) {
-         rLock.lock();
-         try {
-            rCondition.signal();
-         } finally {
-            rLock.unlock();
-         }
+            && readyIndex.compareAndSet(index, index + 1) && !consumers.isEmpty()) {
+         LockSupport.unpark(consumers.poll());
 
          ++index;
          // valueIndex = idGenerator.get() - 1;
       }
 
       // consider backpressure
-      ReentrantLock fLock = fullLock;
-      Condition fCondition = fullCondition;
-
       while (isRunning.get() && processingIndex.get() + backpressureSize <= valueIndex) {
-         fLock.lock();
-         try {
-            fCondition.await();
-         } catch (InterruptedException e) {
-            LOGGER.debug("Interrupted while waiting for elements to get ready.", e);
-         } finally {
-            fLock.unlock();
-         }
+         producers.add(Thread.currentThread());
+         LockSupport.park();
       }
    }
 
@@ -175,19 +151,13 @@ public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>
    public void onClose() {
       if (isRunning.compareAndSet(true, false)) {
          // release all threads that try provide elements to process
-         fullLock.lock();
-         try {
-            fullCondition.signalAll();
-         } finally {
-            fullLock.unlock();
+         while (!producers.isEmpty()) {
+            LockSupport.unpark(producers.poll());
          }
 
          // release all threads that are waiting for new elements to process
-         readyLock.lock();
-         try {
-            readyCondition.signalAll();
-         } finally {
-            readyLock.unlock();
+         while (!consumers.isEmpty()) {
+            LockSupport.unpark(consumers.poll());
          }
       }
    }
@@ -245,17 +215,9 @@ public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>
    protected StreamSection<T> getNext(boolean doCopy) {
       StreamSection<T> streamSection = null;
 
-      ReentrantLock rLock = readyLock;
-      Condition rCondition = readyCondition;
       while (isRunning.get() && processingIndex.get() >= readyIndex.get()) {
-         rLock.lock();
-         try {
-            rCondition.await();
-         } catch (InterruptedException e) {
-            LOGGER.debug("Interrupted while waiting for elements to get ready.", e);
-         } finally {
-            rLock.unlock();
-         }
+         consumers.add(Thread.currentThread());
+         LockSupport.park();
       }
 
       if (isRunning.get()) {
@@ -278,16 +240,9 @@ public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>
          }
 
          // inform about free slot
-         ReentrantLock fLock = fullLock;
-         Condition fCondition = fullCondition;
-         if (isRunning.get() && processIdx + backpressureSize <= idGenerator.get()) {
+         if (isRunning.get() && processIdx + backpressureSize <= idGenerator.get() && !producers.isEmpty()) {
             // ++processIdx;
-            fLock.lock();
-            try {
-               fCondition.signal();
-            } finally {
-               fLock.unlock();
-            }
+            LockSupport.unpark(producers.poll());
          }
       }
 
