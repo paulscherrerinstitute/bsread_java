@@ -15,7 +15,7 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import ch.psi.daq.common.concurrent.singleton.Deferred;
+import ch.psi.bsread.impl.singleton.Deferred;
 
 public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>> {
 
@@ -25,7 +25,7 @@ public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>
    public static final int DEFAULT_BACKPRESSURE_SIZE = Integer.MAX_VALUE;
    private static final int CHARACTERISTICS = Spliterator.ORDERED | Spliterator.NONNULL;
    private static final Deferred<ExecutorService> DEFAULT_MAPPING_SERVICE = new Deferred<>(
-         () -> Executors.newWorkStealingPool(2 * Runtime.getRuntime().availableProcessors()));
+         () -> Executors.newCachedThreadPool());
 
    private AtomicBoolean isRunning = new AtomicBoolean(true);
    private ConcurrentSkipListMap<Long, CompletableFuture<T>> values = new ConcurrentSkipListMap<>();
@@ -229,7 +229,7 @@ public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>
          if (doCopy) {
             subMap = new TreeMap<>(subMap);
          }
-         streamSection = new StreamSection<T>(processIdx, subMap);
+         streamSection = new StreamSectionImpl<T>(processIdx, subMap);
 
          // delete elements that are not needed anymore
          Entry<Long, CompletableFuture<T>> oldestEntry = values.firstEntry();

@@ -34,8 +34,7 @@ public class MessageStreamerTest {
 
    // TODO: When ForkJoinPool.commonPool() is used (and all test of the project are executed) tests
    // fail because runable is not executed (not enough threads available?)
-   private static ExecutorService EXECUTOR = Executors.newWorkStealingPool(2 * Runtime.getRuntime()
-         .availableProcessors());
+   private static ExecutorService EXECUTOR = Executors.newCachedThreadPool();
 
    @Test
    public void test_01() throws InterruptedException {
@@ -67,9 +66,9 @@ public class MessageStreamerTest {
       sender.bind();
 
       AtomicBoolean exited = new AtomicBoolean(false);
-      try (MessageStreamer<Message<Long>, Long> messageStreamer =
-            new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, 0, 0, Function.identity(),
-                  new MatlabByteConverter())) {
+      try (MessageStreamer<Long, Message<Long>> messageStreamer =
+            new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, 0, 0, new MatlabByteConverter(),
+                  Function.identity())) {
 
          // construct to receive messages
          ValueHandler<StreamSection<Message<Long>>> valueHandler = new ValueHandler<>();
@@ -156,9 +155,9 @@ public class MessageStreamerTest {
       sender.bind();
 
       AtomicBoolean exited = new AtomicBoolean(false);
-      try (MessageStreamer<Message<Long>, Long> messageStreamer =
-            new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, 3, 2, Function.identity(),
-                  new MatlabByteConverter())) {
+      try (MessageStreamer<Long, Message<Long>> messageStreamer =
+            new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, 3, 2, new MatlabByteConverter(),
+                  Function.identity())) {
 
          // construct to receive messages
          ValueHandler<StreamSection<Message<Long>>> valueHandler = new ValueHandler<>();
@@ -305,10 +304,9 @@ public class MessageStreamerTest {
       AtomicLong sentValues = new AtomicLong();
       CountDownLatch latch = new CountDownLatch(1);
 
-      try (MessageStreamer<Message<Long>, Long> messageStreamer =
+      try (MessageStreamer<Long, Message<Long>> messageStreamer =
             new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, pastElements, futureElements, backpressure,
-                  Function.identity(),
-                  new MatlabByteConverter())) {
+                  new MatlabByteConverter(), Function.identity())) {
 
          // first value based on MessageStreamer config
          AtomicReference<Long> lastValue = new AtomicReference<Long>(Long.valueOf(pastElements - 1));
@@ -431,10 +429,9 @@ public class MessageStreamerTest {
       long sleepTimeMillis = 1;
       AtomicLong sentValues = new AtomicLong();
 
-      try (MessageStreamer<Message<Long>, Long> messageStreamer =
+      try (MessageStreamer<Long, Message<Long>> messageStreamer =
             new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, pastElements, futureElements, backpressure,
-                  Function.identity(),
-                  new MatlabByteConverter())) {
+                  new MatlabByteConverter(), Function.identity())) {
 
          // StringBuilder output = new StringBuilder();
          EXECUTOR.execute(() -> {

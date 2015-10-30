@@ -4,12 +4,17 @@ import ch.psi.bsread.PulseIdProvider;
 
 public class StandardPulseIdProvider implements PulseIdProvider {
 
-	// We start at one as the first pulseId should be 0
-	private long pulseId = -1;
+   // We start at one as the first pulseId should be 0
+   private long pulseId = 0;
 
-	@Override
-	public long getNextPulseId() {
-		pulseId++; // Increment PulseId by one
-		return pulseId;
-	}
+   public StandardPulseIdProvider() {}
+
+   public StandardPulseIdProvider(long startPulseId) {
+      this.pulseId = startPulseId;
+   }
+
+   @Override
+   public long getNextPulseId() {
+      return pulseId++;
+   }
 }

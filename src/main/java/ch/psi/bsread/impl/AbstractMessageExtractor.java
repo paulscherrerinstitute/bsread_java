@@ -17,13 +17,14 @@ import zmq.Msg;
 
 import ch.psi.bsread.MessageExtractor;
 import ch.psi.bsread.converter.ValueConverter;
+import ch.psi.bsread.impl.singleton.Deferred;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Value;
-import ch.psi.daq.common.concurrent.singleton.Deferred;
+import ch.psi.bsread.message.ValueImpl;
 
 /**
  * A MessageExtractor that allows to use DirectBuffers to store data blobs that are bigger than a
@@ -34,7 +35,7 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMessageExtractor.class.getName());
 
    private static final Deferred<ExecutorService> DEFAULT_CONVERSION_SERVICE = new Deferred<>(
-         () -> Executors.newWorkStealingPool(2 * Runtime.getRuntime().availableProcessors()));
+         () -> Executors.newCachedThreadPool());
 
    private DataHeader dataHeader;
    private ValueConverter valueConverter;
@@ -50,7 +51,7 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
    }
 
    protected Value<V> getValue(ChannelConfig channelConfig) {
-      return new Value<V>((V) null, new Timestamp());
+      return new ValueImpl<V>((V) null, new Timestamp());
    }
 
    @Override
