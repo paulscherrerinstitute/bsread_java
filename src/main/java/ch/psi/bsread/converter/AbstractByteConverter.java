@@ -8,7 +8,7 @@ import java.util.Map;
 public abstract class AbstractByteConverter implements ByteConverter {
 
 	@Override
-	public <T> ByteBuffer getBytes(T value, ByteOrder byteOrder) {
+	public ByteBuffer getBytes(Object value, ByteOrder byteOrder) {
 		return this.getBytes(getTypeName(value.getClass()), value, byteOrder);
 	}
 

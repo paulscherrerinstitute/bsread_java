@@ -17,7 +17,7 @@ public class MatlabByteConverter extends AbstractByteConverter {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <T> T getValue(ByteBuffer byteValue, String type, int[] shape) {
+	public <V> V getValue(ByteBuffer byteValue, String type, int[] shape) {
 		type = type.toLowerCase();
 		final boolean array = isArray(shape);
 
@@ -25,63 +25,64 @@ public class MatlabByteConverter extends AbstractByteConverter {
 		case "byte":
 			if (array) {
 				if (byteValue.hasArray()) {
-					return (T) byteValue.array();
+					//TODO: Clone array?
+					return (V) byteValue.array();
 				} else {
 					byte[] values = new byte[byteValue.remaining() / Byte.BYTES];
 					byteValue.duplicate().get(values);
-					return (T) values;
+					return (V) values;
 				}
 			}
 			else {
-				return (T) ((Short) byteValue.asShortBuffer().get());
+				return (V) ((Byte) byteValue.duplicate().get());
 			}
 		case "short":
 			if (array) {
 				short[] values = new short[byteValue.remaining() / Short.BYTES];
 				byteValue.asShortBuffer().get(values);
-				return (T) values;
+				return (V) values;
 			}
 			else {
-				return (T) ((Short) byteValue.asShortBuffer().get());
+				return (V) ((Short) byteValue.asShortBuffer().get());
 			}
 		case "integer":
 			if (array) {
 				int[] values = new int[byteValue.remaining() / Integer.BYTES];
 				byteValue.asIntBuffer().get(values);
-				return (T) values;
+				return (V) values;
 			}
 			else {
-				return (T) ((Integer) byteValue.asIntBuffer().get());
+				return (V) ((Integer) byteValue.asIntBuffer().get());
 			}
 		case "long":
 			if (array) {
 				long[] values = new long[byteValue.remaining() / Long.BYTES];
 				byteValue.asLongBuffer().get(values);
-				return (T) values;
+				return (V) values;
 			}
 			else {
-				return (T) ((Long) byteValue.asLongBuffer().get());
+				return (V) ((Long) byteValue.asLongBuffer().get());
 			}
 		case "float":
 			if (array) {
 				float[] values = new float[byteValue.remaining() / Float.BYTES];
 				byteValue.asFloatBuffer().get(values);
-				return (T) values;
+				return (V) values;
 			}
 			else {
-				return (T) ((Float) byteValue.asFloatBuffer().get());
+				return (V) ((Float) byteValue.asFloatBuffer().get());
 			}
 		case "double":
 			if (array) {
 				double[] values = new double[byteValue.remaining() / Double.BYTES];
 				byteValue.asDoubleBuffer().get(values);
-				return (T) values;
+				return (V) values;
 			}
 			else {
-				return (T) ((Double) byteValue.asDoubleBuffer().get());
+				return (V) ((Double) byteValue.asDoubleBuffer().get());
 			}
 		case "string":
-			return (T) new String(byteValue.array());
+			return (V) new String(byteValue.array());
 
 		default:
 			throw new RuntimeException("Type " + type + " not supported");
@@ -90,10 +91,11 @@ public class MatlabByteConverter extends AbstractByteConverter {
 	}
 
 	@Override
-	public <T> ByteBuffer getBytes(String type, T value, ByteOrder byteOrder) {
+	public ByteBuffer getBytes(String type, Object value, ByteOrder byteOrder) {
 		ByteBuffer buffer;
 
 		if (value instanceof byte[]) {
+			// TODO: Clone value?
 			buffer = ByteBuffer.wrap((byte[]) value).order(byteOrder);
 		}
 		else if (value instanceof Byte) {

@@ -4,6 +4,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,149 +16,127 @@ import org.zeromq.ZMQ.Socket;
 import zmq.Msg;
 
 import ch.psi.bsread.MessageExtractor;
+import ch.psi.bsread.converter.ValueConverter;
+import ch.psi.bsread.impl.singleton.Deferred;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Value;
+import ch.psi.bsread.message.ValueImpl;
 
 /**
- * A MessageExtractor that allows to use DirectBuffers to store data blobs that
- * are bigger than a predefined threshold. This helps to overcome
- * OutOfMemoryError when Messages are buffered since the JAVA heap space will
- * not be the limiting factor.
+ * A MessageExtractor that allows to use DirectBuffers to store data blobs that are bigger than a
+ * predefined threshold. This helps to overcome OutOfMemoryError when Messages are buffered since
+ * the JAVA heap space will not be the limiting factor.
  */
-public abstract class AbstractMessageExtractor implements MessageExtractor {
-	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMessageExtractor.class.getName());
+public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V> {
+   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMessageExtractor.class.getName());
 
-	private int directThreshold = Integer.MAX_VALUE;
-	private DataHeader dataHeader;
+   private static final Deferred<ExecutorService> DEFAULT_CONVERSION_SERVICE = new Deferred<>(
+         () -> Executors.newCachedThreadPool());
 
-	public AbstractMessageExtractor() {
-	}
+   private DataHeader dataHeader;
+   private ValueConverter valueConverter;
+   private ExecutorService valueConversionService;
 
-	/**
-	 * Constructor
-	 * 
-	 * @param directThreshold
-	 *            The number of byte threshold defining when direct ByteBuffers
-	 *            should be used
-	 */
-	public AbstractMessageExtractor(int directThreshold) {
-		this.directThreshold = directThreshold;
-	}
+   public AbstractMessageExtractor(ValueConverter valueConverter) {
+      this(valueConverter, DEFAULT_CONVERSION_SERVICE.get());
+   }
 
-	protected Value getValue(ChannelConfig channelConfig) {
-		return new Value(null, new Timestamp());
-	}
+   public AbstractMessageExtractor(ValueConverter valueConverter, ExecutorService valueConversionService) {
+      this.valueConverter = valueConverter;
+      this.valueConversionService = valueConversionService;
+   }
 
-	@Override
-	public Message extractMessage(Socket socket, MainHeader mainHeader) {
-		Message message = new Message();
-		message.setMainHeader(mainHeader);
-		message.setDataHeader(dataHeader);
-		Map<String, Value> values = message.getValues();
-		List<ChannelConfig> channelConfigs = dataHeader.getChannels();
+   protected Value<V> getValue(ChannelConfig channelConfig) {
+      return new ValueImpl<V>((V) null, new Timestamp());
+   }
 
-		int i = 0;
-		for (; i < channelConfigs.size() && socket.hasReceiveMore(); ++i) {
-			final ChannelConfig currentConfig = channelConfigs.get(i);
-			final ByteOrder byteOrder = currentConfig.getByteOrder();
+   @Override
+   public Message<V> extractMessage(Socket socket, MainHeader mainHeader) {
+      Message<V> message = new Message<V>();
+      message.setMainHeader(mainHeader);
+      message.setDataHeader(dataHeader);
+      Map<String, Value<V>> values = message.getValues();
+      List<ChannelConfig> channelConfigs = dataHeader.getChannels();
 
-			// # read data blob #
-			// ##################
-			if (!socket.hasReceiveMore()) {
-				final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
-				LOGGER.error(errorMessage);
-				throw new RuntimeException(errorMessage);
-			}
+      int i = 0;
+      for (; i < channelConfigs.size() && socket.hasReceiveMore(); ++i) {
+         final ChannelConfig currentConfig = channelConfigs.get(i);
+         final ByteOrder byteOrder = currentConfig.getByteOrder();
 
-			final Msg valueMsg = receiveMsg(socket);
-			ByteBuffer valueBytes = valueMsg.buf().order(byteOrder);
+         // # read data blob #
+         // ##################
+         if (!socket.hasReceiveMore()) {
+            final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
+            LOGGER.error(errorMessage);
+            throw new RuntimeException(errorMessage);
+         }
 
-			// # read timestamp blob #
-			// #######################
-			if (!socket.hasReceiveMore()) {
-				final String errorMessage =
-						String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
-				LOGGER.error(errorMessage);
-				throw new RuntimeException(errorMessage);
-			}
-			final Msg timeMsg = receiveMsg(socket);
-			ByteBuffer timestampBytes = timeMsg.buf().order(byteOrder);
+         final Msg valueMsg = receiveMsg(socket);
+         ByteBuffer valueBytes = valueMsg.buf().order(byteOrder);
 
-			// Create value object
-			if (valueBytes != null && valueBytes.remaining() > 0) {
-				final Value value = getValue(currentConfig);
-				values.put(currentConfig.getName(), value);
+         // # read timestamp blob #
+         // #######################
+         if (!socket.hasReceiveMore()) {
+            final String errorMessage =
+                  String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
+            LOGGER.error(errorMessage);
+            throw new RuntimeException(errorMessage);
+         }
+         final Msg timeMsg = receiveMsg(socket);
+         ByteBuffer timestampBytes = timeMsg.buf().order(byteOrder);
 
-				if (valueMsg.size() > directThreshold) {
-					toDirect(value, valueBytes, currentConfig);
-				} else {
-					value.setValue(valueBytes);
-				}
+         // Create value object
+         if (valueBytes != null && valueBytes.remaining() > 0) {
+            final Value<V> value = getValue(currentConfig);
+            values.put(currentConfig.getName(), value);
 
-				// c-implementation uses a unsigned long (Json::UInt64,
-				// uint64_t) for time -> decided to ignore this here
-				final Timestamp timestamp = value.getTimestamp();
-				timestamp.setEpoch(timestampBytes.getLong(0));
-				timestamp.setNs(timestampBytes.getLong(Long.BYTES));
-			}
-		}
+            // offload value conversion work from receiver thread
+            CompletableFuture<V> futureValue =
+                  CompletableFuture.supplyAsync(
+                        () -> valueConverter.getValue(valueBytes, currentConfig.getType().getKey(),
+                              currentConfig.getShape()),
+                        valueConversionService);
+            value.setFutureValue(futureValue);
 
-		// Sanity check of value list
-		if (i != channelConfigs.size()) {
-			LOGGER.warn("Number of received values does not match number of channels.");
-		}
+            // c-implementation uses a unsigned long (Json::UInt64,
+            // uint64_t) for time -> decided to ignore this here
+            final Timestamp timestamp = value.getTimestamp();
+            timestamp.setEpoch(timestampBytes.getLong(0));
+            timestamp.setNs(timestampBytes.getLong(Long.BYTES));
+         }
+      }
 
-		return message;
-	}
+      // Sanity check of value list
+      if (i != channelConfigs.size()) {
+         LOGGER.warn("Number of received values does not match number of channels.");
+      }
 
-	@Override
-	public void accept(DataHeader dataHeader) {
-		this.dataHeader = dataHeader;
-	}
+      return message;
+   }
 
-	protected void toDirect(Value value, ByteBuffer valueBytes, ChannelConfig config) {
-		if (valueBytes.isDirect()) {
-			value.setValue(valueBytes);
-		}
+   @Override
+   public void accept(DataHeader dataHeader) {
+      this.dataHeader = dataHeader;
+   }
 
-		ByteBuffer direct = value.getValue();
-		if (direct == null || !direct.isDirect()) {
-			direct = ByteBuffer.allocateDirect(valueBytes.remaining());
-		}
-		direct.position(0);
-		direct.limit(direct.capacity());
-		if (direct.remaining() < valueBytes.remaining()) {
-			// might happen for string or (when enabled) compressed channels
-			LOGGER.info("Realocate direct ByteBuffer for '{}' of type '{}'.", config.getName(), config
-					.getType().getKey());
-			direct = ByteBuffer.allocateDirect(valueBytes.remaining());
-		}
+   protected Msg receiveMsg(Socket socket) {
+      Msg msg = socket.base().recv(0);
 
-		direct.order(valueBytes.order());
-		direct.put(valueBytes.duplicate());
-		direct.flip();
+      if (msg == null) {
+         mayRaise(socket);
+      }
 
-		value.setValue(direct);
-	}
+      return msg;
+   }
 
-	protected Msg receiveMsg(Socket socket) {
-		Msg msg = socket.base().recv(0);
-
-		if (msg == null) {
-			mayRaise(socket);
-		}
-
-		return msg;
-	}
-
-	private void mayRaise(Socket socket) {
-		int errno = socket.base().errno();
-		if (errno != 0 && errno != zmq.ZError.EAGAIN) {
-			throw new ZMQException(errno);
-		}
-	}
+   private void mayRaise(Socket socket) {
+      int errno = socket.base().errno();
+      if (errno != 0 && errno != zmq.ZError.EAGAIN) {
+         throw new ZMQException(errno);
+      }
+   }
 }

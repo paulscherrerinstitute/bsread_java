@@ -5,6 +5,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -30,12 +31,12 @@ public class ReceiverTest {
 	private boolean hookMainHeaderCalled;
 	private DataHeader hookDataHeader;
 	private boolean hookDataHeaderCalled;
-	private Map<String, Value> hookValues;
+	private Map<String, Value<ByteBuffer>> hookValues;
 	private boolean hookValuesCalled;
 	private Map<String, ChannelConfig> channelConfigs = new HashMap<>();
 
-	protected Receiver getReceiver() {
-		return new Receiver();
+	protected Receiver<ByteBuffer> getReceiver() {
+		return new Receiver<ByteBuffer>();
 	}
 
 	@Test
@@ -66,7 +67,7 @@ public class ReceiverTest {
 		});
 		sender.bind();
 
-		Receiver receiver = getReceiver();
+		Receiver<ByteBuffer> receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
@@ -78,7 +79,7 @@ public class ReceiverTest {
 				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
-		Message message = null;
+		Message<ByteBuffer> message = null;
 		for (int i = 0; i < 22; ++i) {
 			hookMainHeaderCalled = false;
 			hookDataHeaderCalled = false;
@@ -108,7 +109,7 @@ public class ReceiverTest {
 
 			String channelName;
 			ChannelConfig chConf;
-			Value value;
+			Value<ByteBuffer> value;
 			Double javaVal;
 
 			assertEquals(hookValues.size(), 1);
@@ -159,7 +160,7 @@ public class ReceiverTest {
 		});
 		sender.bind();
 
-		Receiver receiver = getReceiver();
+		Receiver<ByteBuffer> receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
@@ -171,7 +172,7 @@ public class ReceiverTest {
 				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
-		Message message = null;
+		Message<ByteBuffer> message = null;
 		for (int i = 0; i < 5; ++i) {
 			hookMainHeaderCalled = false;
 			hookDataHeaderCalled = false;
@@ -201,7 +202,7 @@ public class ReceiverTest {
 
 			String channelName;
 			ChannelConfig chConf;
-			Value value;
+			Value<ByteBuffer> value;
 			Double javaVal;
 
 			assertEquals(hookValues.size(), 1);
@@ -252,7 +253,7 @@ public class ReceiverTest {
 		});
 		sender.bind();
 
-		Receiver receiver = getReceiver();
+		Receiver<ByteBuffer> receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
@@ -264,7 +265,7 @@ public class ReceiverTest {
 				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
-		Message message = null;
+		Message<ByteBuffer> message = null;
 		for (int i = 0; i < 22; ++i) {
 			hookMainHeaderCalled = false;
 			hookDataHeaderCalled = false;
@@ -294,7 +295,7 @@ public class ReceiverTest {
 
 			String channelName;
 			ChannelConfig chConf;
-			Value value;
+			Value<ByteBuffer> value;
 			Double javaVal;
 
 			assertEquals(hookValues.size(), 1);
@@ -356,7 +357,7 @@ public class ReceiverTest {
 		});
 		sender.bind();
 
-		Receiver receiver = getReceiver();
+		Receiver<ByteBuffer> receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
@@ -368,7 +369,7 @@ public class ReceiverTest {
 				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
-		Message message = null;
+		Message<ByteBuffer> message = null;
 		for (int i = 0; i < 22; ++i) {
 			hookMainHeaderCalled = false;
 			hookDataHeaderCalled = false;
@@ -405,7 +406,7 @@ public class ReceiverTest {
 			// 10Hz -> both channels should have values
 			String channelName;
 			ChannelConfig chConf;
-			Value value;
+			Value<ByteBuffer> value;
 			Double javaVal;
 			if (hookMainHeader.getPulseId() % 10 == 0) {
 				assertEquals(2, hookValues.size());
@@ -498,7 +499,7 @@ public class ReceiverTest {
 		});
 		sender.bind();
 
-		Receiver receiver = getReceiver();
+		Receiver<ByteBuffer> receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
@@ -510,7 +511,7 @@ public class ReceiverTest {
 				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
-		Message message = null;
+		Message<ByteBuffer> message = null;
 		for (int i = 0; i < 22; ++i) {
 			hookMainHeaderCalled = false;
 			hookDataHeaderCalled = false;
@@ -555,7 +556,7 @@ public class ReceiverTest {
 			for (int j = 0; j < hookDataHeader.getChannels().size(); ++j) {
 				ChannelConfig channelConfig = hookDataHeader.getChannels().get(j);
 
-				Value value = hookValues.get(channelConfig.getName());
+				Value<ByteBuffer> value = hookValues.get(channelConfig.getName());
 				Timestamp iocTimestamp = value.getTimestamp();
 				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getEpoch());
 				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getNs());
@@ -587,7 +588,7 @@ public class ReceiverTest {
 		}
 	}
 
-	public void setValues(Map<String, Value> values) {
+	public void setValues(Map<String, Value<ByteBuffer>> values) {
 		this.hookValues = values;
 		this.hookValuesCalled = true;
 	}

@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class Sender {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Sender.class.getName());
 
+	public static final String DEFAULT_SENDING_ADDRESS = "tcp://*:9999";
 	public static final int HIGH_WATER_MARK = 100;
 
 	private Context context;
@@ -55,7 +56,7 @@ public class Sender {
 	}
 
 	public void bind() {
-		bind("tcp://*:9999");
+		bind(DEFAULT_SENDING_ADDRESS);
 	}
 
 	public void bind(String address) {

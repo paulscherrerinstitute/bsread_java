@@ -21,8 +21,10 @@ import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Value;
 
-public class Receiver {
+public class Receiver<V> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class.getName());
+	
+	public static final String DEFAULT_RECEIVING_ADDRESS = "tcp://localhost:9999";
 	public static final int HIGH_WATER_MARK = 100;
 	private static final int MAX_ALIGNMENT_RETRY = 10;
 
@@ -33,18 +35,22 @@ public class Receiver {
 
 	private List<Consumer<MainHeader>> mainHeaderHandlers = new ArrayList<>();
 	private List<Consumer<DataHeader>> dataHeaderHandlers = new ArrayList<>();
-	private List<Consumer<Map<String, Value>>> valueHandlers = new ArrayList<>();
+	private List<Consumer<Map<String, Value<V>>>> valueHandlers = new ArrayList<>();
 	private boolean parallelProcessing = false;
-	private MessageExtractor messageExtractor;
+	private MessageExtractor<V> messageExtractor;
 
 	private String dataHeaderHash = "";
 	private DataHeader dataHeader = null;
 
 	public Receiver() {
-		this(false, new StandardMessageExtractor());
+		this(false, new StandardMessageExtractor<V>());
+	}
+	
+	public Receiver(MessageExtractor<V> messageExtractor) {
+		this(false, messageExtractor);
 	}
 
-	public Receiver(boolean parallelProcessing, MessageExtractor messageExtractor) {
+	public Receiver(boolean parallelProcessing, MessageExtractor<V> messageExtractor) {
 		this.parallelProcessing = parallelProcessing;
 		this.messageExtractor = messageExtractor;
 
@@ -52,7 +58,7 @@ public class Receiver {
 	}
 
 	public void connect() {
-		connect("tcp://localhost:9999");
+		connect(DEFAULT_RECEIVING_ADDRESS);
 	}
 
 	public void connect(String address) {
@@ -73,7 +79,7 @@ public class Receiver {
 		context = null;
 	}
 
-	public Message receive() throws RuntimeException {
+	public Message<V> receive() throws RuntimeException {
 		// Receive main header
 		MainHeader mainHeader = null;
 		int nrOfAlignmentTrys = 0;
@@ -100,7 +106,7 @@ public class Receiver {
 		return receive(mainHeader);
 	}
 
-	private Message receive(MainHeader mainHeader) throws RuntimeException {
+	private Message<V> receive(MainHeader mainHeader) throws RuntimeException {
 		try {
 			if (!mainHeader.getHtype().startsWith(MainHeader.HTYPE_VALUE_NO_VERSION)) {
 				String message =
@@ -145,8 +151,8 @@ public class Receiver {
 						dataHeader.getChannels().stream().map(channel -> channel.getName()).collect(Collectors.joining(", ")));
 			}
 			// Receiver data
-			Message message = messageExtractor.extractMessage(socket, mainHeader);
-			Map<String, Value> values = message.getValues();
+			Message<V> message = messageExtractor.extractMessage(socket, mainHeader);
+			Map<String, Value<V>> values = message.getValues();
 
 			if (this.socket.hasReceiveMore()) {
 				// Some sender implementations add an empty additional message
@@ -184,11 +190,11 @@ public class Receiver {
 		return count;
 	}
 
-	public void addValueHandler(Consumer<Map<String, Value>> handler) {
+	public void addValueHandler(Consumer<Map<String, Value<V>>> handler) {
 		valueHandlers.add(handler);
 	}
 
-	public void removeValueHandler(Consumer<Map<String, Value>> handler) {
+	public void removeValueHandler(Consumer<Map<String, Value<V>>> handler) {
 		valueHandlers.remove(handler);
 	}
 
