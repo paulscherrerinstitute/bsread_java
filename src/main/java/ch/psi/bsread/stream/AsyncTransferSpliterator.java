@@ -25,7 +25,7 @@ public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>
    public static final int DEFAULT_BACKPRESSURE_SIZE = Integer.MAX_VALUE;
    private static final int CHARACTERISTICS = Spliterator.ORDERED | Spliterator.NONNULL;
    private static final Deferred<ExecutorService> DEFAULT_MAPPING_SERVICE = new Deferred<>(
-         () -> Executors.newCachedThreadPool());
+         () -> Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors())));
 
    private AtomicBoolean isRunning = new AtomicBoolean(true);
    private ConcurrentSkipListMap<Long, CompletableFuture<T>> values = new ConcurrentSkipListMap<>();
