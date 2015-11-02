@@ -22,7 +22,7 @@ public class BasicReceiverTest {
 		Sender sender = new Sender();
 
 		// Register data sources ...
-		sender.addSource(new DataChannel<Double>(new ChannelConfig(testChannel, Type.Double, 1, 0)) {
+		sender.addSource(new DataChannel<Double>(new ChannelConfig(testChannel, Type.Float64, 1, 0)) {
 			@Override
 			public Double getValue(long pulseId) {
 				return (double) pulseId;

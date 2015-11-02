@@ -1,19 +1,19 @@
 {
   "channels": [
     {
-      "type": "Double",
+      "type": "float64",
       "name": "CHANNEL-0"
     },
     {
-      "type": "double",
+      "type": "float64",
       "name": "CHANNEL-1"
     },
     {
-      "type": "double",
+      "type": "float64",
       "name": "CHANNEL-2"
     },
     {
-      "type": "double",
+      "type": "float64",
       "name": "CHANNEL-3"
     },
     {
@@ -22,7 +22,7 @@
     },
     {
       "shape": [2],
-      "type": "integer",
+      "type": "int32",
       "name": "CHANNEL-ARRAY_1"
     }
   ],

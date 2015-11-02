@@ -17,7 +17,7 @@ public class ChannelConfig implements Serializable {
 	public static final String DEFAULT_ENCODING = ENCODING_LITTLE_ENDIAN;
 
 	private String name;
-	private Type type = Type.Double;
+	private Type type = Type.Float64;
 	private int[] shape = DEFAULT_SHAPE;
 	private int modulo = 1;
 	private int offset = 0;
