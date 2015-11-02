@@ -54,7 +54,7 @@ public class ReceiverTest {
 				);
 
 		// Register data sources ...
-		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Double, 10, 0)) {
+		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Float64, 10, 0)) {
 			@Override
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
@@ -103,7 +103,7 @@ public class ReceiverTest {
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Double, channelConfig.getType());
+				assertEquals(Type.Float64, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 			}
 
@@ -147,7 +147,7 @@ public class ReceiverTest {
 				);
 
 		// Register data sources ...
-		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Double, 1000, 0)) {
+		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Float64, 1000, 0)) {
 			@Override
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
@@ -196,7 +196,7 @@ public class ReceiverTest {
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(1000, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Double, channelConfig.getType());
+				assertEquals(Type.Float64, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 			}
 
@@ -240,7 +240,7 @@ public class ReceiverTest {
 				);
 
 		// Register data sources ...
-		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Double, 10, 1)) {
+		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Float64, 10, 1)) {
 			@Override
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
@@ -289,7 +289,7 @@ public class ReceiverTest {
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo(), 0.00000000001);
 				assertEquals(1, channelConfig.getOffset());
-				assertEquals(Type.Double, channelConfig.getType());
+				assertEquals(Type.Float64, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 			}
 
@@ -333,7 +333,7 @@ public class ReceiverTest {
 				);
 
 		// Register data sources ...
-		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC_10", Type.Double, 10, 0)) {
+		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC_10", Type.Float64, 10, 0)) {
 			@Override
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
@@ -344,7 +344,7 @@ public class ReceiverTest {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC_100", Type.Double, 1, 0)) {
+		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC_100", Type.Float64, 1, 0)) {
 			@Override
 			public Double getValue(long pulseId) {
 				return (double) pulseId;
@@ -392,14 +392,14 @@ public class ReceiverTest {
 				assertEquals("ABC_10", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Double, channelConfig.getType());
+				assertEquals(Type.Float64, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 
 				channelConfig = hookDataHeader.getChannels().get(1);
 				assertEquals("ABC_100", channelConfig.getName());
 				assertEquals(1, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Double, channelConfig.getType());
+				assertEquals(Type.Float64, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 			}
 
@@ -473,7 +473,7 @@ public class ReceiverTest {
 				byteConverter);
 
 		// Register data sources ...
-		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABC", Type.Long, new int[] { 1 }, 10, 0,
+		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABC", Type.Int64, new int[] { 1 }, 10, 0,
 				ChannelConfig.ENCODING_LITTLE_ENDIAN)) {
 			@Override
 			public Long getValue(long pulseId) {
@@ -485,7 +485,7 @@ public class ReceiverTest {
 				return new Timestamp(pulseId, pulseId);
 			}
 		});
-		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABCD", Type.Long, new int[] { 1 }, 10, 0,
+		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABCD", Type.Int64, new int[] { 1 }, 10, 0,
 				ChannelConfig.ENCODING_BIG_ENDIAN)) {
 			@Override
 			public Long getValue(long pulseId) {
@@ -540,7 +540,7 @@ public class ReceiverTest {
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Long, channelConfig.getType());
+				assertEquals(Type.Int64, channelConfig.getType());
 				assertEquals(ChannelConfig.ENCODING_LITTLE_ENDIAN, channelConfig.getEncoding());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 
@@ -548,7 +548,7 @@ public class ReceiverTest {
 				assertEquals("ABCD", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Long, channelConfig.getType());
+				assertEquals(Type.Int64, channelConfig.getType());
 				assertEquals(ChannelConfig.ENCODING_BIG_ENDIAN, channelConfig.getEncoding());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 			}

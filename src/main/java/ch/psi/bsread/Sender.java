@@ -118,7 +118,7 @@ public class Sender {
 						Timestamp timestamp = channel.getTime(pulseId);
 						// c-implementation uses a unsigned long (Json::UInt64,
 						// uint64_t) for time -> decided to ignore this here
-						socket.sendByteBuffer(this.byteConverter.getBytes(Type.Long.getKey(), timestamp.getAsLongArray(), byteOrder), lastSendMore);
+						socket.sendByteBuffer(this.byteConverter.getBytes(Type.Int64.getKey(), timestamp.getAsLongArray(), byteOrder), lastSendMore);
 					}
 					else {
 						// Send placeholder

@@ -22,7 +22,7 @@ public class MatlabByteConverter extends AbstractByteConverter {
 		final boolean array = isArray(shape);
 
 		switch (type) {
-		case "byte":
+		case "int8":
 			if (array) {
 				if (byteValue.hasArray()) {
 					//TODO: Clone array?
@@ -36,7 +36,7 @@ public class MatlabByteConverter extends AbstractByteConverter {
 			else {
 				return (V) ((Byte) byteValue.duplicate().get());
 			}
-		case "short":
+		case "int16":
 			if (array) {
 				short[] values = new short[byteValue.remaining() / Short.BYTES];
 				byteValue.asShortBuffer().get(values);
@@ -45,7 +45,7 @@ public class MatlabByteConverter extends AbstractByteConverter {
 			else {
 				return (V) ((Short) byteValue.asShortBuffer().get());
 			}
-		case "integer":
+		case "int32":
 			if (array) {
 				int[] values = new int[byteValue.remaining() / Integer.BYTES];
 				byteValue.asIntBuffer().get(values);
@@ -54,7 +54,7 @@ public class MatlabByteConverter extends AbstractByteConverter {
 			else {
 				return (V) ((Integer) byteValue.asIntBuffer().get());
 			}
-		case "long":
+		case "int64":
 			if (array) {
 				long[] values = new long[byteValue.remaining() / Long.BYTES];
 				byteValue.asLongBuffer().get(values);
@@ -63,7 +63,7 @@ public class MatlabByteConverter extends AbstractByteConverter {
 			else {
 				return (V) ((Long) byteValue.asLongBuffer().get());
 			}
-		case "float":
+		case "float32":
 			if (array) {
 				float[] values = new float[byteValue.remaining() / Float.BYTES];
 				byteValue.asFloatBuffer().get(values);
@@ -72,7 +72,7 @@ public class MatlabByteConverter extends AbstractByteConverter {
 			else {
 				return (V) ((Float) byteValue.asFloatBuffer().get());
 			}
-		case "double":
+		case "float64":
 			if (array) {
 				double[] values = new double[byteValue.remaining() / Double.BYTES];
 				byteValue.asDoubleBuffer().get(values);

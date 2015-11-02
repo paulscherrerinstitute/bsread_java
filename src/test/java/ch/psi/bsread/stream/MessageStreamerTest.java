@@ -52,7 +52,7 @@ public class MessageStreamerTest {
             );
 
       // Register data sources ...
-      sender.addSource(new DataChannel<Long>(new ChannelConfig(channelName, Type.Long, 1, 0)) {
+      sender.addSource(new DataChannel<Long>(new ChannelConfig(channelName, Type.Int64, 1, 0)) {
          @Override
          public Long getValue(long pulseId) {
             return pulseId;
@@ -141,7 +141,7 @@ public class MessageStreamerTest {
             );
 
       // Register data sources ...
-      sender.addSource(new DataChannel<Long>(new ChannelConfig(channelName, Type.Long, 1, 0)) {
+      sender.addSource(new DataChannel<Long>(new ChannelConfig(channelName, Type.Int64, 1, 0)) {
          @Override
          public Long getValue(long pulseId) {
             return pulseId;
@@ -285,7 +285,7 @@ public class MessageStreamerTest {
             );
 
       // Register data sources ...
-      sender.addSource(new DataChannel<Long>(new ChannelConfig(channelName, Type.Long, 1, 0)) {
+      sender.addSource(new DataChannel<Long>(new ChannelConfig(channelName, Type.Int64, 1, 0)) {
          @Override
          public Long getValue(long pulseId) {
             return pulseId;
@@ -409,7 +409,7 @@ public class MessageStreamerTest {
             );
 
       // Register data sources ...
-      sender.addSource(new DataChannel<Long>(new ChannelConfig(channelName, Type.Long, 1, 0)) {
+      sender.addSource(new DataChannel<Long>(new ChannelConfig(channelName, Type.Int64, 1, 0)) {
          @Override
          public Long getValue(long pulseId) {
             return pulseId;
