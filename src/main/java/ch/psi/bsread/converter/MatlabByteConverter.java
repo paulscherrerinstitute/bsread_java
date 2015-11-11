@@ -3,6 +3,8 @@ package ch.psi.bsread.converter;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import ch.psi.bsread.message.ChannelConfig;
+
 /**
  * This is a convenience class for not being dependent to byte_converters
  * package that should be usually used to serialize/de-serialize values to bytes
@@ -17,7 +19,7 @@ public class MatlabByteConverter extends AbstractByteConverter {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <V> V getValue(ByteBuffer byteValue, String type, int[] shape) {
+	public <V> V getValue(ByteBuffer byteValue, ChannelConfig config) {
 		type = type.toLowerCase();
 		final boolean array = isArray(shape);
 
@@ -91,7 +93,7 @@ public class MatlabByteConverter extends AbstractByteConverter {
 	}
 
 	@Override
-	public ByteBuffer getBytes(String type, Object value, ByteOrder byteOrder) {
+	public ByteBuffer getBytes(Object value, ChannelConfig config) {
 		ByteBuffer buffer;
 
 		if (value instanceof byte[]) {

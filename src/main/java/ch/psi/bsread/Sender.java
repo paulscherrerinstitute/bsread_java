@@ -1,9 +1,11 @@
 package ch.psi.bsread;
 
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -12,8 +14,11 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
+import ch.psi.bsread.compression.Compression;
 import ch.psi.bsread.converter.ByteConverter;
 import ch.psi.bsread.converter.MatlabByteConverter;
+import ch.psi.bsread.impl.ByteBufferAllocator;
+import ch.psi.bsread.impl.ReuseByteBufferAllocator;
 import ch.psi.bsread.impl.StandardPulseIdProvider;
 import ch.psi.bsread.impl.StandardTimeProvider;
 import ch.psi.bsread.message.DataHeader;
@@ -38,6 +43,10 @@ public class Sender {
 	private MainHeader mainHeader = new MainHeader();
 	private byte[] dataHeaderBytes;
 	private String dataHeaderMD5 = "";
+	private int dataHeaderSize;
+	private final Compression dataHeaderCompression;
+	private final IntFunction<ByteBuffer> valueAllocator;
+	private final IntFunction<ByteBuffer> compressedValueAllocator;
 
 	private final PulseIdProvider pulseIdProvider;
 	private final TimeProvider globalTimeProvider;
@@ -50,9 +59,17 @@ public class Sender {
 	}
 
 	public Sender(PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter) {
+		this(pulseIdProvider, globalTimeProvider, byteConverter, null, new ReuseByteBufferAllocator(new ByteBufferAllocator()), new ReuseByteBufferAllocator(new ByteBufferAllocator()));
+	}
+
+	public Sender(PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter, Compression dataHeaderCompression, IntFunction<ByteBuffer> valueAllocator,
+			IntFunction<ByteBuffer> compressedValueAllocator) {
 		this.pulseIdProvider = pulseIdProvider;
 		this.globalTimeProvider = globalTimeProvider;
 		this.byteConverter = byteConverter;
+		this.dataHeaderCompression = dataHeaderCompression;
+		this.valueAllocator = valueAllocator;
+		this.compressedValueAllocator = compressedValueAllocator;
 	}
 
 	public void bind() {
@@ -90,6 +107,8 @@ public class Sender {
 			mainHeader.setPulseId(pulseId);
 			mainHeader.setGlobalTimestamp(this.globalTimeProvider.getTime(pulseId));
 			mainHeader.setHash(dataHeaderMD5);
+			mainHeader.setDataHeaderCompression(dataHeaderCompression);
+			mainHeader.setDataHeaderSize(dataHeaderSize);
 
 			try {
 				// Send header
@@ -97,7 +116,7 @@ public class Sender {
 
 				// Send data header
 				socket.send(dataHeaderBytes, ZMQ.NOBLOCK | ZMQ.SNDMORE);
-				
+
 				if (LOGGER.isDebugEnabled()) {
 					LOGGER.debug("Send message for pulse '{}' and channels '{}'.", mainHeader.getPulseId(),
 							channels.stream().map(dataChannel -> dataChannel.getConfig().getName()).collect(Collectors.joining(", ")));
@@ -113,7 +132,11 @@ public class Sender {
 					if (isSendNeeded) {
 						final Object value = channel.getValue(pulseId);
 
-						socket.sendByteBuffer(this.byteConverter.getBytes(channel.getConfig().getType().getKey(), value, byteOrder), ZMQ.NOBLOCK | ZMQ.SNDMORE);
+						ByteBuffer valueBuffer = this.byteConverter.getBytes(channel.getConfig().getType().getKey(), value, byteOrder, valueAllocator);
+						if (channel.getConfig().getCmpr() != null) {
+							valueBuffer = channel.getConfig().getCmpr().getCompressor().compress(valueBuffer, 0, compressedValueAllocator);
+						}
+						socket.sendByteBuffer(valueBuffer, ZMQ.NOBLOCK | ZMQ.SNDMORE);
 
 						Timestamp timestamp = channel.getTime(pulseId);
 						// c-implementation uses a unsigned long (Json::UInt64,
@@ -150,6 +173,10 @@ public class Sender {
 		try {
 			dataHeaderBytes = mapper.writeValueAsBytes(dataHeader);
 			dataHeaderMD5 = Utils.computeMD5(dataHeaderBytes);
+			dataHeaderSize = dataHeaderBytes.length;
+			if (dataHeaderCompression != null) {
+				dataHeaderBytes = dataHeaderCompression.getCompressor().compress(dataHeaderBytes, 0, dataHeaderBytes.length, 0, (size) -> new byte[size]);
+			}
 		} catch (JsonProcessingException e) {
 			throw new RuntimeException("Unable to generate data header", e);
 		}

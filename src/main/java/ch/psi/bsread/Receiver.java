@@ -15,6 +15,7 @@ import org.zeromq.ZMQ.Socket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import ch.psi.bsread.compression.Compression;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
@@ -131,7 +132,12 @@ public class Receiver<V> {
 				}
 				else {
 					dataHeaderHash = mainHeader.getHash();
-					dataHeader = mapper.readValue(socket.recv(), DataHeader.class);
+					byte[] dataHeaderBytes = socket.recv();
+					Compression compression = mainHeader.getDataHeaderCompression();
+					if(compression != null){
+					   dataHeaderBytes = compression.getCompressor().decompress(dataHeaderBytes, 0, dataHeaderBytes.length, mainHeader.getDataHeaderSize(), (size) -> new byte[size]);
+					}
+					dataHeader = mapper.readValue(dataHeaderBytes, DataHeader.class);
 					if (this.parallelProcessing) {
 						dataHeaderHandlers.parallelStream().forEach(handler -> handler.accept(dataHeader));
 					} else {

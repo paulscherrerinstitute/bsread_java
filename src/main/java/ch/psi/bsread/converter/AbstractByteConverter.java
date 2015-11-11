@@ -1,16 +1,9 @@
 package ch.psi.bsread.converter;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
 
 public abstract class AbstractByteConverter implements ByteConverter {
-
-	@Override
-	public ByteBuffer getBytes(Object value, ByteOrder byteOrder) {
-		return this.getBytes(getTypeName(value.getClass()), value, byteOrder);
-	}
 
 	/*
 	 * The rest of this code is copied from
