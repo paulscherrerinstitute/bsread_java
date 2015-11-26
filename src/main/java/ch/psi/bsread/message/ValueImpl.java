@@ -12,10 +12,13 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ch.psi.bsread.allocator.ThreadLocalByteArrayAllocator;
+
 public class ValueImpl<V> implements Value<V> {
 	private static final long serialVersionUID = -3889961098156334653L;
 	private static final Logger LOGGER = LoggerFactory.getLogger(ValueImpl.class);
 	public static final long DEFAULT_TIMEOUT_IN_MILLIS = 30000;
+	private static final ThreadLocalByteArrayAllocator TMP_SERIALIZATION_ALLOCATOR = new ThreadLocalByteArrayAllocator();
 
 	private static final byte IS_JAVA_VALUE_POSITION = 0;
 	private static final byte DIRECT_POSITION = 1;
@@ -108,13 +111,10 @@ public class ValueImpl<V> implements Value<V> {
 			if (byteBuffer.hasArray()) {
 				oos.write(byteBuffer.array(), byteBuffer.position(), byteBuffer.remaining());
 			} else {
-				// Is there a way to overcome the allocation if this byte[],
-				// e.g.
-				// using ThreadLocal<byte[]>?
-				byte[] bytes = new byte[byteBuffer.remaining()];
+				byte[] bytes = TMP_SERIALIZATION_ALLOCATOR.apply(byteBuffer.remaining());
 				// bulk methods are way faster than reading/writing single bytes
-				byteBuffer.duplicate().get(bytes);
-				oos.write(bytes);
+				byteBuffer.duplicate().get(bytes, 0, byteBuffer.remaining());
+				oos.write(bytes, 0, byteBuffer.remaining());
 			}
 		} else {
 			descriptor = ValueImpl.setPosition(descriptor, IS_JAVA_VALUE_POSITION);
@@ -154,12 +154,10 @@ public class ValueImpl<V> implements Value<V> {
 			if (byteBuffer.hasArray()) {
 				ois.read(byteBuffer.array());
 			} else {
-				// Is there a way to overcome the allocation if this byte[],
-				// e.g. using ThreadLocal<byte[]>?
-				byte[] valBytes = new byte[size];
+				byte[] valBytes = TMP_SERIALIZATION_ALLOCATOR.apply(size);
 				// bulk methods are way faster than reading/writing single bytes
-				ois.read(valBytes);
-				byteBuffer.put(valBytes);
+				ois.read(valBytes, 0, size);
+				byteBuffer.put(valBytes, 0, size);
 				// make ready for read
 				byteBuffer.flip();
 			}

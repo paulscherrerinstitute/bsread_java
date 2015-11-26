@@ -76,7 +76,7 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
          }
 
          final Msg valueMsg = receiveMsg(socket);
-         ByteBuffer valueBytes = valueMsg.buf().order(byteOrder);
+         ByteBuffer receivedValueBytes = valueMsg.buf().order(byteOrder);
 
          // # read timestamp blob #
          // #######################
@@ -90,25 +90,29 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
          ByteBuffer timestampBytes = timeMsg.buf().order(byteOrder);
 
          // Create value object
-         if (valueBytes != null && valueBytes.remaining() > 0) {
+         if (receivedValueBytes != null && receivedValueBytes.remaining() > 0) {
             final Value<V> value = getValue(currentConfig);
             values.put(currentConfig.getName(), value);
+
+            // c-implementation uses a unsigned long (Json::UInt64,
+            // uint64_t) for time -> decided to ignore this here
+            final Timestamp iocTimestamp = value.getTimestamp();
+            iocTimestamp.setEpoch(timestampBytes.getLong(0));
+            iocTimestamp.setNs(timestampBytes.getLong(Long.BYTES));
 
             // offload value conversion work from receiver thread
             CompletableFuture<V> futureValue =
                   CompletableFuture.supplyAsync(
-                        () -> valueConverter.getValue(valueBytes, currentConfig.getType().getKey(),
-                              currentConfig.getShape()),
+                        () -> valueConverter.getValue(receivedValueBytes, currentConfig, mainHeader, iocTimestamp),
                         valueConversionService);
             value.setFutureValue(futureValue);
-
-            // c-implementation uses a unsigned long (Json::UInt64,
-            // uint64_t) for time -> decided to ignore this here
-            final Timestamp timestamp = value.getTimestamp();
-            timestamp.setEpoch(timestampBytes.getLong(0));
-            timestamp.setNs(timestampBytes.getLong(Long.BYTES));
          }
       }
+
+      // // ensure async conversion is completed
+      // for (Entry<String, Value<V>> entry : values.entrySet()) {
+      // entry.getValue().getValue();
+      // }
 
       // Sanity check of value list
       if (i != channelConfigs.size()) {

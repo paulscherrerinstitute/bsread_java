@@ -6,64 +6,84 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
+import ch.psi.bsread.compression.Compression;
+
 @JsonInclude(Include.NON_DEFAULT)
 public class MainHeader implements Serializable {
 
-	private static final long serialVersionUID = 1L;
-	
-	public static final String HTYPE_VALUE_NO_VERSION = "bsr_m";
-	public static final String DEFAULT_HTYPE = HTYPE_VALUE_NO_VERSION + "-1.0";
+   private static final long serialVersionUID = 1L;
 
-	@JsonInclude
-	private String htype = DEFAULT_HTYPE;
-	private long pulseId;
-	private Timestamp globalTimestamp;
-	private String hash;
+   public static final String HTYPE_VALUE_NO_VERSION = "bsr_m";
+   public static final String DEFAULT_HTYPE = HTYPE_VALUE_NO_VERSION + "-1.0";
 
-	public MainHeader() {
-	}
+   @JsonInclude
+   private String htype = DEFAULT_HTYPE;
+   private long pulseId;
+   private Timestamp globalTimestamp;
+   private String hash;
+   private Compression dataHeaderCompression = null;
 
-	public MainHeader(String htype, long pulseId, Timestamp globalTimestamp, String hash) {
-		this.htype = htype;
-		this.pulseId = pulseId;
-		this.globalTimestamp = globalTimestamp;
-		this.hash = hash;
-	}
+   public MainHeader() {}
 
-	public String getHtype() {
-		return htype;
-	}
+   public MainHeader(String htype, long pulseId, Timestamp globalTimestamp, String hash) {
+      this.htype = htype;
+      this.pulseId = pulseId;
+      this.globalTimestamp = globalTimestamp;
+      this.hash = hash;
+   }
 
-	public void setHtype(String htype) {
-		this.htype = htype;
-	}
+   public MainHeader(String htype, long pulseId, Timestamp globalTimestamp, String hash, Compression dataHeaderCompression) {
+      this.htype = htype;
+      this.pulseId = pulseId;
+      this.globalTimestamp = globalTimestamp;
+      this.hash = hash;
+      this.dataHeaderCompression = dataHeaderCompression;
+   }
 
-	@JsonProperty("pulse_id")
-	public long getPulseId() {
-		return pulseId;
-	}
+   public String getHtype() {
+      return htype;
+   }
 
-	@JsonProperty("pulse_id")
-	public void setPulseId(long pulseId) {
-		this.pulseId = pulseId;
-	}
+   public void setHtype(String htype) {
+      this.htype = htype;
+   }
 
-	@JsonProperty("global_timestamp")
-	public Timestamp getGlobalTimestamp() {
-		return this.globalTimestamp;
-	}
+   @JsonProperty("pulse_id")
+   public long getPulseId() {
+      return pulseId;
+   }
 
-	@JsonProperty("global_timestamp")
-	public void setGlobalTimestamp(Timestamp globalTimestamp) {
-		this.globalTimestamp = globalTimestamp;
-	}
+   @JsonProperty("pulse_id")
+   public void setPulseId(long pulseId) {
+      this.pulseId = pulseId;
+   }
 
-	public String getHash() {
-		return hash;
-	}
+   @JsonProperty("global_timestamp")
+   public Timestamp getGlobalTimestamp() {
+      return this.globalTimestamp;
+   }
 
-	public void setHash(String hash) {
-		this.hash = hash;
-	}
+   @JsonProperty("global_timestamp")
+   public void setGlobalTimestamp(Timestamp globalTimestamp) {
+      this.globalTimestamp = globalTimestamp;
+   }
+
+   @JsonProperty("dh_compression")
+   public Compression getDataHeaderCompression() {
+      return dataHeaderCompression;
+   }
+
+   @JsonProperty("dh_compression")
+   public void setDataHeaderCompression(Compression dataHeaderCompression) {
+      this.dataHeaderCompression = dataHeaderCompression;
+   }
+
+   public String getHash() {
+      return hash;
+   }
+
+   public void setHash(String hash) {
+      this.hash = hash;
+   }
 
 }
