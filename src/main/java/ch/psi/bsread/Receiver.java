@@ -1,10 +1,12 @@
 package ch.psi.bsread;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -15,7 +17,10 @@ import org.zeromq.ZMQ.Socket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import ch.psi.bsread.allocator.ByteBufferAllocator;
+import ch.psi.bsread.allocator.ReuseByteBufferAllocator;
 import ch.psi.bsread.compression.Compression;
+import ch.psi.bsread.helper.ByteBufferHelper;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
@@ -42,6 +47,8 @@ public class Receiver<V> {
 
 	private String dataHeaderHash = "";
 	private DataHeader dataHeader = null;
+	
+	private final IntFunction<ByteBuffer> dataHeaderAllocator = new ReuseByteBufferAllocator(new ByteBufferAllocator());
 
 	public Receiver() {
 		this(false, new StandardMessageExtractor<V>());
@@ -135,7 +142,8 @@ public class Receiver<V> {
 					byte[] dataHeaderBytes = socket.recv();
 					Compression compression = mainHeader.getDataHeaderCompression();
 					if(compression != null){
-					   dataHeaderBytes = compression.getCompressor().decompress(dataHeaderBytes, 0, dataHeaderBytes.length, mainHeader.getDataHeaderSize(), (size) -> new byte[size]);
+					   ByteBuffer tmpBuf = compression.getCompressor().decompressDataHeader(ByteBuffer.wrap(dataHeaderBytes), dataHeaderAllocator);
+					   dataHeaderBytes = ByteBufferHelper.copyToByteArray(tmpBuf);
 					}
 					dataHeader = mapper.readValue(dataHeaderBytes, DataHeader.class);
 					if (this.parallelProcessing) {

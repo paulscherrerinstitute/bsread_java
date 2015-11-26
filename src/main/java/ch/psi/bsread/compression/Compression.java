@@ -1,33 +1,24 @@
 package ch.psi.bsread.compression;
 
+import ch.psi.bsread.compression.bitshufflelz4.BitshuffleLZ4Compressor;
 import ch.psi.bsread.compression.lz4.LZ4Compressor;
+import ch.psi.bsread.compression.none.NoneCompressor;
 
 public enum Compression {
-   lz4((byte) 0, new LZ4Compressor());
+   none(new NoneCompressor()),
+   lz4(new LZ4Compressor()),
+   bitshuffle_lz4(new BitshuffleLZ4Compressor());
+   
+   public static final Compression DEFAULT = Compression.bitshuffle_lz4;
 
-   private byte type;
    private Compressor compressor;
 
-   private Compression(byte type, Compressor compressor) {
-      this.type = type;
+   private Compression(Compressor compressor) {
       this.compressor = compressor;
-   }
-
-   public byte getType() {
-      return type;
    }
 
    public Compressor getCompressor() {
       return compressor;
-   }
-
-   public static Compression getCompressionAlgo(byte type) {
-      for (Compression algo : Compression.values()) {
-         if (type == algo.type) {
-            return algo;
-         }
-      }
-      throw new IllegalArgumentException("Type does not exist - " + type);
    }
 
    public static Compression getCompressionAlgo(String type) {

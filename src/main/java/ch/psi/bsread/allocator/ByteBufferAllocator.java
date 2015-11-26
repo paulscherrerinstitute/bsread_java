@@ -1,9 +1,13 @@
-package ch.psi.bsread.impl;
+package ch.psi.bsread.allocator;
 
 import java.nio.ByteBuffer;
 import java.util.function.IntFunction;
 
+/**
+ * Copy of ch.psi.daq.common.allocator.ByteBufferAllocator
+ */
 public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
+	public static final int DEFAULT_DIRECT_THRESHOLD = 1024;
 	private int directThreshold;
 
 	public ByteBufferAllocator() {

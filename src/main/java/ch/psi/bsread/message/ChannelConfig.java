@@ -24,7 +24,7 @@ public class ChannelConfig implements Serializable {
    private int modulo = 1;
    private int offset = 0;
    private String encoding = DEFAULT_ENCODING;
-   private Compression compression = null;
+   private Compression compression = Compression.none;
 
    public ChannelConfig() {}
 
@@ -44,6 +44,12 @@ public class ChannelConfig implements Serializable {
       this(name, type, modulo, offset);
 
       this.shape = shape;
+
+      // if (type.getBytes() == ValueConverter.DYNAMIC_NUMBER_OF_BYTES ||
+      // Compressor.DEFAULT_COMPRESS_THRESHOLD < type.getBytes() *
+      // AbstractByteConverter.getArrayLength(shape)) {
+      // compression = Compression.DEFAULT;
+      // }
    }
 
    public ChannelConfig(String name, Type type, int[] shape, int modulo, int offset, String encoding) {
@@ -53,10 +59,24 @@ public class ChannelConfig implements Serializable {
    }
 
    public ChannelConfig(String name, Type type, int[] shape, int modulo, int offset, String encoding,
-         Compression cmpr) {
+         Compression compression) {
       this(name, type, shape, modulo, offset, encoding);
 
-      this.cmpr = cmpr;
+      this.compression = compression;
+   }
+
+   public ChannelConfig(ChannelConfig config) {
+      this(config.name, config.type, config.shape, config.modulo, config.offset, config.encoding, config.compression);
+   }
+
+   public void copy(ChannelConfig other) {
+      this.name = other.name;
+      this.type = other.type;
+      this.shape = other.shape;
+      this.modulo = other.modulo;
+      this.offset = other.offset;
+      this.encoding = other.encoding;
+      this.compression = other.compression;
    }
 
    public String getName() {
@@ -107,12 +127,12 @@ public class ChannelConfig implements Serializable {
       this.encoding = encoding;
    }
 
-   public Compression getCmpr() {
-      return cmpr;
+   public Compression getCompression() {
+      return compression;
    }
 
-   public void setCmpr(Compression cmpr) {
-      this.cmpr = cmpr;
+   public void setCompression(Compression compression) {
+      this.compression = compression;
    }
 
    /**

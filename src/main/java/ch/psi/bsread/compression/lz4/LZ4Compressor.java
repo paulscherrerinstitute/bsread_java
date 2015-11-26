@@ -2,19 +2,14 @@ package ch.psi.bsread.compression.lz4;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.IntBuffer;
 import java.util.function.IntFunction;
 
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
 
 import ch.psi.bsread.compression.Compressor;
-import ch.psi.bsread.message.ChannelConfig;
 
 public class LZ4Compressor implements Compressor {
-
-	private static final ThreadLocal<byte[]> TMP_BYTE_ARRAY_PROVIDER = ThreadLocal
-			.<byte[]> withInitial(() -> new byte[0]);
 
 	private net.jpountz.lz4.LZ4Compressor compressor;
 	private LZ4FastDecompressor decompressor;
@@ -25,106 +20,73 @@ public class LZ4Compressor implements Compressor {
 		decompressor = factory.fastDecompressor();
 	}
 
-	protected ByteBuffer compress(boolean prefixUncompressedSize, ByteBuffer src, IntFunction<ByteBuffer> bufferAllocator) {
-		int uncompressedSizeBytes = 4;
-		int uncompressedSize = src.remaining();
+	protected ByteBuffer compress(ByteBuffer src, int srcOff, int srcLen, ByteOrder sizeOrder, int destOff,
+			IntFunction<ByteBuffer> bufferAllocator) {
+		int uncompressedSize = srcLen;
 		int maxCompressedSize = compressor.maxCompressedLength(uncompressedSize);
-		int totalSize = maxCompressedSize;
-		int startCompressedPos = 0;
-		if (prefixUncompressedSize) {
-			totalSize += uncompressedSizeBytes;
-			startCompressedPos = uncompressedSizeBytes;
-		}
+		int startCompressedPos = destOff + 4;
+		int totalSize = startCompressedPos + maxCompressedSize;
 
 		ByteBuffer dest = bufferAllocator.apply(totalSize);
 
-		if (prefixUncompressedSize) {
-			ByteOrder originalOrder = dest.order();
-			dest.order(ByteOrder.BIG_ENDIAN);
-			dest.asIntBuffer().put(uncompressedSize);
-			dest.order(originalOrder);
-		}
+		dest.order(sizeOrder);
+		dest.position(destOff);
+		dest.putInt(uncompressedSize);
+		dest.order(src.order());
+
 		// set position for compressed part (after header info)
 		dest.position(startCompressedPos);
 
-		int compressedLength = compressor.compress(src, src.position(), uncompressedSize, dest, startCompressedPos, maxCompressedSize);
+		int compressedLength =
+				compressor.compress(src, srcOff, uncompressedSize, dest, startCompressedPos, maxCompressedSize);
 		// make buffer ready for read
 		dest.position(0);
 		dest.limit(startCompressedPos + compressedLength);
 
 		return dest;
 	}
-	
-	protected ByteBuffer decompress(int decompressedLength, ByteBuffer src, IntFunction<ByteBuffer> bufferAllocator){
-		ByteBuffer dest = bufferAllocator.apply(decompressedLength);
 
-		decompressor.decompress(src, src.position(), dest, 0, decompressedLength);
-		return dest;
-	}
-	
-	
-	@Override
-	public ByteBuffer compressData(ChannelConfig config, ByteBuffer src, IntFunction<ByteBuffer> bufferAllocator) {
-		return compress(false, src, bufferAllocator);
-	}
-	
-	@Override
-	public ByteBuffer decompressData(ChannelConfig config, ByteBuffer src, IntFunction<ByteBuffer> bufferAllocator) {
-		return decompress(decompressedLength, src, bufferAllocator)
-	}
+	protected ByteBuffer decompress(ByteBuffer src, int srcOff, ByteOrder sizeOrder, IntFunction<ByteBuffer> bufferAllocator) {
+		int startCompressedPos = 4;
 
-	@Override
-	public ByteBuffer compressHeader(ByteBuffer src, IntFunction<ByteBuffer> bufferAllocator) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public byte[] decompressHeader(ByteBuffer src, IntFunction<ByteBuffer> bufferAllocator) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-	
-
-	@Override
-	public ByteBuffer decompress(ByteBuffer src, IntFunction<ByteBuffer> bufferAllocator) {
-		int headerBytes = 4;
-		int decompressedLength = src.asIntBuffer().get();
-		// set position for compressed part (after header info)
-		src.position(headerBytes);
-
-		ByteBuffer dest = bufferAllocator.apply(decompressedLength);
-
-		decompressor.decompress(src, headerBytes, dest, 0, decompressedLength);
-		return dest;
-	}
-
-	@Override
-	public byte[] compress(byte[] src, int srcOff, int srcLen, IntFunction<byte[]> arrayAllocator) {
-		int headerBytes = 4;
-		int maxCompressedLength = compressor.maxCompressedLength(srcLen);
-
-		byte[] tmp = TMP_BYTE_ARRAY_PROVIDER.get();
-		if (tmp.length < maxCompressedLength) {
-			tmp = new byte[maxCompressedLength];
-			TMP_BYTE_ARRAY_PROVIDER.set(tmp);
+		// make sure src does not change in any way (also not temporary)
+		int uncompressedSize;
+		if(src.order() == sizeOrder){
+		   uncompressedSize = src.getInt(srcOff);
+		}else{
+		   uncompressedSize = src.duplicate().order(sizeOrder).getInt(srcOff);
 		}
 
-		int compressedLength =
-				compressor
-						.compress(src, srcOff, srcLen, tmp, 0, maxCompressedLength);
+		ByteBuffer dest = bufferAllocator.apply(uncompressedSize);
+		dest.order(src.order());
 
-		byte[] dest = arrayAllocator.apply(headerBytes + compressedLength);
-		System.arraycopy(tmp, 0, dest, headerBytes, compressedLength);
-
+		decompressor.decompress(src, srcOff + startCompressedPos, dest, 0, uncompressedSize);
 		return dest;
 	}
 
 	@Override
-	public byte[] decompress(byte[] src, int srcOff, int srcLen, int decompressedLength, IntFunction<byte[]> arrayAllocator) {
-		byte[] dest = arrayAllocator.apply(decompressedLength);
+	public ByteBuffer compressData(ByteBuffer src, int srcOff, int srcLen, int destOff, IntFunction<ByteBuffer> bufferAllocator, int nBytesPerElement) {
+		return compress(src, srcOff, srcLen, src.order(), destOff, bufferAllocator);
+	}
 
-		decompressor.decompress(src, srcOff, dest, 0, decompressedLength);
+	@Override
+	public ByteBuffer decompressData(ByteBuffer src, int srcOff, IntFunction<ByteBuffer> bufferAllocator, int nBytesPerElement) {
+		ByteBuffer dest = decompress(src, srcOff, src.order(), bufferAllocator);
 		return dest;
+	}
+
+	@Override
+	public int getDecompressedDataSize(ByteBuffer src, int srcOff) {
+		return src.getInt(srcOff);
+	}
+
+	@Override
+	public ByteBuffer compressDataHeader(ByteBuffer src, IntFunction<ByteBuffer> bufferAllocator) {
+		return compress(src, src.position(), src.remaining(), ByteOrder.BIG_ENDIAN, 0, bufferAllocator);
+	}
+
+	@Override
+	public ByteBuffer decompressDataHeader(ByteBuffer src, IntFunction<ByteBuffer> bufferAllocator) {
+		return decompress(src, src.position(), ByteOrder.BIG_ENDIAN, bufferAllocator);
 	}
 }
