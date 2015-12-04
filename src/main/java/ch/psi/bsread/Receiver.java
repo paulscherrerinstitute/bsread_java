@@ -32,7 +32,7 @@ public class Receiver<V> {
 	
 	public static final String DEFAULT_RECEIVING_ADDRESS = "tcp://localhost:9999";
 	public static final int HIGH_WATER_MARK = 100;
-	private static final int MAX_ALIGNMENT_RETRY = 10;
+	private static final int MAX_ALIGNMENT_RETRY = 100;
 
 	private Context context;
 	private Socket socket;
@@ -111,7 +111,11 @@ public class Receiver<V> {
 			}
 		}
 
-		return receive(mainHeader);
+		if(mainHeader != null){
+		   return receive(mainHeader);
+		}else{
+		   throw new RuntimeException("Could not extract MainHeader within max alignment retry.");
+		}
 	}
 
 	private Message<V> receive(MainHeader mainHeader) throws RuntimeException {
