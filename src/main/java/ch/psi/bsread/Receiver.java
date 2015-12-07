@@ -32,7 +32,7 @@ public class Receiver<V> {
 	
 	public static final String DEFAULT_RECEIVING_ADDRESS = "tcp://localhost:9999";
 	public static final int HIGH_WATER_MARK = 100;
-	private static final int MAX_ALIGNMENT_RETRY = 100;
+	private static final int MAX_ALIGNMENT_RETRY = 20;
 
 	private Context context;
 	private Socket socket;
@@ -105,7 +105,7 @@ public class Receiver<V> {
 				mainHeader = mapper.readValue(socket.recv(), MainHeader.class);
 			} catch (IOException e) {
 				++nrOfAlignmentTrys;
-				LOGGER.info("Received bytes were not aligned with multipart message.");
+				LOGGER.info("Received bytes were not aligned with multipart message.", e);
 				// drain the socket
 				drain();
 			}
