@@ -3,8 +3,6 @@ package ch.psi.bsread.message.commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-
 import ch.psi.bsread.IReceiver;
 import ch.psi.bsread.command.AbstractCommand;
 import ch.psi.bsread.message.Message;
@@ -18,7 +16,6 @@ public class ReconnectCommand extends AbstractCommand {
 	// Command
 	public static final String DEFAULT_HTYPE = HTYPE_VALUE_NO_VERSION + "-1.0";
 
-	@JsonInclude
 	private String htype = DEFAULT_HTYPE;
 	private String address;
 
@@ -26,6 +23,7 @@ public class ReconnectCommand extends AbstractCommand {
 	}
 
 	public ReconnectCommand(String address) {
+		this.address = address;
 	}
 
 	public String getHtype() {
@@ -51,7 +49,6 @@ public class ReconnectCommand extends AbstractCommand {
 		receiver.close();
 		receiver.connect(this.address);
 
-		receiver.drain();
 		return null;
 	}
 

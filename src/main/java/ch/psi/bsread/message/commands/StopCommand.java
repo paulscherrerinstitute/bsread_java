@@ -3,8 +3,6 @@ package ch.psi.bsread.message.commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-
 import ch.psi.bsread.IReceiver;
 import ch.psi.bsread.command.AbstractCommand;
 import ch.psi.bsread.message.Message;
@@ -18,7 +16,6 @@ public class StopCommand extends AbstractCommand {
 	// Command
 	public static final String DEFAULT_HTYPE = HTYPE_VALUE_NO_VERSION + "-1.0";
 
-	@JsonInclude
 	private String htype = DEFAULT_HTYPE;
 
 	public StopCommand() {

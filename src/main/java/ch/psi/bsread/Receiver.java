@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
@@ -23,6 +24,7 @@ public class Receiver<V> implements IReceiver<V> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
 	public static final String DEFAULT_RECEIVING_ADDRESS = "tcp://localhost:9999";
 
+	private AtomicBoolean isConnected = new AtomicBoolean();
 	private Context context;
 	private Socket socket;
 
@@ -49,22 +51,22 @@ public class Receiver<V> implements IReceiver<V> {
 
 	@Override
 	public void connect(String address) {
-		this.context = ZMQ.context(1);
-		this.socket = this.context.socket(ZMQ.PULL);
-		this.socket.setRcvHWM(receiverConfig.getHighWaterMark());
-		this.socket.connect(address);
+		if (isConnected.compareAndSet(false, true)) {
+			this.context = ZMQ.context(1);
+			this.socket = this.context.socket(ZMQ.PULL);
+			this.socket.setRcvHWM(receiverConfig.getHighWaterMark());
+			this.socket.connect(address);
+		}
 	}
 
 	@Override
 	public void close() {
-		Socket socketLoc = socket;
-		Context contextLoc = context;
-
-		socket = null;
-		context = null;
-
-		socketLoc.close();
-		contextLoc.close();
+		if (isConnected.compareAndSet(true, false)) {
+			socket.close();
+			socket = null;
+			context.close();
+			context = null;
+		}
 	}
 
 	public Message<V> receive() throws RuntimeException {
@@ -72,7 +74,7 @@ public class Receiver<V> implements IReceiver<V> {
 		AbstractCommand command = null;
 		int nrOfAlignmentTrys = 0;
 
-		while (message == null && socket != null) {
+		while (message == null && isConnected.get()) {
 			/*
 			 * It can happen that bytes received do not represent the start of a
 			 * new multipart message but the start of a submessage (e.g. after
