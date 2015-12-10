@@ -1,13 +1,11 @@
 package ch.psi.bsread;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.IntFunction;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,84 +13,66 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import ch.psi.bsread.allocator.ByteBufferAllocator;
-import ch.psi.bsread.allocator.ReuseByteBufferAllocator;
-import ch.psi.bsread.compression.Compression;
-import ch.psi.bsread.helper.ByteBufferHelper;
-import ch.psi.bsread.impl.StandardMessageExtractor;
+import ch.psi.bsread.command.AbstractCommand;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Value;
 
-public class Receiver<V> {
-	private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class.getName());
-	
+public class Receiver<V> implements IReceiver<V> {
+	private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
 	public static final String DEFAULT_RECEIVING_ADDRESS = "tcp://localhost:9999";
-	public static final int HIGH_WATER_MARK = 100;
-	private static final int MAX_ALIGNMENT_RETRY = 20;
 
 	private Context context;
 	private Socket socket;
 
-	private ObjectMapper mapper = new ObjectMapper();
-
 	private List<Consumer<MainHeader>> mainHeaderHandlers = new ArrayList<>();
 	private List<Consumer<DataHeader>> dataHeaderHandlers = new ArrayList<>();
 	private List<Consumer<Map<String, Value<V>>>> valueHandlers = new ArrayList<>();
-	private boolean parallelProcessing = false;
-	private MessageExtractor<V> messageExtractor;
 
-	private String dataHeaderHash = "";
-	private DataHeader dataHeader = null;
-	
-	private final IntFunction<ByteBuffer> dataHeaderAllocator = new ReuseByteBufferAllocator(new ByteBufferAllocator());
+	private ReceiverConfig<V> receiverConfig;
+	private ReceiverState receiverState = new ReceiverState();
 
 	public Receiver() {
-		this(false, new StandardMessageExtractor<V>());
-	}
-	
-	public Receiver(MessageExtractor<V> messageExtractor) {
-		this(false, messageExtractor);
+		this(new ReceiverConfig<V>());
 	}
 
-	public Receiver(boolean parallelProcessing, MessageExtractor<V> messageExtractor) {
-		this.parallelProcessing = parallelProcessing;
-		this.messageExtractor = messageExtractor;
+	public Receiver(ReceiverConfig<V> receiverConfig) {
+		this.receiverConfig = receiverConfig;
 
-		this.dataHeaderHandlers.add(this.messageExtractor);
+		this.dataHeaderHandlers.add(this.receiverConfig.getMessageExtractor());
 	}
 
 	public void connect() {
 		connect(DEFAULT_RECEIVING_ADDRESS);
 	}
 
+	@Override
 	public void connect(String address) {
-		this.connect(address, HIGH_WATER_MARK);
-	}
-
-	public void connect(String address, int highWaterMark) {
 		this.context = ZMQ.context(1);
 		this.socket = this.context.socket(ZMQ.PULL);
-		this.socket.setRcvHWM(highWaterMark);
+		this.socket.setRcvHWM(receiverConfig.getHighWaterMark());
 		this.socket.connect(address);
 	}
 
+	@Override
 	public void close() {
-		socket.close();
-		context.close();
+		Socket socketLoc = socket;
+		Context contextLoc = context;
+
 		socket = null;
 		context = null;
+
+		socketLoc.close();
+		contextLoc.close();
 	}
 
 	public Message<V> receive() throws RuntimeException {
-		// Receive main header
-		MainHeader mainHeader = null;
+		Message<V> message = null;
+		AbstractCommand command = null;
 		int nrOfAlignmentTrys = 0;
 
-		while (mainHeader == null && nrOfAlignmentTrys < MAX_ALIGNMENT_RETRY) {
+		while (message == null && socket != null) {
 			/*
 			 * It can happen that bytes received do not represent the start of a
 			 * new multipart message but the start of a submessage (e.g. after
@@ -101,103 +81,25 @@ public class Receiver<V> {
 			 * (i.e., it is possible that we loose the first message)
 			 */
 			try {
-				// test if mainHaderBytes can be interpreted as MainHeader
-				mainHeader = mapper.readValue(socket.recv(), MainHeader.class);
+				// test if mainHaderBytes can be interpreted as Command
+				command = receiverConfig.getObjectMapper().readValue(socket.recv(), AbstractCommand.class);
+				message = command.process(this);
 			} catch (IOException e) {
 				++nrOfAlignmentTrys;
 				LOGGER.info("Received bytes were not aligned with multipart message.", e);
 				// drain the socket
 				drain();
+
+				if (nrOfAlignmentTrys > receiverConfig.getAlignmentRetries()) {
+					throw new RuntimeException("Could not extract MainHeader within max alignment retry.");
+				}
 			}
 		}
 
-		if(mainHeader != null){
-		   return receive(mainHeader);
-		}else{
-		   throw new RuntimeException("Could not extract MainHeader within max alignment retry.");
-		}
+		return message;
 	}
 
-	private Message<V> receive(MainHeader mainHeader) throws RuntimeException {
-		try {
-			if (!mainHeader.getHtype().startsWith(MainHeader.HTYPE_VALUE_NO_VERSION)) {
-				String message =
-						String.format("Expect 'bsr_d-[version]' for 'htype' but was '%s'. Skip messge", mainHeader.getHtype());
-				LOGGER.error(message);
-				drain();
-				throw new RuntimeException(message);
-			}
-
-			if (this.parallelProcessing) {
-				mainHeaderHandlers.parallelStream().forEach(handler -> handler.accept(mainHeader));
-			} else {
-				mainHeaderHandlers.forEach(handler -> handler.accept(mainHeader));
-			}
-
-			// Receive data header
-			if (socket.hasReceiveMore()) {
-				if (mainHeader.getHash().equals(dataHeaderHash)) {
-					// The data header did not change so no interpretation of
-					// the header ...
-					socket.recv();
-				}
-				else {
-					dataHeaderHash = mainHeader.getHash();
-					byte[] dataHeaderBytes = socket.recv();
-					Compression compression = mainHeader.getDataHeaderCompression();
-					if(compression != null){
-					   ByteBuffer tmpBuf = compression.getCompressor().decompressDataHeader(ByteBuffer.wrap(dataHeaderBytes), dataHeaderAllocator);
-					   dataHeaderBytes = ByteBufferHelper.copyToByteArray(tmpBuf);
-					}
-					dataHeader = mapper.readValue(dataHeaderBytes, DataHeader.class);
-					if (this.parallelProcessing) {
-						dataHeaderHandlers.parallelStream().forEach(handler -> handler.accept(dataHeader));
-					} else {
-						dataHeaderHandlers.forEach(handler -> handler.accept(dataHeader));
-					}
-				}
-			}
-			else {
-				String message = "There is no data header. Skip complete message.";
-				LOGGER.error(message);
-				drain();
-				throw new RuntimeException(message);
-			}
-
-			if (LOGGER.isDebugEnabled()) {
-				LOGGER.debug("Receive message for pulse '{}' and channels '{}'.", mainHeader.getPulseId(),
-						dataHeader.getChannels().stream().map(channel -> channel.getName()).collect(Collectors.joining(", ")));
-			}
-			// Receiver data
-			Message<V> message = messageExtractor.extractMessage(socket, mainHeader);
-			Map<String, Value<V>> values = message.getValues();
-
-			if (this.socket.hasReceiveMore()) {
-				// Some sender implementations add an empty additional message
-				// at the end
-				// If there is more than 1 trailing message something is wrong!
-				int messagesDrained = this.drain();
-				if (messagesDrained > 1) {
-					throw new RuntimeException("There were more than 1 trailing submessages to the message than expected");
-				}
-			}
-			// notify hooks with complete values
-			if (!values.isEmpty()) {
-				if (this.parallelProcessing) {
-					valueHandlers.parallelStream().forEach(handler -> handler.accept(values));
-				}
-				else {
-					valueHandlers.forEach(handler -> handler.accept(values));
-				}
-			}
-
-			return message;
-
-		} catch (IOException e) {
-			throw new RuntimeException("Unable to deserialize message", e);
-		}
-	}
-
+	@Override
 	public int drain() {
 		int count = 0;
 		while (socket.hasReceiveMore()) {
@@ -208,6 +110,26 @@ public class Receiver<V> {
 		return count;
 	}
 
+	@Override
+	public Socket getSocket() {
+		return socket;
+	}
+
+	@Override
+	public ReceiverConfig<V> getReceiverConfig() {
+		return receiverConfig;
+	}
+
+	@Override
+	public ReceiverState getReceiverState() {
+		return receiverState;
+	}
+
+	@Override
+	public Collection<Consumer<Map<String, Value<V>>>> getValueHandlers() {
+		return valueHandlers;
+	}
+
 	public void addValueHandler(Consumer<Map<String, Value<V>>> handler) {
 		valueHandlers.add(handler);
 	}
@@ -216,12 +138,22 @@ public class Receiver<V> {
 		valueHandlers.remove(handler);
 	}
 
+	@Override
+	public Collection<Consumer<MainHeader>> getMainHeaderHandlers() {
+		return mainHeaderHandlers;
+	}
+
 	public void addMainHeaderHandler(Consumer<MainHeader> handler) {
 		mainHeaderHandlers.add(handler);
 	}
 
 	public void removeMainHeaderHandler(Consumer<MainHeader> handler) {
 		mainHeaderHandlers.remove(handler);
+	}
+
+	@Override
+	public Collection<Consumer<DataHeader>> getDataHeaderHandlers() {
+		return dataHeaderHandlers;
 	}
 
 	public void addDataHeaderHandler(Consumer<DataHeader> handler) {

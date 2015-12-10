@@ -26,12 +26,12 @@ public class MainHeaderTest {
 		
 		MainHeader header = new MainHeader();
 		header.setHash("50acfbebaa30924c857740b5a4d770b5");
-		header.setPulseId(0);
+		header.setPulseId(1);
 		header.setGlobalTimestamp(new Timestamp(1427960013647L, 0));
 		
 		ObjectMapper mapper = new ObjectMapper();
 		String json = mapper.writeValueAsString(header);
-		String expected = "{\"htype\":\"bsr_m-1.0\",\"hash\":\"50acfbebaa30924c857740b5a4d770b5\",\"global_timestamp\":{\"epoch\":1427960013647,\"ns\":0}}";
+		String expected = "{\"htype\":\"bsr_m-1.0\",\"hash\":\"50acfbebaa30924c857740b5a4d770b5\",\"pulse_id\":1,\"global_timestamp\":{\"epoch\":1427960013647,\"ns\":0}}";
 		assertEquals(expected, json);
 		
 		System.out.println(json);
