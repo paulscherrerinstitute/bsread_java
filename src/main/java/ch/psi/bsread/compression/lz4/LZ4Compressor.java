@@ -61,6 +61,8 @@ public class LZ4Compressor implements Compressor {
 		dest.order(src.order());
 
 		decompressor.decompress(src, srcOff + startCompressedPos, dest, 0, uncompressedSize);
+	    dest.position(0);
+	    dest.limit(uncompressedSize);
 		return dest;
 	}
 

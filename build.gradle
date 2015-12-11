@@ -15,7 +15,7 @@ dependencies {
 	compile 'ch.psi:bitshuffle-lz4:1.0.0'
 
 	compile 'com.fasterxml.jackson.core:jackson-databind:2.6.3'
-	compile 'org.zeromq:jeromq:0.3.5'
+	compile 'org.zeromq:jeromq:0.3.6-PSI'
 	compile 'net.jpountz.lz4:lz4:1.3.0'
 	compile 'org.slf4j:slf4j-api:1.7.13'
 	

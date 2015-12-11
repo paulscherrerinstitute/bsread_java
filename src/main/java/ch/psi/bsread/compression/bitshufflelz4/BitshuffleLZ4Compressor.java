@@ -89,6 +89,8 @@ public class BitshuffleLZ4Compressor implements Compressor {
 		dest.order(src.order());
 
 		decompressor.decompress(src, srcOff + startCompressedPos, dest, 0, nElements, nBytesPerElement, blockSize);
+		dest.position(0);
+		dest.limit(uncompressedSize);
 		return dest;
 	}
 
