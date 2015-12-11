@@ -8,6 +8,6 @@ import ch.psi.bsread.impl.StandardMessageExtractor;
 public class ReceiverDirectBufferTest extends ReceiverTest {
 
 	protected Receiver<ByteBuffer> getReceiver() {
-		return new Receiver<ByteBuffer>(false, new StandardMessageExtractor<ByteBuffer>(new DirectByteBufferValueConverter(0)));
+		return new Receiver<ByteBuffer>(new ReceiverConfig<ByteBuffer>(new StandardMessageExtractor<ByteBuffer>(new DirectByteBufferValueConverter(0))));
 	}
 }

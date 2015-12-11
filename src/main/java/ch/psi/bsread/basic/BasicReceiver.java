@@ -1,8 +1,8 @@
 package ch.psi.bsread.basic;
 
 import ch.psi.bsread.Receiver;
+import ch.psi.bsread.ReceiverConfig;
 import ch.psi.bsread.converter.MatlabByteConverter;
-import ch.psi.bsread.converter.ValueConverter;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 
 /**
@@ -11,10 +11,10 @@ import ch.psi.bsread.impl.StandardMessageExtractor;
 public class BasicReceiver extends Receiver<Object> {
 
 	public BasicReceiver() {
-		this(new MatlabByteConverter());
+		this(new ReceiverConfig<Object>(new StandardMessageExtractor<Object>(new MatlabByteConverter())));
 	}
 
-	public BasicReceiver(ValueConverter valueConverter) {
-		super(new StandardMessageExtractor<Object>(valueConverter));
+	public BasicReceiver(ReceiverConfig<Object> receiverConfig) {
+		super(receiverConfig);
 	}
 }
