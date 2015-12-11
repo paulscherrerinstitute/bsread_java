@@ -14,7 +14,9 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
-import ch.psi.bsread.command.AbstractCommand;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import ch.psi.bsread.command.Command;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
@@ -71,8 +73,9 @@ public class Receiver<V> implements IReceiver<V> {
 
 	public Message<V> receive() throws RuntimeException {
 		Message<V> message = null;
-		AbstractCommand command = null;
+		Command command = null;
 		int nrOfAlignmentTrys = 0;
+		ObjectMapper objectMapper = receiverConfig.getObjectMapper();
 
 		while (message == null && isConnected.get()) {
 			/*
@@ -84,7 +87,7 @@ public class Receiver<V> implements IReceiver<V> {
 			 */
 			try {
 				// test if mainHaderBytes can be interpreted as Command
-				command = receiverConfig.getObjectMapper().readValue(socket.recv(), AbstractCommand.class);
+				command = objectMapper.readValue(socket.recv(), Command.class);
 				message = command.process(this);
 			} catch (IOException e) {
 				++nrOfAlignmentTrys;
@@ -93,7 +96,7 @@ public class Receiver<V> implements IReceiver<V> {
 				drain();
 
 				if (nrOfAlignmentTrys > receiverConfig.getAlignmentRetries()) {
-					throw new RuntimeException("Could not extract MainHeader within max alignment retry.");
+					throw new RuntimeException("Could not extract Command within max alignment retry.");
 				}
 			}
 		}

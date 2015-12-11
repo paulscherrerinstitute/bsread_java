@@ -18,7 +18,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.psi.bsread.allocator.ByteBufferAllocator;
-import ch.psi.bsread.command.AbstractCommand;
+import ch.psi.bsread.command.Command;
 import ch.psi.bsread.compression.Compression;
 import ch.psi.bsread.converter.ByteConverter;
 import ch.psi.bsread.converter.MatlabByteConverter;
@@ -207,7 +207,7 @@ public class Sender {
 		}
 	}
 
-	public void sendCommand(AbstractCommand command) {
+	public void sendCommand(Command command) {
 		try {
 			socket.send(mapper.writeValueAsBytes(command), ZMQ.NOBLOCK);
 		} catch (JsonProcessingException e) {

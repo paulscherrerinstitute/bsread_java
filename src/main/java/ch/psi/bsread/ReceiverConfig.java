@@ -2,6 +2,8 @@ package ch.psi.bsread;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import ch.psi.bsread.command.Command;
+import ch.psi.bsread.command.PolymorphicCommandMixIn;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 
 public class ReceiverConfig<V> {
@@ -13,7 +15,7 @@ public class ReceiverConfig<V> {
 	private int highWaterMark = DEFAULT_HIGH_WATER_MARK;
 	private int alignmentRetries = DEFAULT_ALIGNMENT_RETRIES;
 	private MessageExtractor<V> messageExtractor;
-	private ObjectMapper objectMapper = new ObjectMapper();
+	private ObjectMapper objectMapper;
 
 	public ReceiverConfig() {
 		this(new StandardMessageExtractor<V>());
@@ -27,6 +29,8 @@ public class ReceiverConfig<V> {
 		this.keepListeningOnStop = keepListeningOnStop;
 		this.parallelProcessing = parallelProcessing;
 		this.messageExtractor = messageExtractor;
+		
+		this.setObjectMapper(new ObjectMapper());
 	}
 
 	public boolean isKeepListeningOnStop() {
@@ -75,5 +79,11 @@ public class ReceiverConfig<V> {
 
 	public void setObjectMapper(ObjectMapper objectMapper) {
 		this.objectMapper = objectMapper;
+		
+		addObjectMapperMixin(objectMapper);
+	}
+	
+	public static void addObjectMapperMixin(ObjectMapper objectMapper){
+		objectMapper.addMixIn(Command.class, PolymorphicCommandMixIn.class);
 	}
 }

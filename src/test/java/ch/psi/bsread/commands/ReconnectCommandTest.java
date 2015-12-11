@@ -126,36 +126,25 @@ public class ReconnectCommandTest {
 		ExecutorService executor = Executors.newSingleThreadExecutor();
 		executor.execute(() -> {
 			try {
-				System.out.println("Send_01_1");
 				sender_01.send();
 				TimeUnit.MILLISECONDS.sleep(10);
-				System.out.println("Send_01_2");
 				sender_01.send();
-				System.out.println("Send_01_Reconnect");
 				sender_01.sendCommand(new ReconnectCommand(receiver_02_Addr));
 				TimeUnit.MILLISECONDS.sleep(50);
 				// should not receive this
-				System.out.println("Send_01_3");
 				sender_01.send();
 				
-				System.out.println("Send_02_1");
 				sender_02.send();
 				TimeUnit.MILLISECONDS.sleep(10);
-				System.out.println("Send_02_2");
 				sender_02.send();
-				System.out.println("Send_02_Reconnect");
 				sender_02.sendCommand(new ReconnectCommand(receiver_03_Addr));
 				TimeUnit.MILLISECONDS.sleep(50);
 				// should not receive this
-				System.out.println("Send_02_3");
 				sender_02.send();
 				
-				System.out.println("Send_03_1");
 				sender_03.send();
 				TimeUnit.MILLISECONDS.sleep(10);
-				System.out.println("Send_03_2");
 				sender_03.send();
-				System.out.println("Send_03_Stop");
 				sender_03.sendCommand(new StopCommand());
 
 			} catch (Exception e) {
@@ -169,7 +158,6 @@ public class ReconnectCommandTest {
 		hookDataHeaderCalled = false;
 		hookValuesCalled = false;
 		Message<ByteBuffer> message = receiver.receive();
-		System.out.println("Receive_01_1");
 		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
 		assertEquals("Data header hook should only be called the first time.", true, hookDataHeaderCalled);
 		assertTrue("Value hook should always be called.", hookValuesCalled);
@@ -183,7 +171,6 @@ public class ReconnectCommandTest {
 		hookDataHeaderCalled = false;
 		hookValuesCalled = false;
 		message = receiver.receive();
-		System.out.println("Receive_01_2");
 		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
 		assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
 		assertTrue("Value hook should always be called.", hookValuesCalled);
@@ -198,7 +185,6 @@ public class ReconnectCommandTest {
 		hookDataHeaderCalled = false;
 		hookValuesCalled = false;
 		message = receiver.receive();
-		System.out.println("Receive_02_1");
 		assertNotNull(message);
 		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
 		assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
@@ -213,7 +199,6 @@ public class ReconnectCommandTest {
 		hookDataHeaderCalled = false;
 		hookValuesCalled = false;
 		message = receiver.receive();
-		System.out.println("Receive_02_2");
 		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
 		assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
 		assertTrue("Value hook should always be called.", hookValuesCalled);
@@ -228,7 +213,6 @@ public class ReconnectCommandTest {
 		hookDataHeaderCalled = false;
 		hookValuesCalled = false;
 		message = receiver.receive();
-		System.out.println("Receive_03_1");
 		assertNotNull(message);
 		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
 		assertEquals("Data header hook should only be called the first time.", true, hookDataHeaderCalled);
@@ -243,7 +227,6 @@ public class ReconnectCommandTest {
 		hookDataHeaderCalled = false;
 		hookValuesCalled = false;
 		message = receiver.receive();
-		System.out.println("Receive_03_2");
 		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
 		assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
 		assertTrue("Value hook should always be called.", hookValuesCalled);
