@@ -20,6 +20,7 @@ import ch.psi.bsread.DataChannel;
 import ch.psi.bsread.Receiver;
 import ch.psi.bsread.ReceiverConfig;
 import ch.psi.bsread.Sender;
+import ch.psi.bsread.SenderConfig;
 import ch.psi.bsread.TimeProvider;
 import ch.psi.bsread.converter.MatlabByteConverter;
 import ch.psi.bsread.impl.StandardMessageExtractor;
@@ -43,17 +44,18 @@ public class StopCommandTest {
 	private Map<String, ChannelConfig> channelConfigs = new HashMap<>();
 
 	@Test
-	public void testStop_01() throws Exception{
+	public void testStop_01() throws Exception {
 		Sender sender = new Sender(
-				new StandardPulseIdProvider(),
-				new TimeProvider() {
+				new SenderConfig(
+						new StandardPulseIdProvider(),
+						new TimeProvider() {
 
-					@Override
-					public Timestamp getTime(long pulseId) {
-						return new Timestamp(pulseId, 0L);
-					}
-				},
-				new MatlabByteConverter()
+							@Override
+							public Timestamp getTime(long pulseId) {
+								return new Timestamp(pulseId, 0L);
+							}
+						},
+						new MatlabByteConverter())
 				);
 
 		// Register data sources ...
@@ -76,22 +78,22 @@ public class StopCommandTest {
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
 		receiver.connect();
-		
+
 		CountDownLatch latch = new CountDownLatch(1);
 		ExecutorService executor = Executors.newSingleThreadExecutor();
-		executor.execute(()->{
-			try{
-			sender.send();
-			TimeUnit.MILLISECONDS.sleep(100);
-			sender.send();
-			TimeUnit.MILLISECONDS.sleep(100);
-			sender.sendCommand(new StopCommand());
-			TimeUnit.MILLISECONDS.sleep(100);
-			sender.send();
-			
-			} catch(Exception e){
+		executor.execute(() -> {
+			try {
+				sender.send();
+				TimeUnit.MILLISECONDS.sleep(100);
+				sender.send();
+				TimeUnit.MILLISECONDS.sleep(100);
+				sender.sendCommand(new StopCommand());
+				TimeUnit.MILLISECONDS.sleep(100);
+				sender.send();
+
+			} catch (Exception e) {
 				e.printStackTrace();
-			}finally{
+			} finally {
 				latch.countDown();
 			}
 		});
@@ -128,26 +130,27 @@ public class StopCommandTest {
 		// stops on stop
 		message = receiver.receive();
 		assertNull(message);
-		
+
 		latch.await();
 
 		receiver.close();
 		sender.close();
 		executor.shutdown();
 	}
-	
-	@Test
-	public void testStop_02() throws Exception{
-		Sender sender = new Sender(
-				new StandardPulseIdProvider(),
-				new TimeProvider() {
 
-					@Override
-					public Timestamp getTime(long pulseId) {
-						return new Timestamp(pulseId, 0L);
-					}
-				},
-				new MatlabByteConverter()
+	@Test
+	public void testStop_02() throws Exception {
+		Sender sender = new Sender(
+				new SenderConfig(
+						new StandardPulseIdProvider(),
+						new TimeProvider() {
+
+							@Override
+							public Timestamp getTime(long pulseId) {
+								return new Timestamp(pulseId, 0L);
+							}
+						},
+						new MatlabByteConverter())
 				);
 
 		// Register data sources ...
@@ -170,22 +173,22 @@ public class StopCommandTest {
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
 		receiver.connect();
-		
+
 		CountDownLatch latch = new CountDownLatch(1);
 		ExecutorService executor = Executors.newSingleThreadExecutor();
-		executor.execute(()->{
-			try{
-			sender.send();
-			TimeUnit.MILLISECONDS.sleep(100);
-			sender.send();
-			TimeUnit.MILLISECONDS.sleep(100);
-			sender.sendCommand(new StopCommand());
-			TimeUnit.MILLISECONDS.sleep(100);
-			sender.send();
-			
-			} catch(Exception e){
+		executor.execute(() -> {
+			try {
+				sender.send();
+				TimeUnit.MILLISECONDS.sleep(100);
+				sender.send();
+				TimeUnit.MILLISECONDS.sleep(100);
+				sender.sendCommand(new StopCommand());
+				TimeUnit.MILLISECONDS.sleep(100);
+				sender.send();
+
+			} catch (Exception e) {
 				e.printStackTrace();
-			}finally{
+			} finally {
 				latch.countDown();
 			}
 		});
@@ -230,7 +233,7 @@ public class StopCommandTest {
 		assertSame(hookDataHeader, message.getDataHeader());
 		assertSame(hookValues, message.getValues());
 		assertEquals(2, hookMainHeader.getPulseId());
-		
+
 		latch.await();
 
 		receiver.close();

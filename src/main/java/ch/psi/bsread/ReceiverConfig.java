@@ -1,5 +1,7 @@
 package ch.psi.bsread;
 
+import zmq.MsgAllocator;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.psi.bsread.command.Command;
@@ -12,10 +14,11 @@ public class ReceiverConfig<V> {
 
 	private boolean keepListeningOnStop;
 	private boolean parallelProcessing;
-	private int highWaterMark = DEFAULT_HIGH_WATER_MARK;
+	private final int highWaterMark = DEFAULT_HIGH_WATER_MARK;
 	private int alignmentRetries = DEFAULT_ALIGNMENT_RETRIES;
 	private MessageExtractor<V> messageExtractor;
 	private ObjectMapper objectMapper;
+	private final MsgAllocator msgAllocator;
 
 	public ReceiverConfig() {
 		this(new StandardMessageExtractor<V>());
@@ -26,9 +29,14 @@ public class ReceiverConfig<V> {
 	}
 
 	public ReceiverConfig(boolean keepListeningOnStop, boolean parallelProcessing, MessageExtractor<V> messageExtractor) {
+		this(keepListeningOnStop, parallelProcessing, messageExtractor, null);
+	}
+	
+	public ReceiverConfig(boolean keepListeningOnStop, boolean parallelProcessing, MessageExtractor<V> messageExtractor, MsgAllocator msgAllocator) {
 		this.keepListeningOnStop = keepListeningOnStop;
 		this.parallelProcessing = parallelProcessing;
 		this.messageExtractor = messageExtractor;
+		this.msgAllocator = msgAllocator;
 		
 		this.setObjectMapper(new ObjectMapper());
 	}
@@ -53,10 +61,6 @@ public class ReceiverConfig<V> {
 		return highWaterMark;
 	}
 
-	public void setHighWaterMark(int highWaterMark) {
-		this.highWaterMark = highWaterMark;
-	}
-
 	public int getAlignmentRetries() {
 		return alignmentRetries;
 	}
@@ -71,6 +75,10 @@ public class ReceiverConfig<V> {
 
 	public void setMessageExtractor(MessageExtractor<V> messageExtractor) {
 		this.messageExtractor = messageExtractor;
+	}
+	
+	public MsgAllocator getMsgAllocator() {
+		return msgAllocator;
 	}
 	
 	public ObjectMapper getObjectMapper() {

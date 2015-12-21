@@ -5,7 +5,6 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -15,16 +14,10 @@ import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
-import ch.psi.bsread.allocator.ByteBufferAllocator;
 import ch.psi.bsread.command.Command;
 import ch.psi.bsread.compression.Compression;
-import ch.psi.bsread.converter.ByteConverter;
-import ch.psi.bsread.converter.MatlabByteConverter;
 import ch.psi.bsread.helper.ByteBufferHelper;
-import ch.psi.bsread.impl.StandardPulseIdProvider;
-import ch.psi.bsread.impl.StandardTimeProvider;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
@@ -39,44 +32,20 @@ public class Sender {
 	private Context context;
 	private Socket socket;
 
-	private ObjectMapper mapper = new ObjectMapper();
+	private SenderConfig senderConfig;
 
 	private MainHeader mainHeader = new MainHeader();
 	private byte[] dataHeaderBytes;
 	private String dataHeaderMD5 = "";
-	private final Compression dataHeaderCompression;
-	private final IntFunction<ByteBuffer> valueAllocator;
-	private final IntFunction<ByteBuffer> compressedValueAllocator;
-
-	private final PulseIdProvider pulseIdProvider;
-	private final TimeProvider globalTimeProvider;
-	private final ByteConverter byteConverter;
 
 	private List<DataChannel<?>> channels = new ArrayList<>();
 
 	public Sender() {
-		this(new StandardPulseIdProvider(), new StandardTimeProvider(), new MatlabByteConverter());
+		this(new SenderConfig());
 	}
 
-	public Sender(PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter) {
-		this(pulseIdProvider, globalTimeProvider, byteConverter, Compression.none);
-	}
-
-	public Sender(PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter,
-			Compression dataHeaderCompression) {
-		this(pulseIdProvider, globalTimeProvider, byteConverter, dataHeaderCompression, new ByteBufferAllocator(),
-				new ByteBufferAllocator());
-	}
-
-	public Sender(PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter,
-			Compression dataHeaderCompression, IntFunction<ByteBuffer> valueAllocator,
-			IntFunction<ByteBuffer> compressedValueAllocator) {
-		this.pulseIdProvider = pulseIdProvider;
-		this.globalTimeProvider = globalTimeProvider;
-		this.byteConverter = byteConverter;
-		this.dataHeaderCompression = dataHeaderCompression;
-		this.valueAllocator = valueAllocator;
-		this.compressedValueAllocator = compressedValueAllocator;
+	public Sender(SenderConfig senderConfig) {
+		this.senderConfig = senderConfig;
 	}
 
 	public void bind() {
@@ -100,7 +69,7 @@ public class Sender {
 	}
 
 	public void send() {
-		long pulseId = pulseIdProvider.getNextPulseId();
+		long pulseId = senderConfig.getPulseIdProvider().getNextPulseId();
 		boolean isSendNeeded = false;
 		DataChannel<?> channel;
 		ByteOrder byteOrder;
@@ -112,13 +81,13 @@ public class Sender {
 
 		if (isSendNeeded) {
 			mainHeader.setPulseId(pulseId);
-			mainHeader.setGlobalTimestamp(this.globalTimeProvider.getTime(pulseId));
+			mainHeader.setGlobalTimestamp(senderConfig.getGlobalTimeProvider().getTime(pulseId));
 			mainHeader.setHash(dataHeaderMD5);
-			mainHeader.setDataHeaderCompression(dataHeaderCompression);
+			mainHeader.setDataHeaderCompression(senderConfig.getDataHeaderCompression());
 
 			try {
 				// Send header
-				socket.send(mapper.writeValueAsBytes(mainHeader), ZMQ.NOBLOCK | ZMQ.SNDMORE);
+				socket.send(senderConfig.getObjectMapper().writeValueAsBytes(mainHeader), ZMQ.NOBLOCK | ZMQ.SNDMORE);
 
 				// Send data header
 				socket.send(dataHeaderBytes, ZMQ.NOBLOCK | ZMQ.SNDMORE);
@@ -146,21 +115,21 @@ public class Sender {
 						// pre-step (Important: change allocators to non-reusing
 						// types)
 						ByteBuffer valueBuffer =
-								this.byteConverter.getBytes(value, channel.getConfig().getType(), byteOrder, valueAllocator);
+								senderConfig.getByteConverter().getBytes(value, channel.getConfig().getType(), byteOrder, senderConfig.getValueAllocator());
 						valueBuffer =
 								channel
 										.getConfig()
 										.getCompression()
 										.getCompressor()
 										.compressData(valueBuffer, valueBuffer.position(), valueBuffer.remaining(), 0,
-												compressedValueAllocator, channel.getConfig().getType().getBytes());
+												senderConfig.getCompressedValueAllocator(), channel.getConfig().getType().getBytes());
 						socket.sendByteBuffer(valueBuffer, ZMQ.NOBLOCK | ZMQ.SNDMORE);
 
 						Timestamp timestamp = channel.getTime(pulseId);
 						// c-implementation uses a unsigned long (Json::UInt64,
 						// uint64_t) for time -> decided to ignore this here
 						ByteBuffer timeBuffer =
-								this.byteConverter.getBytes(timestamp.getAsLongArray(), Type.Int64, byteOrder, valueAllocator);
+								senderConfig.getByteConverter().getBytes(timestamp.getAsLongArray(), Type.Int64, byteOrder, senderConfig.getValueAllocator());
 						socket.sendByteBuffer(timeBuffer, lastSendMore);
 					}
 					else {
@@ -191,11 +160,11 @@ public class Sender {
 		}
 
 		try {
-			dataHeaderBytes = mapper.writeValueAsBytes(dataHeader);
-			if (!Compression.none.equals(dataHeaderCompression)) {
+			dataHeaderBytes = senderConfig.getObjectMapper().writeValueAsBytes(dataHeader);
+			if (!Compression.none.equals(senderConfig.getDataHeaderCompression())) {
 				ByteBuffer tmpBuf =
-						dataHeaderCompression.getCompressor().compressDataHeader(ByteBuffer.wrap(dataHeaderBytes),
-								compressedValueAllocator);
+						senderConfig.getDataHeaderCompression().getCompressor().compressDataHeader(ByteBuffer.wrap(dataHeaderBytes),
+								senderConfig.getCompressedValueAllocator());
 				dataHeaderBytes = ByteBufferHelper.copyToByteArray(tmpBuf);
 			}
 			// decided to compute hash from the bytes that are send to Receivers
@@ -209,7 +178,7 @@ public class Sender {
 
 	public void sendCommand(Command command) {
 		try {
-			socket.send(mapper.writeValueAsBytes(command), ZMQ.NOBLOCK);
+			socket.send(senderConfig.getObjectMapper().writeValueAsBytes(command), ZMQ.NOBLOCK);
 		} catch (JsonProcessingException e) {
 			String message = "Could not send command.";
 			LOGGER.error(message, e);
