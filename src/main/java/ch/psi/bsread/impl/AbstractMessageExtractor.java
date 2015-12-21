@@ -97,8 +97,8 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
             // c-implementation uses a unsigned long (Json::UInt64,
             // uint64_t) for time -> decided to ignore this here
             final Timestamp iocTimestamp = value.getTimestamp();
-            iocTimestamp.setEpoch(timestampBytes.getLong(0));
-            iocTimestamp.setNs(timestampBytes.getLong(Long.BYTES));
+            iocTimestamp.setEpoch(timestampBytes.getLong(timestampBytes.position()));
+            iocTimestamp.setNs(timestampBytes.getLong(timestampBytes.position() + Long.BYTES));
 
             // offload value conversion work from receiver thread
             CompletableFuture<V> futureValue =

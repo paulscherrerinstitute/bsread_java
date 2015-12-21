@@ -27,7 +27,7 @@ public class BitshuffleLZ4Compressor implements Compressor {
 			nBytesPerElement = 1;
 		}
 
-		int nElements = srcLen - srcOff;
+		int nElements = srcLen;
 		if (nElements % nBytesPerElement != 0) {
 			throw new RuntimeException("The number of bytes does not correspond to the number of elements, i.e. '" + (srcLen - srcOff) + "' is not dividable by '" + nBytesPerElement + "'");
 		}

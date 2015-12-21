@@ -57,6 +57,9 @@ public class Receiver<V> implements IReceiver<V> {
 			this.context = ZMQ.context(1);
 			this.socket = this.context.socket(ZMQ.PULL);
 			this.socket.setRcvHWM(receiverConfig.getHighWaterMark());
+			if (receiverConfig.getMsgAllocator() != null) {
+				this.socket.base().setSocketOpt(zmq.ZMQ.ZMQ_MSG_ALLOCATOR, receiverConfig.getMsgAllocator());
+			}
 			this.socket.connect(address);
 		}
 	}
@@ -109,7 +112,7 @@ public class Receiver<V> implements IReceiver<V> {
 		int count = 0;
 		while (socket.hasReceiveMore()) {
 			// is there a way to avoid copying data to user space here?
-			socket.recv();
+			socket.base().recv(0);
 			count++;
 		}
 		return count;

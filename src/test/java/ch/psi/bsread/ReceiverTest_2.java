@@ -36,30 +36,31 @@ public class ReceiverTest_2 {
 	private Map<String, ChannelConfig> channelConfigs = new HashMap<>();
 
 	@Test
-   public void testReceiver() {
+	public void testReceiver() {
 		Sender sender = new Sender(
-				new StandardPulseIdProvider(),
-				new TimeProvider() {
+				new SenderConfig(
+						new StandardPulseIdProvider(),
+						new TimeProvider() {
 
-					@Override
-					public Timestamp getTime(long pulseId) {
-						return new Timestamp(pulseId, 0L);
-					}
-				},
-				new MatlabByteConverter()
+							@Override
+							public Timestamp getTime(long pulseId) {
+								return new Timestamp(pulseId, 0L);
+							}
+						},
+						new MatlabByteConverter())
 				);
 
 		int size = 2048;
 		Random rand = new Random(0);
 		// Register data sources ...
-		sender.addSource(new DataChannel<double[]>(new ChannelConfig("ABC", Type.Float64, new int[]{size}, 1, 0, ChannelConfig.DEFAULT_ENCODING, Compression.bitshuffle_lz4)) {
+		sender.addSource(new DataChannel<double[]>(new ChannelConfig("ABC", Type.Float64, new int[] { size }, 1, 0, ChannelConfig.DEFAULT_ENCODING, Compression.bitshuffle_lz4)) {
 			@Override
 			public double[] getValue(long pulseId) {
 				double[] val = new double[size];
-				for(int i = 0; i < size; ++i){
-				   val[i] = rand.nextDouble();
+				for (int i = 0; i < size; ++i) {
+					val[i] = rand.nextDouble();
 				}
-				
+
 				return val;
 			}
 
@@ -68,22 +69,22 @@ public class ReceiverTest_2 {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-	      sender.addSource(new DataChannel<double[]>(new ChannelConfig("ABB", Type.Float64, new int[]{size}, 1, 0, ChannelConfig.DEFAULT_ENCODING, Compression.bitshuffle_lz4)) {
-	            @Override
-	            public double[] getValue(long pulseId) {
-	                double[] val = new double[size];
-	                for(int i = 0; i < size; ++i){
-	                   val[i] = rand.nextDouble();
-	                }
-	                
-	                return val;
-	            }
+		sender.addSource(new DataChannel<double[]>(new ChannelConfig("ABB", Type.Float64, new int[] { size }, 1, 0, ChannelConfig.DEFAULT_ENCODING, Compression.bitshuffle_lz4)) {
+			@Override
+			public double[] getValue(long pulseId) {
+				double[] val = new double[size];
+				for (int i = 0; i < size; ++i) {
+					val[i] = rand.nextDouble();
+				}
 
-	            @Override
-	            public Timestamp getTime(long pulseId) {
-	                return new Timestamp(pulseId, 0L);
-	            }
-	        });
+				return val;
+			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, 0L);
+			}
+		});
 		sender.bind();
 
 		Receiver<Object> receiver = new BasicReceiver();
@@ -124,13 +125,13 @@ public class ReceiverTest_2 {
 				assertEquals(0, channelConfig.getOffset());
 				assertEquals(Type.Float64, channelConfig.getType());
 				assertArrayEquals(new int[] { size }, channelConfig.getShape());
-				
+
 				channelConfig = hookDataHeader.getChannels().get(1);
-                assertEquals("ABB", channelConfig.getName());
-                assertEquals(1, channelConfig.getModulo());
-                assertEquals(0, channelConfig.getOffset());
-                assertEquals(Type.Float64, channelConfig.getType());
-                assertArrayEquals(new int[] { size }, channelConfig.getShape());
+				assertEquals("ABB", channelConfig.getName());
+				assertEquals(1, channelConfig.getModulo());
+				assertEquals(0, channelConfig.getOffset());
+				assertEquals(Type.Float64, channelConfig.getType());
+				assertArrayEquals(new int[] { size }, channelConfig.getShape());
 			}
 
 			String channelName;

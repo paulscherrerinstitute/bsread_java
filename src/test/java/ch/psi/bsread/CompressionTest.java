@@ -53,16 +53,17 @@ public class CompressionTest {
 	@Test
 	public void testDataHeaderCompressionOneChannel10Hz() {
 		Sender sender = new Sender(
-				new StandardPulseIdProvider(),
-				new TimeProvider() {
+				new SenderConfig(
+						new StandardPulseIdProvider(),
+						new TimeProvider() {
 
-					@Override
-					public Timestamp getTime(long pulseId) {
-						return new Timestamp(pulseId, 0L);
-					}
-				},
-				new MatlabByteConverter(),
-				Compression.lz4
+							@Override
+							public Timestamp getTime(long pulseId) {
+								return new Timestamp(pulseId, 0L);
+							}
+						},
+						new MatlabByteConverter(),
+						Compression.lz4)
 				);
 
 		// Register data sources ...
@@ -145,15 +146,16 @@ public class CompressionTest {
 	@Test
 	public void testDataCompressionOneChannel10Hz() {
 		Sender sender = new Sender(
-				new StandardPulseIdProvider(),
-				new TimeProvider() {
+				new SenderConfig(
+						new StandardPulseIdProvider(),
+						new TimeProvider() {
 
-					@Override
-					public Timestamp getTime(long pulseId) {
-						return new Timestamp(pulseId, 0L);
-					}
-				},
-				new MatlabByteConverter()
+							@Override
+							public Timestamp getTime(long pulseId) {
+								return new Timestamp(pulseId, 0L);
+							}
+						},
+						new MatlabByteConverter())
 				);
 
 		// Register data sources ...
@@ -246,16 +248,17 @@ public class CompressionTest {
 
 	protected void testDataHeaderCompressionTwoChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) {
 		Sender sender = new Sender(
-				new StandardPulseIdProvider(),
-				new TimeProvider() {
+				new SenderConfig(
+						new StandardPulseIdProvider(),
+						new TimeProvider() {
 
-					@Override
-					public Timestamp getTime(long pulseId) {
-						return new Timestamp(pulseId, 0L);
-					}
-				},
-				new MatlabByteConverter(),
-				compression
+							@Override
+							public Timestamp getTime(long pulseId) {
+								return new Timestamp(pulseId, 0L);
+							}
+						},
+						new MatlabByteConverter(),
+						compression)
 				);
 
 		// Register data sources ...
@@ -392,15 +395,16 @@ public class CompressionTest {
 
 	protected void testDataCompressionTwoChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) {
 		Sender sender = new Sender(
-				new StandardPulseIdProvider(),
-				new TimeProvider() {
+				new SenderConfig(
+						new StandardPulseIdProvider(),
+						new TimeProvider() {
 
-					@Override
-					public Timestamp getTime(long pulseId) {
-						return new Timestamp(pulseId, 0L);
-					}
-				},
-				new MatlabByteConverter()
+							@Override
+							public Timestamp getTime(long pulseId) {
+								return new Timestamp(pulseId, 0L);
+							}
+						},
+						new MatlabByteConverter())
 				);
 
 		// Register data sources ...
@@ -537,15 +541,16 @@ public class CompressionTest {
 
 	protected void testDataCompressionTwoArrayChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) {
 		Sender sender = new Sender(
-				new StandardPulseIdProvider(),
-				new TimeProvider() {
+				new SenderConfig(
+						new StandardPulseIdProvider(),
+						new TimeProvider() {
 
-					@Override
-					public Timestamp getTime(long pulseId) {
-						return new Timestamp(pulseId, 0L);
-					}
-				},
-				new MatlabByteConverter()
+							@Override
+							public Timestamp getTime(long pulseId) {
+								return new Timestamp(pulseId, 0L);
+							}
+						},
+						new MatlabByteConverter())
 				);
 
 		// Register data sources ...

@@ -14,6 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQException;
 
+import zmq.MsgAllocator;
+
 import ch.psi.bsread.Receiver;
 import ch.psi.bsread.ReceiverConfig;
 import ch.psi.bsread.converter.ValueConverter;
@@ -41,22 +43,32 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
 
 	public MessageStreamer(String address, int intoPastElements, int intoFutureElements,
 			ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper) {
-		this(address, intoPastElements, intoFutureElements, AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE,
-				valueConverter, messageMapper, null);
+		this(address, intoPastElements, intoFutureElements, valueConverter, null, messageMapper);
 	}
 
+	public MessageStreamer(String address, int intoPastElements, int intoFutureElements,
+			ValueConverter valueConverter, MsgAllocator msgAllocator, Function<Message<Value>, Mapped> messageMapper) {
+		this(address, intoPastElements, intoFutureElements, AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE,
+				valueConverter, msgAllocator, messageMapper);
+	}
+	
 	public MessageStreamer(String address, int intoPastElements, int intoFutureElements, int backpressure,
 			ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper) {
-		this(address, intoPastElements, intoFutureElements, backpressure, valueConverter, messageMapper, null);
+		this(address, intoPastElements, intoFutureElements, backpressure, valueConverter, null, messageMapper, null);
 	}
 
 	public MessageStreamer(String address, int intoPastElements, int intoFutureElements, int backpressure,
-			ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper,
+			ValueConverter valueConverter, MsgAllocator msgAllocator, Function<Message<Value>, Mapped> messageMapper) {
+		this(address, intoPastElements, intoFutureElements, backpressure, valueConverter, msgAllocator, messageMapper, null);
+	}
+
+	public MessageStreamer(String address, int intoPastElements, int intoFutureElements, int backpressure,
+			ValueConverter valueConverter, MsgAllocator msgAllocator, Function<Message<Value>, Mapped> messageMapper,
 			Consumer<DataHeader> dataHeaderHandler) {
 		executor = Executors.newSingleThreadExecutor();
 		spliterator = new AsyncTransferSpliterator<>(intoPastElements, intoFutureElements, backpressure);
 
-		receiver = new Receiver<Value>(new ReceiverConfig<Value>(false, true, new StandardMessageExtractor<Value>(valueConverter)));
+		receiver = new Receiver<Value>(new ReceiverConfig<Value>(false, true, new StandardMessageExtractor<Value>(valueConverter), msgAllocator));
 		if (dataHeaderHandler != null) {
 			receiver.addDataHeaderHandler(dataHeaderHandler);
 		}

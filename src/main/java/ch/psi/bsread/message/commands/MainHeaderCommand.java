@@ -55,7 +55,7 @@ public class MainHeaderCommand extends MainHeader implements Command {
 					dataHeader = receiverState.getDataHeader();
 					// The data header did not change so no interpretation of
 					// the header ...
-					socket.recv();
+					socket.base().recv(0);
 				}
 				else {
 					byte[] dataHeaderBytes = socket.recv();

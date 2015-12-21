@@ -14,8 +14,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
+import ch.psi.bsread.allocator.ByteBufferAllocator;
+import ch.psi.bsread.allocator.HeaderReservingMsgAllocator;
 import ch.psi.bsread.converter.ByteConverter;
 import ch.psi.bsread.converter.MatlabByteConverter;
+import ch.psi.bsread.impl.StandardMessageExtractor;
 import ch.psi.bsread.impl.StandardPulseIdProvider;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
@@ -25,7 +28,7 @@ import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Type;
 import ch.psi.bsread.message.Value;
 
-public class ReceiverTest {
+public class ReceiverTest_3 {
 	private ByteConverter byteConverter = new MatlabByteConverter();
 	private MainHeader hookMainHeader;
 	private boolean hookMainHeaderCalled;
@@ -36,7 +39,16 @@ public class ReceiverTest {
 	private Map<String, ChannelConfig> channelConfigs = new HashMap<>();
 
 	protected Receiver<ByteBuffer> getReceiver() {
-		return new Receiver<ByteBuffer>();
+		ReceiverConfig<ByteBuffer> config = 
+				new ReceiverConfig<>(
+				true, 
+				false, 
+				new StandardMessageExtractor<ByteBuffer>(), 
+				new HeaderReservingMsgAllocator(
+						12, 
+						new ByteBufferAllocator())
+				);
+		return new Receiver<ByteBuffer>(config);
 	}
 
 	@Test

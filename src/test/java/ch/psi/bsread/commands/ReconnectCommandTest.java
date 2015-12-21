@@ -20,6 +20,7 @@ import ch.psi.bsread.DataChannel;
 import ch.psi.bsread.Receiver;
 import ch.psi.bsread.ReceiverConfig;
 import ch.psi.bsread.Sender;
+import ch.psi.bsread.SenderConfig;
 import ch.psi.bsread.TimeProvider;
 import ch.psi.bsread.converter.MatlabByteConverter;
 import ch.psi.bsread.impl.StandardMessageExtractor;
@@ -46,41 +47,44 @@ public class ReconnectCommandTest {
 	@Test
 	public void testReconnect_01() throws Exception {
 		Sender sender_01 = new Sender(
-				new StandardPulseIdProvider(),
-				new TimeProvider() {
+				new SenderConfig(
+						new StandardPulseIdProvider(),
+						new TimeProvider() {
 
-					@Override
-					public Timestamp getTime(long pulseId) {
-						return new Timestamp(pulseId, 0L);
-					}
-				},
-				new MatlabByteConverter()
+							@Override
+							public Timestamp getTime(long pulseId) {
+								return new Timestamp(pulseId, 0L);
+							}
+						},
+						new MatlabByteConverter())
 				);
 		String sender_01_Addr = "tcp://*:9999";
 		String receiver_01_Addr = "tcp://localhost:9999";
 		Sender sender_02 = new Sender(
-				new StandardPulseIdProvider(),
-				new TimeProvider() {
+				new SenderConfig(
+						new StandardPulseIdProvider(),
+						new TimeProvider() {
 
-					@Override
-					public Timestamp getTime(long pulseId) {
-						return new Timestamp(pulseId, 0L);
-					}
-				},
-				new MatlabByteConverter()
+							@Override
+							public Timestamp getTime(long pulseId) {
+								return new Timestamp(pulseId, 0L);
+							}
+						},
+						new MatlabByteConverter())
 				);
 		String sender_02_Addr = "tcp://*:9998";
 		String receiver_02_Addr = "tcp://localhost:9998";
 		Sender sender_03 = new Sender(
-				new StandardPulseIdProvider(),
-				new TimeProvider() {
+				new SenderConfig(
+						new StandardPulseIdProvider(),
+						new TimeProvider() {
 
-					@Override
-					public Timestamp getTime(long pulseId) {
-						return new Timestamp(pulseId, 0L);
-					}
-				},
-				new MatlabByteConverter()
+							@Override
+							public Timestamp getTime(long pulseId) {
+								return new Timestamp(pulseId, 0L);
+							}
+						},
+						new MatlabByteConverter())
 				);
 		String sender_03_Addr = "tcp://*:9997";
 		String receiver_03_Addr = "tcp://localhost:9997";
@@ -114,7 +118,7 @@ public class ReconnectCommandTest {
 		sender_02.bind(sender_02_Addr);
 		sender_03.addSource(channel_03);
 		sender_03.bind(sender_03_Addr);
-		
+
 		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(new ReceiverConfig<ByteBuffer>(false, true, new StandardMessageExtractor<ByteBuffer>()));
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
@@ -133,7 +137,7 @@ public class ReconnectCommandTest {
 				TimeUnit.MILLISECONDS.sleep(50);
 				// should not receive this
 				sender_01.send();
-				
+
 				sender_02.send();
 				TimeUnit.MILLISECONDS.sleep(10);
 				sender_02.send();
@@ -141,7 +145,7 @@ public class ReconnectCommandTest {
 				TimeUnit.MILLISECONDS.sleep(50);
 				// should not receive this
 				sender_02.send();
-				
+
 				sender_03.send();
 				TimeUnit.MILLISECONDS.sleep(10);
 				sender_03.send();
@@ -194,7 +198,7 @@ public class ReconnectCommandTest {
 		assertSame(hookDataHeader, message.getDataHeader());
 		assertSame(hookValues, message.getValues());
 		assertEquals(0, hookMainHeader.getPulseId());
-		
+
 		hookMainHeaderCalled = false;
 		hookDataHeaderCalled = false;
 		hookValuesCalled = false;
@@ -207,7 +211,7 @@ public class ReconnectCommandTest {
 		assertSame(hookDataHeader, message.getDataHeader());
 		assertSame(hookValues, message.getValues());
 		assertEquals(1, hookMainHeader.getPulseId());
-		
+
 		// change address and channel -> new DataHeader
 		hookMainHeaderCalled = false;
 		hookDataHeaderCalled = false;
@@ -222,7 +226,7 @@ public class ReconnectCommandTest {
 		assertSame(hookDataHeader, message.getDataHeader());
 		assertSame(hookValues, message.getValues());
 		assertEquals(0, hookMainHeader.getPulseId());
-		
+
 		hookMainHeaderCalled = false;
 		hookDataHeaderCalled = false;
 		hookValuesCalled = false;
@@ -235,7 +239,7 @@ public class ReconnectCommandTest {
 		assertSame(hookDataHeader, message.getDataHeader());
 		assertSame(hookValues, message.getValues());
 		assertEquals(1, hookMainHeader.getPulseId());
-		
+
 		hookMainHeaderCalled = false;
 		hookDataHeaderCalled = false;
 		hookValuesCalled = false;
