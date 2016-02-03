@@ -18,6 +18,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.junit.Test;
+import org.zeromq.ZMQ;
 
 import ch.psi.bsread.DataChannel;
 import ch.psi.bsread.Receiver;
@@ -70,7 +71,7 @@ public class MessageStreamerTest {
 
 		AtomicBoolean exited = new AtomicBoolean(false);
 		try (MessageStreamer<Long, Message<Long>> messageStreamer =
-				new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, 0, 0, new MatlabByteConverter(),
+				new MessageStreamer<>(ZMQ.PULL, Receiver.DEFAULT_RECEIVING_ADDRESS, 0, 0, new MatlabByteConverter(),
 						Function.identity())) {
 
 			// construct to receive messages
@@ -160,7 +161,7 @@ public class MessageStreamerTest {
 
 		AtomicBoolean exited = new AtomicBoolean(false);
 		try (MessageStreamer<Long, Message<Long>> messageStreamer =
-				new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, 3, 2, new MatlabByteConverter(),
+				new MessageStreamer<>(ZMQ.PULL, Receiver.DEFAULT_RECEIVING_ADDRESS, 3, 2, new MatlabByteConverter(),
 						Function.identity())) {
 
 			// construct to receive messages
@@ -310,7 +311,7 @@ public class MessageStreamerTest {
 		CountDownLatch latch = new CountDownLatch(1);
 
 		try (MessageStreamer<Long, Message<Long>> messageStreamer =
-				new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, pastElements, futureElements, backpressure,
+				new MessageStreamer<>(ZMQ.PULL, Receiver.DEFAULT_RECEIVING_ADDRESS, pastElements, futureElements, backpressure,
 						new MatlabByteConverter(), Function.identity())) {
 
 			// first value based on MessageStreamer config
@@ -436,7 +437,7 @@ public class MessageStreamerTest {
 		AtomicLong sentValues = new AtomicLong();
 
 		try (MessageStreamer<Long, Message<Long>> messageStreamer =
-				new MessageStreamer<>(Receiver.DEFAULT_RECEIVING_ADDRESS, pastElements, futureElements, backpressure,
+				new MessageStreamer<>(ZMQ.PULL, Receiver.DEFAULT_RECEIVING_ADDRESS, pastElements, futureElements, backpressure,
 						new MatlabByteConverter(), Function.identity())) {
 
 			// StringBuilder output = new StringBuilder();

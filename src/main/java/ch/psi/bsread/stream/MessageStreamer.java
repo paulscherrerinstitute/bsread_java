@@ -36,39 +36,41 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
 	private Stream<StreamSection<Mapped>> stream;
 	private AsyncTransferSpliterator<Mapped> spliterator;
 
-	public MessageStreamer(String address, int intoPastElements, int intoFutureElements,
+	public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
 			Function<Message<Value>, Mapped> messageMapper) {
-		this(address, intoPastElements, intoFutureElements, new DirectByteBufferValueConverter(), messageMapper);
+		this(socketType, address, intoPastElements, intoFutureElements, new DirectByteBufferValueConverter(), messageMapper);
 	}
 
-	public MessageStreamer(String address, int intoPastElements, int intoFutureElements,
+	public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
 			ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper) {
-		this(address, intoPastElements, intoFutureElements, valueConverter, null, messageMapper);
+		this(socketType, address, intoPastElements, intoFutureElements, valueConverter, null, messageMapper);
 	}
 
-	public MessageStreamer(String address, int intoPastElements, int intoFutureElements,
+	public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
 			ValueConverter valueConverter, MsgAllocator msgAllocator, Function<Message<Value>, Mapped> messageMapper) {
-		this(address, intoPastElements, intoFutureElements, AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE,
+		this(socketType, address, intoPastElements, intoFutureElements, AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE,
 				valueConverter, msgAllocator, messageMapper);
 	}
-	
-	public MessageStreamer(String address, int intoPastElements, int intoFutureElements, int backpressure,
+
+	public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements, int backpressure,
 			ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper) {
-		this(address, intoPastElements, intoFutureElements, backpressure, valueConverter, null, messageMapper, null);
+		this(socketType, address, intoPastElements, intoFutureElements, backpressure, valueConverter, null, messageMapper, null);
 	}
 
-	public MessageStreamer(String address, int intoPastElements, int intoFutureElements, int backpressure,
+	public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements, int backpressure,
 			ValueConverter valueConverter, MsgAllocator msgAllocator, Function<Message<Value>, Mapped> messageMapper) {
-		this(address, intoPastElements, intoFutureElements, backpressure, valueConverter, msgAllocator, messageMapper, null);
+		this(socketType, address, intoPastElements, intoFutureElements, backpressure, valueConverter, msgAllocator, messageMapper, null);
 	}
 
-	public MessageStreamer(String address, int intoPastElements, int intoFutureElements, int backpressure,
+	public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements, int backpressure,
 			ValueConverter valueConverter, MsgAllocator msgAllocator, Function<Message<Value>, Mapped> messageMapper,
 			Consumer<DataHeader> dataHeaderHandler) {
 		executor = Executors.newSingleThreadExecutor();
 		spliterator = new AsyncTransferSpliterator<>(intoPastElements, intoFutureElements, backpressure);
 
-		receiver = new Receiver<Value>(new ReceiverConfig<Value>(false, true, new StandardMessageExtractor<Value>(valueConverter), msgAllocator));
+		ReceiverConfig<Value> receiverConfig = new ReceiverConfig<Value>(false, true, new StandardMessageExtractor<Value>(valueConverter), msgAllocator);
+		receiverConfig.setSocketType(socketType);
+		receiver = new Receiver<Value>(receiverConfig);
 		if (dataHeaderHandler != null) {
 			receiver.addDataHeaderHandler(dataHeaderHandler);
 		}
