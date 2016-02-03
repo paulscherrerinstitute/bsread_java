@@ -3,6 +3,8 @@ package ch.psi.bsread;
 import java.nio.ByteBuffer;
 import java.util.function.IntFunction;
 
+import org.zeromq.ZMQ;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.psi.bsread.allocator.ByteBufferAllocator;
@@ -22,6 +24,7 @@ public class SenderConfig {
    private final ByteConverter byteConverter;
 
    private ObjectMapper objectMapper;
+   private int socketType = ZMQ.PUSH;
 
    public SenderConfig() {
       this(new StandardPulseIdProvider(), new StandardTimeProvider(), new MatlabByteConverter());
@@ -81,4 +84,12 @@ public class SenderConfig {
    public void setObjectMapper(ObjectMapper objectMapper) {
       this.objectMapper = objectMapper;
    }
+   
+	public int getSocketType() {
+		return socketType;
+	}
+
+	public void setSocketType(int socketType) {
+		this.socketType = socketType;
+	}
 }

@@ -8,15 +8,19 @@ import static org.junit.Assert.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
+import org.zeromq.ZMQ;
 
 import ch.psi.bsread.basic.BasicReceiver;
 import ch.psi.bsread.compression.Compression;
 import ch.psi.bsread.converter.MatlabByteConverter;
+import ch.psi.bsread.impl.StandardMessageExtractor;
 import ch.psi.bsread.impl.StandardPulseIdProvider;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
@@ -154,6 +158,246 @@ public class ReceiverTest_2 {
 
 		sendFuture.cancel(true);
 		receiver.close();
+		sender.close();
+	}
+
+	@Test
+	public void testReceiver_Push_Pull() throws Exception {
+		SenderConfig senderConfig = new SenderConfig(
+				new StandardPulseIdProvider(),
+				new TimeProvider() {
+
+					@Override
+					public Timestamp getTime(long pulseId) {
+						return new Timestamp(pulseId, 0L);
+					}
+				},
+				new MatlabByteConverter());
+		senderConfig.setSocketType(ZMQ.PUSH);
+		Sender sender = new Sender(senderConfig);
+
+		int size = 2048;
+		Random rand = new Random(0);
+		// Register data sources ...
+		sender.addSource(new DataChannel<double[]>(new ChannelConfig("ABC", Type.Float64, new int[] { size }, 1, 0, ChannelConfig.DEFAULT_ENCODING, Compression.bitshuffle_lz4)) {
+			@Override
+			public double[] getValue(long pulseId) {
+				double[] val = new double[size];
+				for (int i = 0; i < size; ++i) {
+					val[i] = rand.nextDouble();
+				}
+
+				return val;
+			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, 0L);
+			}
+		});
+		sender.addSource(new DataChannel<double[]>(new ChannelConfig("ABB", Type.Float64, new int[] { size }, 1, 0, ChannelConfig.DEFAULT_ENCODING, Compression.bitshuffle_lz4)) {
+			@Override
+			public double[] getValue(long pulseId) {
+				double[] val = new double[size];
+				for (int i = 0; i < size; ++i) {
+					val[i] = rand.nextDouble();
+				}
+
+				return val;
+			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, 0L);
+			}
+		});
+		sender.bind();
+
+		ReceiverConfig<Object> config1 = new ReceiverConfig<Object>(new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+		config1.setSocketType(ZMQ.PULL);
+		Receiver<Object> receiver1 = new BasicReceiver(config1);
+		AtomicLong mainHeaderCounter1 = new AtomicLong();
+		AtomicLong dataHeaderCounter1 = new AtomicLong();
+		AtomicLong valCounter1 = new AtomicLong();
+		AtomicLong loopCounter1 = new AtomicLong();
+		receiver1.addMainHeaderHandler(header -> mainHeaderCounter1.incrementAndGet());
+		receiver1.addDataHeaderHandler(header -> dataHeaderCounter1.incrementAndGet());
+		receiver1.addValueHandler(values -> valCounter1.incrementAndGet());
+		receiver1.connect();
+
+		ReceiverConfig<Object> config2 = new ReceiverConfig<Object>(new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+		config2.setSocketType(ZMQ.PULL);
+		Receiver<Object> receiver2 = new BasicReceiver(config2);
+		AtomicLong mainHeaderCounter2 = new AtomicLong();
+		AtomicLong dataHeaderCounter2 = new AtomicLong();
+		AtomicLong valCounter2 = new AtomicLong();
+		AtomicLong loopCounter2 = new AtomicLong();
+		receiver2.addMainHeaderHandler(header -> mainHeaderCounter2.incrementAndGet());
+		receiver2.addDataHeaderHandler(header -> dataHeaderCounter2.incrementAndGet());
+		receiver2.addValueHandler(values -> valCounter2.incrementAndGet());
+		receiver2.connect();
+
+		ExecutorService receiverService = Executors.newFixedThreadPool(2);
+		receiverService.execute(() -> {
+			try {
+				while (receiver1.receive() != null && !Thread.currentThread().isInterrupted()) {
+					loopCounter1.incrementAndGet();
+				}
+			} catch (Throwable t) {
+			}
+		});
+		receiverService.execute(() -> {
+			try {
+			while (receiver2.receive() != null && !Thread.currentThread().isInterrupted()) {
+				loopCounter2.incrementAndGet();
+			}
+			} catch (Throwable t) {
+			}
+		});
+
+		TimeUnit.SECONDS.sleep(1);
+		// send/receive data
+		int sendCount = 40;
+		for (int i = 0; i < sendCount; ++i) {
+			sender.send();
+			TimeUnit.MILLISECONDS.sleep(1);
+		}
+		TimeUnit.SECONDS.sleep(1);
+
+		receiverService.shutdown();
+
+		assertEquals(1, dataHeaderCounter1.get());
+		assertEquals(sendCount / 2, mainHeaderCounter1.get());
+		assertEquals(sendCount / 2, valCounter1.get());
+		assertEquals(sendCount / 2, loopCounter1.get());
+		receiver1.close();
+
+		assertEquals(1, dataHeaderCounter2.get());
+		assertEquals(sendCount / 2, mainHeaderCounter2.get());
+		assertEquals(sendCount / 2, valCounter2.get());
+		assertEquals(sendCount / 2, loopCounter2.get());
+		receiver2.close();
+
+		sender.close();
+	}
+	
+	@Test
+	public void testReceiver_Pub_Sub() throws Exception {
+		SenderConfig senderConfig = new SenderConfig(
+				new StandardPulseIdProvider(),
+				new TimeProvider() {
+
+					@Override
+					public Timestamp getTime(long pulseId) {
+						return new Timestamp(pulseId, 0L);
+					}
+				},
+				new MatlabByteConverter());
+		senderConfig.setSocketType(ZMQ.PUB);
+		Sender sender = new Sender(senderConfig);
+
+		int size = 2048;
+		Random rand = new Random(0);
+		// Register data sources ...
+		sender.addSource(new DataChannel<double[]>(new ChannelConfig("ABC", Type.Float64, new int[] { size }, 1, 0, ChannelConfig.DEFAULT_ENCODING, Compression.bitshuffle_lz4)) {
+			@Override
+			public double[] getValue(long pulseId) {
+				double[] val = new double[size];
+				for (int i = 0; i < size; ++i) {
+					val[i] = rand.nextDouble();
+				}
+
+				return val;
+			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, 0L);
+			}
+		});
+		sender.addSource(new DataChannel<double[]>(new ChannelConfig("ABB", Type.Float64, new int[] { size }, 1, 0, ChannelConfig.DEFAULT_ENCODING, Compression.bitshuffle_lz4)) {
+			@Override
+			public double[] getValue(long pulseId) {
+				double[] val = new double[size];
+				for (int i = 0; i < size; ++i) {
+					val[i] = rand.nextDouble();
+				}
+
+				return val;
+			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, 0L);
+			}
+		});
+		sender.bind();
+
+		ReceiverConfig<Object> config1 = new ReceiverConfig<Object>(new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+		config1.setSocketType(ZMQ.SUB);
+		Receiver<Object> receiver1 = new BasicReceiver(config1);
+		AtomicLong mainHeaderCounter1 = new AtomicLong();
+		AtomicLong dataHeaderCounter1 = new AtomicLong();
+		AtomicLong valCounter1 = new AtomicLong();
+		AtomicLong loopCounter1 = new AtomicLong();
+		receiver1.addMainHeaderHandler(header -> mainHeaderCounter1.incrementAndGet());
+		receiver1.addDataHeaderHandler(header -> dataHeaderCounter1.incrementAndGet());
+		receiver1.addValueHandler(values -> valCounter1.incrementAndGet());
+		receiver1.connect();
+
+		ReceiverConfig<Object> config2 = new ReceiverConfig<Object>(new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+		config2.setSocketType(ZMQ.SUB);
+		Receiver<Object> receiver2 = new BasicReceiver(config2);
+		AtomicLong mainHeaderCounter2 = new AtomicLong();
+		AtomicLong dataHeaderCounter2 = new AtomicLong();
+		AtomicLong valCounter2 = new AtomicLong();
+		AtomicLong loopCounter2 = new AtomicLong();
+		receiver2.addMainHeaderHandler(header -> mainHeaderCounter2.incrementAndGet());
+		receiver2.addDataHeaderHandler(header -> dataHeaderCounter2.incrementAndGet());
+		receiver2.addValueHandler(values -> valCounter2.incrementAndGet());
+		receiver2.connect();
+
+		ExecutorService receiverService = Executors.newFixedThreadPool(2);
+		receiverService.execute(() -> {
+			try {
+				while (receiver1.receive() != null && !Thread.currentThread().isInterrupted()) {
+					loopCounter1.incrementAndGet();
+				}
+			} catch (Throwable t) {
+			}
+		});
+		receiverService.execute(() -> {
+			try {
+			while (receiver2.receive() != null && !Thread.currentThread().isInterrupted()) {
+				loopCounter2.incrementAndGet();
+			}
+			} catch (Throwable t) {
+			}
+		});
+
+		TimeUnit.SECONDS.sleep(1);
+		// send/receive data
+		int sendCount = 40;
+		for (int i = 0; i < sendCount; ++i) {
+			sender.send();
+			TimeUnit.MILLISECONDS.sleep(1);
+		}
+		TimeUnit.SECONDS.sleep(1);
+
+		receiverService.shutdown();
+
+		assertEquals(1, dataHeaderCounter1.get());
+		assertEquals(sendCount, mainHeaderCounter1.get());
+		assertEquals(sendCount, valCounter1.get());
+		assertEquals(sendCount, loopCounter1.get());
+		receiver1.close();
+
+		assertEquals(1, dataHeaderCounter2.get());
+		assertEquals(sendCount, mainHeaderCounter2.get());
+		assertEquals(sendCount, valCounter2.get());
+		assertEquals(sendCount, loopCounter2.get());
+		receiver2.close();
+
 		sender.close();
 	}
 

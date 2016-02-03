@@ -58,7 +58,7 @@ public class Sender {
 
 	public void bind(String address, int highWaterMark) {
 		this.context = ZMQ.context(1);
-		this.socket = this.context.socket(ZMQ.PUSH);
+		this.socket = this.context.socket(senderConfig.getSocketType());
 		this.socket.setSndHWM(highWaterMark);
 		this.socket.bind(address);
 	}

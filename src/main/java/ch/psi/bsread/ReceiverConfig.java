@@ -1,5 +1,7 @@
 package ch.psi.bsread;
 
+import org.zeromq.ZMQ;
+
 import zmq.MsgAllocator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +21,7 @@ public class ReceiverConfig<V> {
 	private MessageExtractor<V> messageExtractor;
 	private ObjectMapper objectMapper;
 	private final MsgAllocator msgAllocator;
+	private int socketType = ZMQ.PULL;
 
 	public ReceiverConfig() {
 		this(new StandardMessageExtractor<V>());
@@ -31,13 +34,13 @@ public class ReceiverConfig<V> {
 	public ReceiverConfig(boolean keepListeningOnStop, boolean parallelProcessing, MessageExtractor<V> messageExtractor) {
 		this(keepListeningOnStop, parallelProcessing, messageExtractor, null);
 	}
-	
+
 	public ReceiverConfig(boolean keepListeningOnStop, boolean parallelProcessing, MessageExtractor<V> messageExtractor, MsgAllocator msgAllocator) {
 		this.keepListeningOnStop = keepListeningOnStop;
 		this.parallelProcessing = parallelProcessing;
 		this.messageExtractor = messageExtractor;
 		this.msgAllocator = msgAllocator;
-		
+
 		this.setObjectMapper(new ObjectMapper());
 	}
 
@@ -76,22 +79,30 @@ public class ReceiverConfig<V> {
 	public void setMessageExtractor(MessageExtractor<V> messageExtractor) {
 		this.messageExtractor = messageExtractor;
 	}
-	
+
 	public MsgAllocator getMsgAllocator() {
 		return msgAllocator;
 	}
-	
+
 	public ObjectMapper getObjectMapper() {
 		return objectMapper;
 	}
 
 	public void setObjectMapper(ObjectMapper objectMapper) {
 		this.objectMapper = objectMapper;
-		
+
 		addObjectMapperMixin(objectMapper);
 	}
-	
-	public static void addObjectMapperMixin(ObjectMapper objectMapper){
+
+	public int getSocketType() {
+		return socketType;
+	}
+
+	public void setSocketType(int socketType) {
+		this.socketType = socketType;
+	}
+
+	public static void addObjectMapperMixin(ObjectMapper objectMapper) {
 		objectMapper.addMixIn(Command.class, PolymorphicCommandMixIn.class);
 	}
 }

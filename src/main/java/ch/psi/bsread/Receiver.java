@@ -55,12 +55,16 @@ public class Receiver<V> implements IReceiver<V> {
 	public void connect(String address) {
 		if (isConnected.compareAndSet(false, true)) {
 			this.context = ZMQ.context(1);
-			this.socket = this.context.socket(ZMQ.PULL);
+			this.socket = this.context.socket(receiverConfig.getSocketType());
 			this.socket.setRcvHWM(receiverConfig.getHighWaterMark());
 			if (receiverConfig.getMsgAllocator() != null) {
 				this.socket.base().setSocketOpt(zmq.ZMQ.ZMQ_MSG_ALLOCATOR, receiverConfig.getMsgAllocator());
 			}
 			this.socket.connect(address);
+
+			if (ZMQ.SUB == receiverConfig.getSocketType()) {
+				this.socket.subscribe("".getBytes());
+			}
 		}
 	}
 
