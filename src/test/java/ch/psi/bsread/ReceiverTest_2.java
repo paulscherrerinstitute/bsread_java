@@ -364,7 +364,7 @@ public class ReceiverTest_2 {
 					loopCounter1.incrementAndGet();
 				}
 			} catch (Throwable t) {
-				t.printStackTrace();
+				System.out.println(t.getMessage());
 			}
 		});
 		receiverService.execute(() -> {
@@ -373,7 +373,7 @@ public class ReceiverTest_2 {
 				loopCounter2.incrementAndGet();
 			}
 			} catch (Throwable t) {
-				t.printStackTrace();
+				System.out.println(t.getMessage());
 			}
 		});
 
