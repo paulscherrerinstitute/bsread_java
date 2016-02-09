@@ -22,6 +22,7 @@ import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Type;
+import ch.psi.bsread.monitors.Monitor;
 
 public class Sender {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Sender.class.getName());
@@ -60,10 +61,20 @@ public class Sender {
 		this.context = ZMQ.context(1);
 		this.socket = this.context.socket(senderConfig.getSocketType());
 		this.socket.setSndHWM(highWaterMark);
+
+		Monitor monitor = senderConfig.getMonitor();
+		if (monitor != null) {
+			monitor.start(context, socket.base());
+		}
+
 		this.socket.bind(address);
 	}
 
 	public void close() {
+		Monitor monitor = senderConfig.getMonitor();
+		if (monitor != null) {
+			monitor.stop();
+		}
 		socket.close();
 		context.close();
 	}
