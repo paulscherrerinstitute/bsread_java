@@ -58,10 +58,14 @@ public class ConnectionMonitor implements Monitor {
 			} catch (Throwable e) {
 				LOGGER.warn("Monitoring zmq connections failed for identifier '{}'.", monitorItentifier, e);
 			} finally {
+				// Clear interrupted state as this might cause problems with the
+				// rest of the remaining code - i.e. closing of the zmq socket
+				// Thread.interrupted();
+
 				if (monitorSock != null) {
 					monitorSock.close();
 				}
-				
+
 				connectionCounter.set(0);
 				updateHandlers(connectionCounter.get());
 				// clear references to ensure they can be gc
