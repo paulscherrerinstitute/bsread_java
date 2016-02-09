@@ -25,122 +25,137 @@ import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.Message;
 
 public class MessageStreamer<Value, Mapped> implements Closeable {
-	private static final Logger LOGGER = LoggerFactory.getLogger(MessageStreamer.class);
+   private static final Logger LOGGER = LoggerFactory.getLogger(MessageStreamer.class);
 
-	private Receiver<Value> receiver;
+   private Receiver<Value> receiver;
 
-	private ExecutorService executor;
-	private Future<?> executorFuture;
-	private AtomicBoolean isRunning = new AtomicBoolean(true);
+   private ExecutorService executor;
+   private Future<?> executorFuture;
+   private AtomicBoolean isRunning = new AtomicBoolean(true);
 
-	private Stream<StreamSection<Mapped>> stream;
-	private AsyncTransferSpliterator<Mapped> spliterator;
+   private Stream<StreamSection<Mapped>> stream;
+   private AsyncTransferSpliterator<Mapped> spliterator;
 
-	public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
-			Function<Message<Value>, Mapped> messageMapper) {
-		this(socketType, address, intoPastElements, intoFutureElements, new DirectByteBufferValueConverter(), messageMapper);
-	}
+   public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
+         Function<Message<Value>, Mapped> messageMapper) {
+      this(socketType, address, intoPastElements, intoFutureElements, new DirectByteBufferValueConverter(),
+            messageMapper);
+   }
 
-	public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
-			ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper) {
-		this(socketType, address, intoPastElements, intoFutureElements, valueConverter, null, messageMapper);
-	}
+   public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
+         ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper) {
+      this(socketType, address, intoPastElements, intoFutureElements, valueConverter, null, messageMapper);
+   }
 
-	public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
-			ValueConverter valueConverter, MsgAllocator msgAllocator, Function<Message<Value>, Mapped> messageMapper) {
-		this(socketType, address, intoPastElements, intoFutureElements, AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE,
-				valueConverter, msgAllocator, messageMapper);
-	}
+   public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
+         ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper,
+         Consumer<DataHeader> dataHeaderHandler) {
+      this(socketType, address, intoPastElements, intoFutureElements,
+            AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE, valueConverter, null, messageMapper, dataHeaderHandler);
+   }
 
-	public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements, int backpressure,
-			ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper) {
-		this(socketType, address, intoPastElements, intoFutureElements, backpressure, valueConverter, null, messageMapper, null);
-	}
+   public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
+         ValueConverter valueConverter, MsgAllocator msgAllocator, Function<Message<Value>, Mapped> messageMapper) {
+      this(socketType, address, intoPastElements, intoFutureElements,
+            AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE,
+            valueConverter, msgAllocator, messageMapper);
+   }
 
-	public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements, int backpressure,
-			ValueConverter valueConverter, MsgAllocator msgAllocator, Function<Message<Value>, Mapped> messageMapper) {
-		this(socketType, address, intoPastElements, intoFutureElements, backpressure, valueConverter, msgAllocator, messageMapper, null);
-	}
+   public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
+         int backpressure,
+         ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper) {
+      this(socketType, address, intoPastElements, intoFutureElements, backpressure, valueConverter, null,
+            messageMapper, null);
+   }
 
-	public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements, int backpressure,
-			ValueConverter valueConverter, MsgAllocator msgAllocator, Function<Message<Value>, Mapped> messageMapper,
-			Consumer<DataHeader> dataHeaderHandler) {
-		executor = Executors.newSingleThreadExecutor();
-		spliterator = new AsyncTransferSpliterator<>(intoPastElements, intoFutureElements, backpressure);
+   public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
+         int backpressure,
+         ValueConverter valueConverter, MsgAllocator msgAllocator, Function<Message<Value>, Mapped> messageMapper) {
+      this(socketType, address, intoPastElements, intoFutureElements, backpressure, valueConverter, msgAllocator,
+            messageMapper, null);
+   }
 
-		ReceiverConfig<Value> receiverConfig = new ReceiverConfig<Value>(false, true, new StandardMessageExtractor<Value>(valueConverter), msgAllocator);
-		receiverConfig.setSocketType(socketType);
-		receiver = new Receiver<Value>(receiverConfig);
-		if (dataHeaderHandler != null) {
-			receiver.addDataHeaderHandler(dataHeaderHandler);
-		}
-		receiver.connect(address);
+   public MessageStreamer(int socketType, String address, int intoPastElements, int intoFutureElements,
+         int backpressure,
+         ValueConverter valueConverter, MsgAllocator msgAllocator, Function<Message<Value>, Mapped> messageMapper,
+         Consumer<DataHeader> dataHeaderHandler) {
+      executor = Executors.newSingleThreadExecutor();
+      spliterator = new AsyncTransferSpliterator<>(intoPastElements, intoFutureElements, backpressure);
 
-		executorFuture = executor.submit(() -> {
-			try {
-				Message<Value> message;
-				while (isRunning.get() && (message = receiver.receive()) != null) {
-					spliterator.onAvailable(message, messageMapper);
-				}
-			} catch (ZMQException e) {
-				LOGGER.debug("Close streamer since ZMQ stream closed.", e);
-			} catch (Exception e) {
-				LOGGER.error("Close streamer since Receiver encountered a problem.", e);
-			}
+      ReceiverConfig<Value> receiverConfig =
+            new ReceiverConfig<Value>(false, true, new StandardMessageExtractor<Value>(valueConverter), msgAllocator);
+      receiverConfig.setSocketType(socketType);
+      receiver = new Receiver<Value>(receiverConfig);
+      if (dataHeaderHandler != null) {
+         receiver.addDataHeaderHandler(dataHeaderHandler);
+      }
+      receiver.connect(address);
 
-			try {
-				close();
-			} catch (Exception e) {
-				LOGGER.warn("Exception while closing streamer.", e);
-			}
-		});
-	}
+      executorFuture = executor.submit(() -> {
+         try {
+            Message<Value> message;
+            while (isRunning.get() && (message = receiver.receive()) != null) {
+               spliterator.onAvailable(message, messageMapper);
+            }
+         } catch (ZMQException e) {
+            LOGGER.debug("Close streamer since ZMQ stream closed.", e);
+         } catch (Exception e) {
+            LOGGER.error("Close streamer since Receiver encountered a problem.", e);
+         }
 
-	public Stream<StreamSection<Mapped>> getStream() {
-		if (stream == null) {
-			// support only sequential processing
-			// stream = new
-			// ParallelismAwareStream<StreamSection<T>>(StreamSupport.stream(spliterator,
-			// false), false);
-			stream = StreamSupport.stream(spliterator, false);
-			stream.onClose(() -> close());
-		}
+         try {
+            close();
+         } catch (Exception e) {
+            LOGGER.warn("Exception while closing streamer.", e);
+         }
+      });
+   }
 
-		return stream;
-	}
+   public Stream<StreamSection<Mapped>> getStream() {
+      if (stream == null) {
+         // support only sequential processing
+         // stream = new
+         // ParallelismAwareStream<StreamSection<T>>(StreamSupport.stream(spliterator,
+         // false), false);
+         stream = StreamSupport.stream(spliterator, false);
+         stream.onClose(() -> close());
+      }
 
-	@Override
-	public void close() {
-		if (isRunning.compareAndSet(true, false)) {
-			if (receiver != null) {
-				receiver.close();
-				receiver = null;
-			}
+      return stream;
+   }
 
-			if (executorFuture != null) {
-				executorFuture.cancel(true);
-				executorFuture = null;
-			}
-			if (executor != null) {
-				executor.shutdown();
-				executor = null;
-			}
+   @Override
+   public void close() {
+      if (isRunning.compareAndSet(true, false)) {
+         if (receiver != null) {
+            receiver.close();
+            receiver = null;
+         }
 
-			if (spliterator != null) {
-				// release waiting consumers
-				spliterator.onClose();
-				spliterator = null;
-			}
+         if (executorFuture != null) {
+            executorFuture.cancel(true);
+            executorFuture = null;
+         }
+         if (executor != null) {
+            executor.shutdown();
+            executor = null;
+         }
 
-			if (stream != null) {
-				stream.close();
-				stream = null;
-			}
-		}
-	}
+         if (spliterator != null) {
+            // release waiting consumers
+            spliterator.onClose();
+            spliterator = null;
+         }
 
-	@Override
-	public String toString() {
-		return spliterator.toString();
-	}
+         if (stream != null) {
+            stream.close();
+            stream = null;
+         }
+      }
+   }
+
+   @Override
+   public String toString() {
+      return spliterator.toString();
+   }
 }
