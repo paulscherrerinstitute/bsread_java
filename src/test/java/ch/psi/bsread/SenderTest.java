@@ -53,8 +53,6 @@ public class SenderTest {
 			assertEquals((double) pulse, message.getValues().get(testChannel).getValue(Number.class).doubleValue(), 0.001);
 		}
 		
-		System.out.println("done");
-		
 		receiver.close();
 		sender.close();
 		
