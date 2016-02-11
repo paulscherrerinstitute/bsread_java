@@ -1,9 +1,9 @@
 {
   "global_timestamp": {
-    "epoch": 1427960013647,
-    "ns": 0
+    "ms": 1427960013647,
+    "ns_offset": 0
   },
   "hash": "50acfbebaa30924c857740b5a4d770b5",
-  "htype": "bsr_m-1.0",
+  "htype": "bsr_m-1.1",
   "pulse_id": 0
 }

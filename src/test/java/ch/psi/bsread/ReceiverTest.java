@@ -122,10 +122,10 @@ public class ReceiverTest {
 			value = hookValues.get(channelName);
 			javaVal = byteConverter.getValue(value.getValue(), chConf, hookMainHeader, null);
 			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getEpoch());
-			assertEquals(0, value.getTimestamp().getNs());
-			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getEpoch());
-			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
+			assertEquals(0, value.getTimestamp().getNsOffset());
+			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
+			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
 		}
 
 		sendFuture.cancel(true);
@@ -216,10 +216,10 @@ public class ReceiverTest {
 			value = hookValues.get(channelName);
 			javaVal = byteConverter.getValue(value.getValue(), chConf, hookMainHeader, null);
 			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getEpoch());
-			assertEquals(0, value.getTimestamp().getNs());
-			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getEpoch());
-			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
+			assertEquals(0, value.getTimestamp().getNsOffset());
+			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
+			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
 		}
 
 		sendFuture.cancel(true);
@@ -310,10 +310,10 @@ public class ReceiverTest {
 			value = hookValues.get(channelName);
 			javaVal = byteConverter.getValue(value.getValue(), chConf, hookMainHeader, null);
 			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getEpoch());
-			assertEquals(0, value.getTimestamp().getNs());
-			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getEpoch());
-			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
+			assertEquals(0, value.getTimestamp().getNsOffset());
+			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
+			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
 		}
 
 		sendFuture.cancel(true);
@@ -422,10 +422,10 @@ public class ReceiverTest {
 				value = hookValues.get(channelName);
 				javaVal = byteConverter.getValue(value.getValue(), chConf, hookMainHeader, null);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getEpoch());
-				assertEquals(0, value.getTimestamp().getNs());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getEpoch());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
+				assertEquals(0, value.getTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
 
 				channelName = "ABC_100";
 				chConf = this.channelConfigs.get(channelName);
@@ -434,10 +434,10 @@ public class ReceiverTest {
 				value = hookValues.get(channelName);
 				javaVal = byteConverter.getValue(value.getValue(), chConf, hookMainHeader, null);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getEpoch());
-				assertEquals(0, value.getTimestamp().getNs());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getEpoch());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
+				assertEquals(0, value.getTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
 			} else {
 				assertEquals(1, hookValues.size());
 				assertEquals(i, hookMainHeader.getPulseId());
@@ -448,10 +448,10 @@ public class ReceiverTest {
 				value = hookValues.get(channelName);
 				javaVal = byteConverter.getValue(value.getValue(), chConf, hookMainHeader, null);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getEpoch());
-				assertEquals(0, value.getTimestamp().getNs());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getEpoch());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
+				assertEquals(0, value.getTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
 			}
 		}
 
@@ -536,8 +536,8 @@ public class ReceiverTest {
 
 			assertTrue("Is a 10Hz Channel", hookMainHeader.getPulseId() % 10 == 0);
 			Timestamp globalTimestamp = hookMainHeader.getGlobalTimestamp();
-			assertEquals(hookMainHeader.getPulseId(), globalTimestamp.getEpoch());
-			assertEquals(0, globalTimestamp.getNs());
+			assertEquals(hookMainHeader.getPulseId(), globalTimestamp.getMs());
+			assertEquals(0, globalTimestamp.getNsOffset());
 
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
@@ -564,8 +564,8 @@ public class ReceiverTest {
 
 				Value<ByteBuffer> value = hookValues.get(channelConfig.getName());
 				Timestamp iocTimestamp = value.getTimestamp();
-				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getEpoch());
-				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getNs());
+				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getMs());
+				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getNsOffset());
 				Number val = this.byteConverter.getValue(
 						value.getValue(),
 						channelConfig,

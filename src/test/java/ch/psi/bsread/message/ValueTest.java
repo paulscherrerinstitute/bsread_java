@@ -17,8 +17,8 @@ public class ValueTest {
 		Value<ByteBuffer> val = new ValueImpl<>(buf, new Timestamp(10, 2));
 
 		Value<ByteBuffer> copy = SerializationHelper.copy(val);
-		assertEquals(val.getTimestamp().getEpoch(), copy.getTimestamp().getEpoch());
-		assertEquals(val.getTimestamp().getNs(), copy.getTimestamp().getNs());
+		assertEquals(val.getTimestamp().getMs(), copy.getTimestamp().getMs());
+		assertEquals(val.getTimestamp().getNsOffset(), copy.getTimestamp().getNsOffset());
 		assertEquals(val.getValue().isDirect(), copy.getValue().isDirect());
 		assertEquals(val.getValue().order(), copy.getValue().order());
 		assertEquals(val.getValue().position(), copy.getValue().position());
@@ -31,8 +31,8 @@ public class ValueTest {
 		val = new ValueImpl<>(buf, new Timestamp(Long.MAX_VALUE / 2, 459));
 
 		copy = SerializationHelper.copy(val);
-		assertEquals(val.getTimestamp().getEpoch(), copy.getTimestamp().getEpoch());
-		assertEquals(val.getTimestamp().getNs(), copy.getTimestamp().getNs());
+		assertEquals(val.getTimestamp().getMs(), copy.getTimestamp().getMs());
+		assertEquals(val.getTimestamp().getNsOffset(), copy.getTimestamp().getNsOffset());
 		assertEquals(val.getValue().isDirect(), copy.getValue().isDirect());
 		assertEquals(val.getValue().order(), copy.getValue().order());
 		assertEquals(val.getValue().position(), copy.getValue().position());
@@ -45,8 +45,8 @@ public class ValueTest {
 		val = new ValueImpl<>(buf, new Timestamp(Long.MAX_VALUE / 5, 459));
 
 		copy = SerializationHelper.copy(val);
-		assertEquals(val.getTimestamp().getEpoch(), copy.getTimestamp().getEpoch());
-		assertEquals(val.getTimestamp().getNs(), copy.getTimestamp().getNs());
+		assertEquals(val.getTimestamp().getMs(), copy.getTimestamp().getMs());
+		assertEquals(val.getTimestamp().getNsOffset(), copy.getTimestamp().getNsOffset());
 		assertEquals(val.getValue().isDirect(), copy.getValue().isDirect());
 		assertEquals(val.getValue().order(), copy.getValue().order());
 		assertEquals(val.getValue().position(), copy.getValue().position());
@@ -59,8 +59,8 @@ public class ValueTest {
 		val = new ValueImpl<>(buf, new Timestamp(Long.MAX_VALUE / 3, 459));
 
 		copy = SerializationHelper.copy(val);
-		assertEquals(val.getTimestamp().getEpoch(), copy.getTimestamp().getEpoch());
-		assertEquals(val.getTimestamp().getNs(), copy.getTimestamp().getNs());
+		assertEquals(val.getTimestamp().getMs(), copy.getTimestamp().getMs());
+		assertEquals(val.getTimestamp().getNsOffset(), copy.getTimestamp().getNsOffset());
 		assertEquals(val.getValue().isDirect(), copy.getValue().isDirect());
 		assertEquals(val.getValue().order(), copy.getValue().order());
 		assertEquals(val.getValue().position(), copy.getValue().position());

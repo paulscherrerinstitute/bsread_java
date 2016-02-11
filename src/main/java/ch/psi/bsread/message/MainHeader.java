@@ -13,9 +13,9 @@ public class MainHeader implements Serializable {
 	private static final long serialVersionUID = -2505074745338960088L;
 
 	public static final String HTYPE_VALUE_NO_VERSION = "bsr_m";
-	// update AbstractCommand when version increases to support old and new
-	// Command
-	public static final String DEFAULT_HTYPE = HTYPE_VALUE_NO_VERSION + "-1.0";
+	// update PolymorphicCommandMixIn when version increases to support old and
+	// new Command
+	public static final String DEFAULT_HTYPE = HTYPE_VALUE_NO_VERSION + "-1.1";
 
 	@JsonInclude
 	private String htype = DEFAULT_HTYPE;
