@@ -1,6 +1,7 @@
 package ch.psi.bsread;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -14,6 +15,8 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.psi.bsread.command.Command;
@@ -83,8 +86,10 @@ public class Receiver<V> implements IReceiver<V> {
 		Command command = null;
 		int nrOfAlignmentTrys = 0;
 		ObjectMapper objectMapper = receiverConfig.getObjectMapper();
+		byte[] mainHeaderBytes;
 
 		while (message == null && isConnected.get()) {
+			mainHeaderBytes = null;
 			/*
 			 * It can happen that bytes received do not represent the start of a
 			 * new multipart message but the start of a submessage (e.g. after
@@ -93,9 +98,18 @@ public class Receiver<V> implements IReceiver<V> {
 			 * (i.e., it is possible that we loose the first message)
 			 */
 			try {
+				mainHeaderBytes = socket.recv();
 				// test if mainHaderBytes can be interpreted as Command
-				command = objectMapper.readValue(socket.recv(), Command.class);
+				command = objectMapper.readValue(mainHeaderBytes, Command.class);
 				message = command.process(this);
+			} catch (JsonParseException | JsonMappingException e) {
+				++nrOfAlignmentTrys;
+
+				LOGGER.info("Could not parse MainHeader.", e);
+				if (mainHeaderBytes != null) {
+					String mainHeaderJson = new String(mainHeaderBytes, StandardCharsets.UTF_8);
+					LOGGER.info("MainHeader was '{}'", mainHeaderJson);
+				}
 			} catch (IOException e) {
 				++nrOfAlignmentTrys;
 				LOGGER.info("Received bytes were not aligned with multipart message.", e);
