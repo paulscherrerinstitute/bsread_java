@@ -110,6 +110,12 @@ public class Receiver<V> implements IReceiver<V> {
 					String mainHeaderJson = new String(mainHeaderBytes, StandardCharsets.UTF_8);
 					LOGGER.info("MainHeader was '{}'", mainHeaderJson);
 				}
+                // drain the socket
+                drain();
+
+                if (nrOfAlignmentTrys > receiverConfig.getAlignmentRetries()) {
+                    throw new RuntimeException("Could not extract Command within max retries.");
+                }
 			} catch (IOException e) {
 				++nrOfAlignmentTrys;
 				LOGGER.info("Received bytes were not aligned with multipart message.", e);
@@ -117,7 +123,7 @@ public class Receiver<V> implements IReceiver<V> {
 				drain();
 
 				if (nrOfAlignmentTrys > receiverConfig.getAlignmentRetries()) {
-					throw new RuntimeException("Could not extract Command within max alignment retry.");
+					throw new RuntimeException("Could not extract Command within max retries.");
 				}
 			}
 		}
