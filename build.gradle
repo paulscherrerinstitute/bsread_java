@@ -3,7 +3,7 @@ apply plugin: 'eclipse'
 
 sourceCompatibility = 1.8
 
-version = '3.0.8'
+version = '3.0.9'
 
 repositories {
     mavenCentral()
@@ -12,7 +12,7 @@ repositories {
 }
 
 dependencies {
-	compile 'ch.psi:bitshuffle-lz4:1.0.0'
+	compile 'ch.psi:bitshuffle-lz4:1.0.2'
 
 	compile 'com.fasterxml.jackson.core:jackson-databind:2.6.3'
 	compile 'org.zeromq:jeromq:0.3.6-PSI'
