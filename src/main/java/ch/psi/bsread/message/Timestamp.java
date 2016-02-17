@@ -3,79 +3,87 @@ package ch.psi.bsread.message;
 import java.io.Serializable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class Timestamp implements Serializable {
-	private static final long serialVersionUID = 2481654141864121974L;
+   private static final long serialVersionUID = 2481654141864121974L;
 
-	// the milliseconds (like UNIX or JAVA)
-	private long ms;
-	// the ns offset (to millisecond)
-	private long nsOffset;
+   // the UNIX timestamp
+   private long sec;
+   // the ns
+   private long ns;
 
-	public Timestamp() {
-	}
+   public Timestamp() {}
 
-	public Timestamp(long ms, long nsOffset) {
-		this.ms = ms;
-		this.nsOffset = nsOffset;
-	}
+   public Timestamp(long sec, long ns) {
+      this.sec = sec;
+      this.ns = ns;
+   }
 
-	public Timestamp(long[] values) {
-		this.ms = values[0];
-		this.nsOffset = values[1];
-	}
+   // public Timestamp(long[] values) {
+   // this.ms = values[0];
+   // this.nsOffset = values[1];
+   // }
 
-	public long getMs() {
-		return ms;
-	}
+   public long getSec() {
+      return sec;
+   }
 
-	public void setMs(long ms) {
-		this.ms = ms;
-	}
+   public void setSec(long sec) {
+      this.sec = sec;
+   }
 
-	@JsonProperty("ns_offset")
-	public long getNsOffset() {
-		return nsOffset;
-	}
+   public long getNs() {
+      return ns;
+   }
 
-	@JsonProperty("ns_offset")
-	public void setNsOffset(long ns) {
-		this.nsOffset = ns;
-	}
+   public void setNs(long ns) {
+      this.ns = ns;
+   }
 
-	@JsonIgnore
-	public long[] getAsLongArray() {
-		return new long[] { ms, nsOffset };
-	}
+   @JsonIgnore
+   public long[] getAsLongArray() {
+      return new long[] {sec, ns};
+   }
 
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + (int) (ms ^ (ms >>> 32));
-		result = prime * result + (int) (nsOffset ^ (nsOffset >>> 32));
-		return result;
-	}
+   @JsonIgnore
+   public long getMillis() {
+      // sec into millis + millis part of ns
+      return sec * 1000L + (ns / 1000000L);
+   }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Timestamp other = (Timestamp) obj;
-		if (ms != other.ms)
-			return false;
-		if (nsOffset != other.nsOffset)
-			return false;
-		return true;
-	}
+   @JsonIgnore
+   public double getMillisFractional() {
+      long num = ns / 1000000L * 1000000L;
+      return (ns - num) / 1000000.0;
+   }
 
-	@Override
-	public String toString() {
-		return ms + " " + nsOffset;
-	}
+   @Override
+   public int hashCode() {
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + (int) (sec ^ (sec >>> 32));
+      result = prime * result + (int) (ns ^ (ns >>> 32));
+      return result;
+   }
+
+   @Override
+   public boolean equals(Object obj) {
+      if (this == obj)
+         return true;
+      if (obj == null)
+         return false;
+      if (getClass() != obj.getClass())
+         return false;
+      Timestamp other = (Timestamp) obj;
+      if (sec != other.sec)
+         return false;
+      if (ns != other.ns)
+         return false;
+      return true;
+   }
+
+   @Override
+   public String toString() {
+      return sec + "." + ns;
+   }
 }
