@@ -32,20 +32,22 @@ public class BitshuffleLZ4Compressor implements Compressor {
 			throw new RuntimeException("The number of bytes does not correspond to the number of elements, i.e. '" + (srcLen - srcOff) + "' is not dividable by '" + nBytesPerElement + "'");
 		}
 		nElements /= nBytesPerElement;
-		int blockSize = 0;
+		int blockSize = compressor.getDefaultBlockSize(nBytesPerElement);
 
 		int uncompressedSize = srcLen;
 		int maxCompressedSize = compressor.maxCompressedLength(nElements, nBytesPerElement, blockSize);
-		int startCompressedPos = destOff + 8;
+		int startCompressedPos = destOff + 8 + 4;
 		int totalSize = startCompressedPos + maxCompressedSize;
 
 		ByteBuffer dest = bufferAllocator.apply(totalSize);
 
 		dest.order(sizeOrder);
 		dest.position(destOff);
-		dest.putInt(uncompressedSize);
-		dest.position(destOff + 4);
-		dest.putInt(blockSize);
+		// use same format as HDF5 filters (see:
+		// https://www.hdfgroup.org/services/filters.html and
+		// https://www.hdfgroup.org/services/filters/HDF5_LZ4.pdf)
+		dest.putLong(0, uncompressedSize);
+		dest.putInt(8, blockSize * nBytesPerElement);
 		dest.order(src.order());
 
 		// set position for compressed part (after header info)
@@ -65,18 +67,21 @@ public class BitshuffleLZ4Compressor implements Compressor {
 			nBytesPerElement = 1;
 		}
 
-		int startCompressedPos = 8;
+		int startCompressedPos = 8 + 4;
 
 		// make sure src does not change in any way (also not temporary)
 		int uncompressedSize;
 		int blockSize;
+		// use same format as HDF5 filters (see:
+		// https://www.hdfgroup.org/services/filters.html and
+		// https://www.hdfgroup.org/services/filters/HDF5_LZ4.pdf)
 		if (src.order() == sizeOrder) {
-			uncompressedSize = src.getInt(srcOff);
-			blockSize = src.getInt(srcOff + 4);
+			uncompressedSize = (int) src.getLong(srcOff);
+			blockSize = src.getInt(srcOff + 8) / nBytesPerElement;
 		} else {
 			ByteBuffer dub = src.duplicate().order(sizeOrder);
-			uncompressedSize = dub.getInt(srcOff);
-			blockSize = dub.getInt(srcOff + 4);
+			uncompressedSize = (int) dub.getLong(srcOff);
+			blockSize = dub.getInt(srcOff + 8) / nBytesPerElement;
 		}
 
 		int nElements = uncompressedSize;

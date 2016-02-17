@@ -24,14 +24,18 @@ public class LZ4Compressor implements Compressor {
 			IntFunction<ByteBuffer> bufferAllocator) {
 		int uncompressedSize = srcLen;
 		int maxCompressedSize = compressor.maxCompressedLength(uncompressedSize);
-		int startCompressedPos = destOff + 4;
+		int startCompressedPos = destOff + 8 + 4;
 		int totalSize = startCompressedPos + maxCompressedSize;
 
 		ByteBuffer dest = bufferAllocator.apply(totalSize);
 
 		dest.order(sizeOrder);
 		dest.position(destOff);
-		dest.putInt(uncompressedSize);
+		// use same format as HDF5 filters (see:
+		// https://www.hdfgroup.org/services/filters.html and
+		// https://www.hdfgroup.org/services/filters/HDF5_LZ4.pdf)
+		dest.putLong(0, uncompressedSize);
+		dest.putInt(8, uncompressedSize);
 		dest.order(src.order());
 
 		// set position for compressed part (after header info)
@@ -46,33 +50,39 @@ public class LZ4Compressor implements Compressor {
 		return dest;
 	}
 
-	protected ByteBuffer decompress(ByteBuffer src, int srcOff, ByteOrder sizeOrder, IntFunction<ByteBuffer> bufferAllocator) {
-		int startCompressedPos = 4;
+	protected ByteBuffer decompress(ByteBuffer src, int srcOff, ByteOrder sizeOrder,
+			IntFunction<ByteBuffer> bufferAllocator) {
+		int startCompressedPos = 8 + 4;
 
 		// make sure src does not change in any way (also not temporary)
 		int uncompressedSize;
-		if(src.order() == sizeOrder){
-		   uncompressedSize = src.getInt(srcOff);
-		}else{
-		   uncompressedSize = src.duplicate().order(sizeOrder).getInt(srcOff);
+		// use same format as HDF5 filters (see:
+		// https://www.hdfgroup.org/services/filters.html and
+		// https://www.hdfgroup.org/services/filters/HDF5_LZ4.pdf)
+		if (src.order() == sizeOrder) {
+			uncompressedSize = (int) src.getLong(srcOff);
+		} else {
+			uncompressedSize = (int) src.duplicate().order(sizeOrder).getLong(srcOff);
 		}
 
 		ByteBuffer dest = bufferAllocator.apply(uncompressedSize);
 		dest.order(src.order());
 
 		decompressor.decompress(src, srcOff + startCompressedPos, dest, 0, uncompressedSize);
-	    dest.position(0);
-	    dest.limit(uncompressedSize);
+		dest.position(0);
+		dest.limit(uncompressedSize);
 		return dest;
 	}
 
 	@Override
-	public ByteBuffer compressData(ByteBuffer src, int srcOff, int srcLen, int destOff, IntFunction<ByteBuffer> bufferAllocator, int nBytesPerElement) {
+	public ByteBuffer compressData(ByteBuffer src, int srcOff, int srcLen, int destOff,
+			IntFunction<ByteBuffer> bufferAllocator, int nBytesPerElement) {
 		return compress(src, srcOff, srcLen, src.order(), destOff, bufferAllocator);
 	}
 
 	@Override
-	public ByteBuffer decompressData(ByteBuffer src, int srcOff, IntFunction<ByteBuffer> bufferAllocator, int nBytesPerElement) {
+	public ByteBuffer decompressData(ByteBuffer src, int srcOff, IntFunction<ByteBuffer> bufferAllocator,
+			int nBytesPerElement) {
 		ByteBuffer dest = decompress(src, srcOff, src.order(), bufferAllocator);
 		return dest;
 	}
