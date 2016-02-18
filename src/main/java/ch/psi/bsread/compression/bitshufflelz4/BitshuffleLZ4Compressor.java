@@ -32,20 +32,22 @@ public class BitshuffleLZ4Compressor implements Compressor {
 			throw new RuntimeException("The number of bytes does not correspond to the number of elements, i.e. '" + (srcLen - srcOff) + "' is not dividable by '" + nBytesPerElement + "'");
 		}
 		nElements /= nBytesPerElement;
-		int blockSize = 0;
+		int blockSize = compressor.getDefaultBlockSize(nBytesPerElement);
 
 		int uncompressedSize = srcLen;
 		int maxCompressedSize = compressor.maxCompressedLength(nElements, nBytesPerElement, blockSize);
-		int startCompressedPos = destOff + 8;
+		int startCompressedPos = destOff + 8 + 4;
 		int totalSize = startCompressedPos + maxCompressedSize;
 
 		ByteBuffer dest = bufferAllocator.apply(totalSize);
 
 		dest.order(sizeOrder);
 		dest.position(destOff);
-		dest.putInt(uncompressedSize);
-		dest.position(destOff + 4);
-		dest.putInt(blockSize);
+		// use same format as HDF5 filters (see:
+		// https://www.hdfgroup.org/services/filters.html and
+		// https://www.hdfgroup.org/services/filters/HDF5_LZ4.pdf)
+		dest.putLong(destOff, uncompressedSize);
+		dest.putInt(destOff + 8, blockSize * nBytesPerElement);
 		dest.order(src.order());
 
 		// set position for compressed part (after header info)
@@ -65,18 +67,21 @@ public class BitshuffleLZ4Compressor implements Compressor {
 			nBytesPerElement = 1;
 		}
 
-		int startCompressedPos = 8;
+		int startCompressedPos = 8 + 4;
 
 		// make sure src does not change in any way (also not temporary)
 		int uncompressedSize;
 		int blockSize;
+		// use same format as HDF5 filters (see:
+		// https://www.hdfgroup.org/services/filters.html and
+		// https://www.hdfgroup.org/services/filters/HDF5_LZ4.pdf)
 		if (src.order() == sizeOrder) {
-			uncompressedSize = src.getInt(srcOff);
-			blockSize = src.getInt(srcOff + 4);
+			uncompressedSize = (int) src.getLong(srcOff);
+			blockSize = src.getInt(srcOff + 8) / nBytesPerElement;
 		} else {
 			ByteBuffer dub = src.duplicate().order(sizeOrder);
-			uncompressedSize = dub.getInt(srcOff);
-			blockSize = dub.getInt(srcOff + 4);
+			uncompressedSize = (int) dub.getLong(srcOff);
+			blockSize = dub.getInt(srcOff + 8) / nBytesPerElement;
 		}
 
 		int nElements = uncompressedSize;
@@ -96,18 +101,24 @@ public class BitshuffleLZ4Compressor implements Compressor {
 
 	@Override
 	public ByteBuffer compressData(ByteBuffer src, int srcOff, int srcLen, int destOff, IntFunction<ByteBuffer> bufferAllocator, int nBytesPerElement) {
-		return compress(src, srcOff, srcLen, src.order(), destOff, bufferAllocator, nBytesPerElement);
+		return compress(src, srcOff, srcLen, ByteOrder.BIG_ENDIAN, destOff, bufferAllocator, nBytesPerElement);
 	}
 
 	@Override
 	public ByteBuffer decompressData(ByteBuffer src, int srcOff, IntFunction<ByteBuffer> bufferAllocator, int nBytesPerElement) {
-		ByteBuffer dest = decompress(src, srcOff, src.order(), bufferAllocator, nBytesPerElement);
+		ByteBuffer dest = decompress(src, srcOff, ByteOrder.BIG_ENDIAN, bufferAllocator, nBytesPerElement);
 		return dest;
 	}
 
 	@Override
 	public int getDecompressedDataSize(ByteBuffer src, int srcOff) {
-		return src.getInt(srcOff);
+		if (src.order() == ByteOrder.BIG_ENDIAN) {
+			return (int) src.getLong(srcOff);
+		} else {
+			// make sure we do not modify src while other threads might also
+			// access it
+			return (int) src.duplicate().order(ByteOrder.BIG_ENDIAN).getLong(srcOff);
+		}
 	}
 
 	@Override
