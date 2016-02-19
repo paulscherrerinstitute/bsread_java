@@ -14,10 +14,10 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
-import ch.psi.bsread.allocator.ByteBufferAllocator;
 import ch.psi.bsread.allocator.HeaderReservingMsgAllocator;
 import ch.psi.bsread.converter.ByteConverter;
 import ch.psi.bsread.converter.MatlabByteConverter;
+import ch.psi.bsread.copy.common.allocator.ByteBufferAllocator;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 import ch.psi.bsread.impl.StandardPulseIdProvider;
 import ch.psi.bsread.message.ChannelConfig;

@@ -15,7 +15,7 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import ch.psi.bsread.impl.singleton.Deferred;
+import ch.psi.bsread.copy.common.singleton.Deferred;
 
 public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>> {
 

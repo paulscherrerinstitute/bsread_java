@@ -3,8 +3,8 @@ package ch.psi.bsread;
 import java.nio.ByteBuffer;
 import java.util.function.IntFunction;
 
-import ch.psi.bsread.allocator.ByteBufferAllocator;
-import ch.psi.bsread.allocator.ReuseByteBufferAllocator;
+import ch.psi.bsread.copy.common.allocator.ByteBufferAllocator;
+import ch.psi.bsread.copy.common.allocator.ReuseByteBufferAllocator;
 import ch.psi.bsread.message.DataHeader;
 
 public class ReceiverState {

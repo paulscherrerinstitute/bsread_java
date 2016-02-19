@@ -1,4 +1,4 @@
-package ch.psi.bsread.helper;
+package ch.psi.bsread.copy.common.helper;
 
 import java.nio.ByteBuffer;
 

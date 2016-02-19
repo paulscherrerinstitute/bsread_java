@@ -1,4 +1,4 @@
-package ch.psi.bsread.impl.singleton;
+package ch.psi.bsread.copy.common.singleton;
 
 import java.util.Objects;
 import java.util.function.Supplier;

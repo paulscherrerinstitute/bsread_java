@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ch.psi.bsread.allocator.ThreadLocalByteArrayAllocator;
+import ch.psi.bsread.copy.common.allocator.ThreadLocalByteArrayAllocator;
 
 public class ValueImpl<V> implements Value<V> {
 	private static final long serialVersionUID = -3889961098156334653L;

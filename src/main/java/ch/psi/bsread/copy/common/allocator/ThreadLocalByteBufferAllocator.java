@@ -1,4 +1,4 @@
-package ch.psi.bsread.allocator;
+package ch.psi.bsread.copy.common.allocator;
 
 import java.nio.ByteBuffer;
 import java.util.function.IntFunction;
