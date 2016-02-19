@@ -17,7 +17,7 @@ import zmq.Msg;
 
 import ch.psi.bsread.MessageExtractor;
 import ch.psi.bsread.converter.ValueConverter;
-import ch.psi.bsread.impl.singleton.Deferred;
+import ch.psi.bsread.copy.common.singleton.Deferred;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;

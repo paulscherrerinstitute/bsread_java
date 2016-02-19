@@ -13,8 +13,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
+import org.zeromq.ZMQ;
 
 import ch.psi.bsread.DataChannel;
 import ch.psi.bsread.Receiver;
@@ -22,6 +24,7 @@ import ch.psi.bsread.ReceiverConfig;
 import ch.psi.bsread.Sender;
 import ch.psi.bsread.SenderConfig;
 import ch.psi.bsread.TimeProvider;
+import ch.psi.bsread.basic.BasicReceiver;
 import ch.psi.bsread.converter.MatlabByteConverter;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 import ch.psi.bsread.impl.StandardPulseIdProvider;
@@ -33,6 +36,7 @@ import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Type;
 import ch.psi.bsread.message.Value;
 import ch.psi.bsread.message.commands.StopCommand;
+import ch.psi.bsread.monitors.ConnectionMonitor;
 
 public class StopCommandTest {
 	private MainHeader hookMainHeader;
@@ -238,6 +242,230 @@ public class StopCommandTest {
 
 		receiver.close();
 		sender.close();
+		executor.shutdown();
+	}
+	
+	@Test
+	public void testStop_03_PUSH_PULL() throws Exception {
+		SenderConfig senderConfig = 				new SenderConfig(
+				new StandardPulseIdProvider(),
+				new TimeProvider() {
+
+					@Override
+					public Timestamp getTime(long pulseId) {
+						return new Timestamp(pulseId, 0L);
+					}
+				},
+				new MatlabByteConverter());
+		senderConfig.setSocketType(ZMQ.PUSH);
+		senderConfig.setMonitor(new ConnectionMonitor());
+		Sender sender = new Sender(senderConfig);
+
+		// Register data sources ...
+		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Float64, 1, 0)) {
+			@Override
+			public Double getValue(long pulseId) {
+				return (double) pulseId;
+			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, 0L);
+			}
+		});
+		sender.bind();
+
+		ReceiverConfig<Object> config1 = new ReceiverConfig<Object>(false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+		config1.setSocketType(ZMQ.PULL);
+		Receiver<Object> receiver1 = new BasicReceiver(config1);
+		AtomicLong mainHeaderCounter1 = new AtomicLong();
+		AtomicLong dataHeaderCounter1 = new AtomicLong();
+		AtomicLong valCounter1 = new AtomicLong();
+		receiver1.addMainHeaderHandler(header -> mainHeaderCounter1.incrementAndGet());
+		receiver1.addDataHeaderHandler(header -> dataHeaderCounter1.incrementAndGet());
+		receiver1.addValueHandler(values -> valCounter1.incrementAndGet());
+		receiver1.connect();
+
+		ReceiverConfig<Object> config2 = new ReceiverConfig<Object>(false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+		config2.setSocketType(ZMQ.PULL);
+		Receiver<Object> receiver2 = new BasicReceiver(config2);
+		AtomicLong mainHeaderCounter2 = new AtomicLong();
+		AtomicLong dataHeaderCounter2 = new AtomicLong();
+		AtomicLong valCounter2 = new AtomicLong();
+		receiver2.addMainHeaderHandler(header -> mainHeaderCounter2.incrementAndGet());
+		receiver2.addDataHeaderHandler(header -> dataHeaderCounter2.incrementAndGet());
+		receiver2.addValueHandler(values -> valCounter2.incrementAndGet());
+		receiver2.connect();
+
+		TimeUnit.MILLISECONDS.sleep(500);
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		executor.execute(() -> {
+			try {
+				sender.send();
+				TimeUnit.MILLISECONDS.sleep(100);
+				sender.send();
+				TimeUnit.MILLISECONDS.sleep(100);
+				sender.send();
+				TimeUnit.MILLISECONDS.sleep(100);
+				sender.send();
+				TimeUnit.MILLISECONDS.sleep(100);
+				sender.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+			} 
+		});
+
+
+		Message<Object> message = receiver1.receive();
+		assertNotNull(message);
+		assertEquals(1, dataHeaderCounter1.getAndSet(0));
+		assertEquals(1, mainHeaderCounter1.getAndSet(0));
+		assertEquals(1, valCounter1.getAndSet(0));
+		
+		message = receiver2.receive();
+		assertNotNull(message);
+		assertEquals(1, dataHeaderCounter2.getAndSet(0));
+		assertEquals(1, mainHeaderCounter2.getAndSet(0));
+		assertEquals(1, valCounter2.getAndSet(0));
+		
+		message = receiver1.receive();
+		assertNotNull(message);
+		assertEquals(0, dataHeaderCounter1.getAndSet(0));
+		assertEquals(1, mainHeaderCounter1.getAndSet(0));
+		assertEquals(1, valCounter1.getAndSet(0));
+		
+		message = receiver2.receive();
+		assertNotNull(message);
+		assertEquals(0, dataHeaderCounter2.getAndSet(0));
+		assertEquals(1, mainHeaderCounter2.getAndSet(0));
+		assertEquals(1, valCounter2.getAndSet(0));
+		
+		message = receiver1.receive();
+		assertNull(message);
+		assertEquals(0, dataHeaderCounter1.getAndSet(0));
+		assertEquals(0, mainHeaderCounter1.getAndSet(0));
+		assertEquals(0, valCounter1.getAndSet(0));
+		
+		message = receiver2.receive();
+		assertNull(message);
+		assertEquals(0, dataHeaderCounter2.getAndSet(0));
+		assertEquals(0, mainHeaderCounter2.getAndSet(0));
+		assertEquals(0, valCounter2.getAndSet(0));
+		
+		// should not be necessary but check for exceptions etc.
+		receiver1.close();
+		receiver2.close();
+
+		executor.shutdown();
+	}
+	
+	@Test
+	public void testStop_03_PUB_SUB() throws Exception {
+		SenderConfig senderConfig = 				new SenderConfig(
+				new StandardPulseIdProvider(),
+				new TimeProvider() {
+
+					@Override
+					public Timestamp getTime(long pulseId) {
+						return new Timestamp(pulseId, 0L);
+					}
+				},
+				new MatlabByteConverter());
+		senderConfig.setSocketType(ZMQ.PUB);
+		senderConfig.setMonitor(new ConnectionMonitor());
+		Sender sender = new Sender(senderConfig);
+
+		// Register data sources ...
+		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Float64, 1, 0)) {
+			@Override
+			public Double getValue(long pulseId) {
+				return (double) pulseId;
+			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, 0L);
+			}
+		});
+		sender.bind();
+
+		ReceiverConfig<Object> config1 = new ReceiverConfig<Object>(false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+		config1.setSocketType(ZMQ.SUB);
+		Receiver<Object> receiver1 = new BasicReceiver(config1);
+		AtomicLong mainHeaderCounter1 = new AtomicLong();
+		AtomicLong dataHeaderCounter1 = new AtomicLong();
+		AtomicLong valCounter1 = new AtomicLong();
+		receiver1.addMainHeaderHandler(header -> mainHeaderCounter1.incrementAndGet());
+		receiver1.addDataHeaderHandler(header -> dataHeaderCounter1.incrementAndGet());
+		receiver1.addValueHandler(values -> valCounter1.incrementAndGet());
+		receiver1.connect();
+
+		ReceiverConfig<Object> config2 = new ReceiverConfig<Object>(false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+		config2.setSocketType(ZMQ.SUB);
+		Receiver<Object> receiver2 = new BasicReceiver(config2);
+		AtomicLong mainHeaderCounter2 = new AtomicLong();
+		AtomicLong dataHeaderCounter2 = new AtomicLong();
+		AtomicLong valCounter2 = new AtomicLong();
+		receiver2.addMainHeaderHandler(header -> mainHeaderCounter2.incrementAndGet());
+		receiver2.addDataHeaderHandler(header -> dataHeaderCounter2.incrementAndGet());
+		receiver2.addValueHandler(values -> valCounter2.incrementAndGet());
+		receiver2.connect();
+
+		TimeUnit.MILLISECONDS.sleep(500);
+		ExecutorService executor = Executors.newSingleThreadExecutor();
+		executor.execute(() -> {
+			try {
+				sender.send();
+				TimeUnit.MILLISECONDS.sleep(100);
+				sender.send();
+				TimeUnit.MILLISECONDS.sleep(100);
+				sender.close();
+			} catch (Exception e) {
+				e.printStackTrace();
+			} 
+		});
+
+
+		Message<Object> message = receiver1.receive();
+		assertNotNull(message);
+		assertEquals(1, dataHeaderCounter1.getAndSet(0));
+		assertEquals(1, mainHeaderCounter1.getAndSet(0));
+		assertEquals(1, valCounter1.getAndSet(0));
+		
+		message = receiver2.receive();
+		assertNotNull(message);
+		assertEquals(1, dataHeaderCounter2.getAndSet(0));
+		assertEquals(1, mainHeaderCounter2.getAndSet(0));
+		assertEquals(1, valCounter2.getAndSet(0));
+		
+		message = receiver1.receive();
+		assertNotNull(message);
+		assertEquals(0, dataHeaderCounter1.getAndSet(0));
+		assertEquals(1, mainHeaderCounter1.getAndSet(0));
+		assertEquals(1, valCounter1.getAndSet(0));
+		
+		message = receiver2.receive();
+		assertNotNull(message);
+		assertEquals(0, dataHeaderCounter2.getAndSet(0));
+		assertEquals(1, mainHeaderCounter2.getAndSet(0));
+		assertEquals(1, valCounter2.getAndSet(0));
+		
+		message = receiver1.receive();
+		assertNull(message);
+		assertEquals(0, dataHeaderCounter1.getAndSet(0));
+		assertEquals(0, mainHeaderCounter1.getAndSet(0));
+		assertEquals(0, valCounter1.getAndSet(0));
+		
+		message = receiver2.receive();
+		assertNull(message);
+		assertEquals(0, dataHeaderCounter2.getAndSet(0));
+		assertEquals(0, mainHeaderCounter2.getAndSet(0));
+		assertEquals(0, valCounter2.getAndSet(0));
+		
+		// should not be necessary but check for exceptions etc.
+		receiver1.close();
+		receiver2.close();
+
 		executor.shutdown();
 	}
 

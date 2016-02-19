@@ -1,5 +1,6 @@
 package ch.psi.bsread.monitors;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -12,6 +13,12 @@ import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+
+import ch.psi.bsread.SenderConfig;
+import ch.psi.bsread.message.commands.StopCommand;
+
+import zmq.Msg;
 import zmq.SocketBase;
 import zmq.ZError;
 import zmq.ZMQ;
@@ -23,12 +30,17 @@ public class ConnectionMonitor implements Monitor {
 	private ExecutorService executor = Executors.newSingleThreadExecutor();
 	private AtomicInteger connectionCounter = new AtomicInteger();
 	private List<IntConsumer> handlers = new ArrayList<>();
+	private SocketBase socket;
+	private SenderConfig senderConfig;
 
 	public ConnectionMonitor() {
 	}
 
 	@Override
-	public void start(Context context, SocketBase socket, String monitorItentifier) {
+	public void start(Context context, SocketBase socket, SenderConfig senderConfig, String monitorItentifier) {
+		this.socket = socket;
+		this.senderConfig = senderConfig;
+
 		executor.execute(() -> {
 			String address = "inproc://" + monitorItentifier;
 			Socket monitorSock = null;
@@ -78,6 +90,25 @@ public class ConnectionMonitor implements Monitor {
 
 	@Override
 	public void stop() {
+		try {
+			String stopCommandStr = senderConfig.getObjectMapper().writeValueAsString(new StopCommand());
+			byte[] stopCommandByte = stopCommandStr.getBytes(StandardCharsets.UTF_8);
+			Msg msg = new Msg(stopCommandByte);
+
+			int nrOfStopMsgs = 1;
+			if (senderConfig.getSocketType() == ZMQ.ZMQ_PUSH) {
+				nrOfStopMsgs = connectionCounter.get();
+			}
+
+			for (int i = 0; i < nrOfStopMsgs; ++i) {
+				// Receivers can react on it or not (see
+				// ReceiverConfig.keepListeningOnStop)
+				socket.send(msg, ZMQ.ZMQ_NOBLOCK);
+			}
+		} catch (JsonProcessingException e) {
+			LOGGER.warn("Could not send stop command.", e);
+		}
+
 		executor.shutdown();
 	}
 

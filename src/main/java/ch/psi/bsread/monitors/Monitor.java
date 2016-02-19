@@ -4,6 +4,8 @@ import java.util.UUID;
 
 import org.zeromq.ZMQ.Context;
 
+import ch.psi.bsread.SenderConfig;
+
 import zmq.SocketBase;
 
 // see https://github.com/zeromq/jeromq/blob/master/src/test/java/zmq/TestMonitor.java or
@@ -15,9 +17,10 @@ public interface Monitor {
     * 
     * @param context The Context
     * @param socket The SocketBase
+    * @param senderConfig The configuration of the sender
     */
-   default void start(Context context, SocketBase socket) {
-      this.start(context, socket, UUID.randomUUID().toString());
+   default void start(Context context, SocketBase socket, SenderConfig senderConfig) {
+      this.start(context, socket, senderConfig, UUID.randomUUID().toString());
    }
 
    /**
@@ -25,9 +28,10 @@ public interface Monitor {
     * 
     * @param context The Context
     * @param socket The SocketBase
+    * @param senderConfig The configuration of the sender
     * @param monitorItentifier An identifier of the monitor
     */
-   void start(Context context, SocketBase socket, String monitorItentifier);
+   void start(Context context, SocketBase socket, SenderConfig senderConfig, String monitorItentifier);
 
    /**
     * Stops monitoring

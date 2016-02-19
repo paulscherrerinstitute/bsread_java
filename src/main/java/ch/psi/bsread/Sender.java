@@ -17,7 +17,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 
 import ch.psi.bsread.command.Command;
 import ch.psi.bsread.compression.Compression;
-import ch.psi.bsread.helper.ByteBufferHelper;
+import ch.psi.bsread.copy.common.helper.ByteBufferHelper;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
@@ -64,7 +64,7 @@ public class Sender {
 
 		Monitor monitor = senderConfig.getMonitor();
 		if (monitor != null) {
-			monitor.start(context, socket.base());
+			monitor.start(context, socket.base(), senderConfig);
 		}
 
 		this.socket.bind(address);
