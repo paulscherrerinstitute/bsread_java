@@ -23,6 +23,7 @@ import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Type;
 import ch.psi.bsread.monitors.Monitor;
+import ch.psi.bsread.monitors.MonitorConfig;
 
 public class Sender {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Sender.class.getName());
@@ -64,7 +65,7 @@ public class Sender {
 
 		Monitor monitor = senderConfig.getMonitor();
 		if (monitor != null) {
-			monitor.start(context, socket.base(), senderConfig);
+			monitor.start(new MonitorConfig(context, socket.base(), senderConfig.getObjectMapper(), senderConfig.getSocketType()));
 		}
 
 		this.socket.bind(address);
