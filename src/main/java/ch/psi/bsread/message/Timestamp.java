@@ -54,7 +54,12 @@ public class Timestamp implements Serializable {
    @JsonIgnore
    public double getMillisFractional() {
       long num = ns / 1000000L * 1000000L;
-      return (ns - num) / 1000000.0;
+      return (ns - num) * 0.000001;
+   }
+   
+   @JsonIgnore
+   public double getSecFractional() {
+	   return ns * 0.000000001;
    }
 
    @Override
