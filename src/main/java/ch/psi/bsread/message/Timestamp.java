@@ -92,9 +92,9 @@ public class Timestamp implements Serializable {
       return sec + "." + ns;
    }
    
-   public static ofMillis(long millis){
-	   
+   public static Timestamp ofMillis(long millis){
+	   long sec = millis / 1000L;
+	   long ns = (millis - (sec * 1000L)) * 1000000L;
+	   return new Timestamp(sec, ns);
    }
-   
-   public static get
 }
