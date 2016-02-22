@@ -132,10 +132,10 @@ public class CompressionTest {
 			value = hookValues.get(channelName);
 			javaVal = value.getValue(Double.class);
 			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-			assertEquals(0, value.getTimestamp().getNsOffset());
-			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+			assertEquals(0, value.getTimestamp().getNs());
+			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 		}
 
 		sendFuture.cancel(true);
@@ -225,10 +225,10 @@ public class CompressionTest {
 			value = hookValues.get(channelName);
 			javaVal = value.getValue(Double.class);
 			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-			assertEquals(0, value.getTimestamp().getNsOffset());
-			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+			assertEquals(0, value.getTimestamp().getNs());
+			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 		}
 
 		sendFuture.cancel(true);
@@ -347,10 +347,10 @@ public class CompressionTest {
 				value = hookValues.get(channelName);
 				javaVal = value.getValue(Double.class);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 
 				channelName = "ABC_100";
 				assertTrue(hookValues.containsKey(channelName));
@@ -358,10 +358,10 @@ public class CompressionTest {
 				value = hookValues.get(channelName);
 				javaVal = value.getValue(Double.class);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			} else {
 				assertEquals(1, hookValues.size());
 				assertEquals(i, hookMainHeader.getPulseId());
@@ -371,10 +371,10 @@ public class CompressionTest {
 				value = hookValues.get(channelName);
 				javaVal = value.getValue(Double.class);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			}
 		}
 
@@ -493,10 +493,10 @@ public class CompressionTest {
 				value = hookValues.get(channelName);
 				javaVal = value.getValue(Double.class);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 
 				channelName = "ABC_100";
 				assertTrue(hookValues.containsKey(channelName));
@@ -504,10 +504,10 @@ public class CompressionTest {
 				value = hookValues.get(channelName);
 				javaVal = value.getValue(Double.class);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			} else {
 				assertEquals(1, hookValues.size());
 				assertEquals(i, hookMainHeader.getPulseId());
@@ -517,10 +517,10 @@ public class CompressionTest {
 				value = hookValues.get(channelName);
 				javaVal = value.getValue(Double.class);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			}
 		}
 
@@ -641,10 +641,10 @@ public class CompressionTest {
 				assertArrayEquals(
 						new double[] { (double) hookMainHeader.getPulseId(), 0, (double) hookMainHeader.getPulseId() - 1 },
 						javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 
 				channelName = "ABC_100";
 				assertTrue(hookValues.containsKey(channelName));
@@ -654,10 +654,10 @@ public class CompressionTest {
 				assertArrayEquals(
 						new double[] { (double) hookMainHeader.getPulseId() + 1, 0, (double) hookMainHeader.getPulseId() },
 						javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			} else {
 				assertEquals(1, hookValues.size());
 				assertEquals(i, hookMainHeader.getPulseId());
@@ -669,10 +669,10 @@ public class CompressionTest {
 				assertArrayEquals(
 						new double[] { (double) hookMainHeader.getPulseId() + 1, 0, (double) hookMainHeader.getPulseId() },
 						javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			}
 		}
 
