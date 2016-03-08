@@ -23,11 +23,6 @@ public class Timestamp implements Serializable {
       this.setNs(ns);
    }
 
-   // public Timestamp(long[] values) {
-   // this.ms = values[0];
-   // this.nsOffset = values[1];
-   // }
-
    public long getSec() {
       return sec;
    }
@@ -56,23 +51,6 @@ public class Timestamp implements Serializable {
    public long[] getAsLongArray() {
       return new long[] {sec, ns};
    }
-
-   // @JsonIgnore
-   // public long getMillis() {
-   // // sec into millis + millis part of ns
-   // return sec * 1000L + (ns / 1000000L);
-   // }
-   //
-   // @JsonIgnore
-   // public double getMillisFractional() {
-   // long num = ns / 1000000L * 1000000L;
-   // return (ns - num) * 0.000001;
-   // }
-   //
-   // @JsonIgnore
-   // public double getSecFractional() {
-   // return ns * 0.000000001;
-   // }
 
    @Override
    public int hashCode() {
