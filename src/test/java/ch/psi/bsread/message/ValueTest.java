@@ -26,9 +26,9 @@ public class ValueTest {
 		assertEquals(intVal, copy.getValue().asIntBuffer().get());
 
 		buf = ByteBuffer.allocate(Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
-		intVal = Integer.MAX_VALUE / 5;
+		intVal = Integer.MAX_VALUE / 5000;
 		buf.asIntBuffer().put(intVal);
-		val = new ValueImpl<>(buf, new Timestamp(Long.MAX_VALUE / 2, 459));
+		val = new ValueImpl<>(buf, new Timestamp(Long.MAX_VALUE / 2000, 459));
 
 		copy = SerializationHelper.copy(val);
 		assertEquals(val.getTimestamp().getSec(), copy.getTimestamp().getSec());
@@ -40,9 +40,9 @@ public class ValueTest {
 		assertEquals(intVal, copy.getValue().asIntBuffer().get());
 
 		buf = ByteBuffer.allocateDirect(Integer.BYTES).order(ByteOrder.BIG_ENDIAN);
-		intVal = Integer.MAX_VALUE / 9;
+		intVal = Integer.MAX_VALUE / 9000;
 		buf.asIntBuffer().put(intVal);
-		val = new ValueImpl<>(buf, new Timestamp(Long.MAX_VALUE / 5, 459));
+		val = new ValueImpl<>(buf, new Timestamp(Long.MAX_VALUE / 5000, 459));
 
 		copy = SerializationHelper.copy(val);
 		assertEquals(val.getTimestamp().getSec(), copy.getTimestamp().getSec());
@@ -54,9 +54,9 @@ public class ValueTest {
 		assertEquals(intVal, copy.getValue().asIntBuffer().get());
 
 		buf = ByteBuffer.allocateDirect(Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
-		intVal = Integer.MAX_VALUE / 2;
+		intVal = Integer.MAX_VALUE / 2000;
 		buf.asIntBuffer().put(intVal);
-		val = new ValueImpl<>(buf, new Timestamp(Long.MAX_VALUE / 3, 459));
+		val = new ValueImpl<>(buf, new Timestamp(Long.MAX_VALUE / 3000, 459));
 
 		copy = SerializationHelper.copy(val);
 		assertEquals(val.getTimestamp().getSec(), copy.getTimestamp().getSec());
