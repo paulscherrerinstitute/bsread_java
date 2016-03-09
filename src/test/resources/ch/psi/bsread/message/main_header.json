@@ -1,7 +1,7 @@
 {
   "global_timestamp": {
-    "ms": 1427960013647,
-    "ns_offset": 0
+    "sec": 1427960013,
+    "ns": 647000543
   },
   "hash": "50acfbebaa30924c857740b5a4d770b5",
   "htype": "bsr_m-1.1",

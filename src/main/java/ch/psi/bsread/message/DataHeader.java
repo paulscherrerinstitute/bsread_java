@@ -10,9 +10,9 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 @JsonInclude(Include.NON_DEFAULT)
 public class DataHeader implements Serializable {
 
-   private static final long serialVersionUID = -6607503120756755170L;
+	private static final long serialVersionUID = -6607503120756755170L;
 
-   public static final String DEFAULT_HTYPE = "bsr_d-1.0";
+	public static final String DEFAULT_HTYPE = "bsr_d-1.1";
 
 	@JsonInclude
 	private String htype = DEFAULT_HTYPE;
@@ -40,7 +40,7 @@ public class DataHeader implements Serializable {
 	public void setChannels(List<ChannelConfig> channels) {
 		this.channels = channels;
 	}
-	
+
 	public void addChannel(ChannelConfig channel) {
 		this.channels.add(channel);
 	}

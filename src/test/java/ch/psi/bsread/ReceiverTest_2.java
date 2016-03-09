@@ -150,10 +150,10 @@ public class ReceiverTest_2 {
 			value = hookValues.get(channelName);
 			javaVal = value.getValue(double[].class);
 			assertEquals(size, javaVal.length);
-			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-			assertEquals(0, value.getTimestamp().getNsOffset());
-			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+			assertEquals(0, value.getTimestamp().getNs());
+			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 		}
 
 		sendFuture.cancel(true);

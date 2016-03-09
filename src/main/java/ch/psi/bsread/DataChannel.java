@@ -18,7 +18,7 @@ public abstract class DataChannel<T> implements TimeProvider {
 	public abstract T getValue(long pulseId);
 
 	public Timestamp getTime(long pulseId) {
-		return new Timestamp(System.currentTimeMillis(), 0L);
+		return Timestamp.ofMillis(System.currentTimeMillis());
 	}
 
 }

@@ -51,7 +51,7 @@ public class CompressionTest {
 	}
 
 	@Test
-	public void testDataHeaderCompressionOneChannel10Hz() {
+	public void testDataHeaderCompressionOneChannel10Hz() throws InterruptedException {
 		Sender sender = new Sender(
 				new SenderConfig(
 						new StandardPulseIdProvider(),
@@ -86,6 +86,7 @@ public class CompressionTest {
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
 		receiver.connect();
+		TimeUnit.MILLISECONDS.sleep(100);
 
 		// We schedule faster as we want to have the testcase execute faster
 		ScheduledFuture<?> sendFuture =
@@ -132,10 +133,10 @@ public class CompressionTest {
 			value = hookValues.get(channelName);
 			javaVal = value.getValue(Double.class);
 			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-			assertEquals(0, value.getTimestamp().getNsOffset());
-			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+			assertEquals(0, value.getTimestamp().getNs());
+			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 		}
 
 		sendFuture.cancel(true);
@@ -144,7 +145,7 @@ public class CompressionTest {
 	}
 
 	@Test
-	public void testDataCompressionOneChannel10Hz() {
+	public void testDataCompressionOneChannel10Hz() throws InterruptedException {
 		Sender sender = new Sender(
 				new SenderConfig(
 						new StandardPulseIdProvider(),
@@ -179,6 +180,7 @@ public class CompressionTest {
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
 		receiver.connect();
+		TimeUnit.MILLISECONDS.sleep(100);
 
 		// We schedule faster as we want to have the testcase execute faster
 		ScheduledFuture<?> sendFuture =
@@ -225,10 +227,10 @@ public class CompressionTest {
 			value = hookValues.get(channelName);
 			javaVal = value.getValue(Double.class);
 			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-			assertEquals(0, value.getTimestamp().getNsOffset());
-			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+			assertEquals(0, value.getTimestamp().getNs());
+			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 		}
 
 		sendFuture.cancel(true);
@@ -237,7 +239,7 @@ public class CompressionTest {
 	}
 
 	@Test
-	public void testDataHeaderCompressionTwoChannel100HzAnd10Hz() {
+	public void testDataHeaderCompressionTwoChannel100HzAnd10Hz() throws InterruptedException {
 		ByteOrder[] byteOrders = new ByteOrder[] { ByteOrder.LITTLE_ENDIAN, ByteOrder.BIG_ENDIAN };
 		for (ByteOrder byteOrder : byteOrders) {
 			for (Compression compression : Compression.values()) {
@@ -246,7 +248,7 @@ public class CompressionTest {
 		}
 	}
 
-	protected void testDataHeaderCompressionTwoChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) {
+	protected void testDataHeaderCompressionTwoChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) throws InterruptedException {
 		Sender sender = new Sender(
 				new SenderConfig(
 						new StandardPulseIdProvider(),
@@ -294,6 +296,7 @@ public class CompressionTest {
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
 		receiver.connect();
+		TimeUnit.MILLISECONDS.sleep(100);
 
 		// We schedule faster as we want to have the testcase execute faster
 		ScheduledFuture<?> sendFuture =
@@ -347,10 +350,10 @@ public class CompressionTest {
 				value = hookValues.get(channelName);
 				javaVal = value.getValue(Double.class);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 
 				channelName = "ABC_100";
 				assertTrue(hookValues.containsKey(channelName));
@@ -358,10 +361,10 @@ public class CompressionTest {
 				value = hookValues.get(channelName);
 				javaVal = value.getValue(Double.class);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			} else {
 				assertEquals(1, hookValues.size());
 				assertEquals(i, hookMainHeader.getPulseId());
@@ -371,10 +374,10 @@ public class CompressionTest {
 				value = hookValues.get(channelName);
 				javaVal = value.getValue(Double.class);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			}
 		}
 
@@ -384,7 +387,7 @@ public class CompressionTest {
 	}
 
 	@Test
-	public void testDataCompressionTwoChannel100HzAnd10Hz() {
+	public void testDataCompressionTwoChannel100HzAnd10Hz() throws InterruptedException {
 		ByteOrder[] byteOrders = new ByteOrder[] { ByteOrder.LITTLE_ENDIAN, ByteOrder.BIG_ENDIAN };
 		for (ByteOrder byteOrder : byteOrders) {
 			for (Compression compression : Compression.values()) {
@@ -393,7 +396,7 @@ public class CompressionTest {
 		}
 	}
 
-	protected void testDataCompressionTwoChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) {
+	protected void testDataCompressionTwoChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) throws InterruptedException {
 		Sender sender = new Sender(
 				new SenderConfig(
 						new StandardPulseIdProvider(),
@@ -440,6 +443,7 @@ public class CompressionTest {
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
 		receiver.connect();
+		TimeUnit.MILLISECONDS.sleep(100);
 
 		// We schedule faster as we want to have the testcase execute faster
 		ScheduledFuture<?> sendFuture =
@@ -493,10 +497,10 @@ public class CompressionTest {
 				value = hookValues.get(channelName);
 				javaVal = value.getValue(Double.class);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 
 				channelName = "ABC_100";
 				assertTrue(hookValues.containsKey(channelName));
@@ -504,10 +508,10 @@ public class CompressionTest {
 				value = hookValues.get(channelName);
 				javaVal = value.getValue(Double.class);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			} else {
 				assertEquals(1, hookValues.size());
 				assertEquals(i, hookMainHeader.getPulseId());
@@ -517,10 +521,10 @@ public class CompressionTest {
 				value = hookValues.get(channelName);
 				javaVal = value.getValue(Double.class);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			}
 		}
 
@@ -530,7 +534,7 @@ public class CompressionTest {
 	}
 
 	@Test
-	public void testDataCompressionTwoArrayChannel100HzAnd10Hz() {
+	public void testDataCompressionTwoArrayChannel100HzAnd10Hz() throws InterruptedException {
 		ByteOrder[] byteOrders = new ByteOrder[] { ByteOrder.LITTLE_ENDIAN, ByteOrder.BIG_ENDIAN };
 		for (ByteOrder byteOrder : byteOrders) {
 			for (Compression compression : Compression.values()) {
@@ -539,7 +543,7 @@ public class CompressionTest {
 		}
 	}
 
-	protected void testDataCompressionTwoArrayChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) {
+	protected void testDataCompressionTwoArrayChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) throws InterruptedException {
 		Sender sender = new Sender(
 				new SenderConfig(
 						new StandardPulseIdProvider(),
@@ -586,6 +590,7 @@ public class CompressionTest {
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
 		receiver.connect();
+		TimeUnit.MILLISECONDS.sleep(100);
 
 		// We schedule faster as we want to have the testcase execute faster
 		ScheduledFuture<?> sendFuture =
@@ -641,10 +646,10 @@ public class CompressionTest {
 				assertArrayEquals(
 						new double[] { (double) hookMainHeader.getPulseId(), 0, (double) hookMainHeader.getPulseId() - 1 },
 						javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 
 				channelName = "ABC_100";
 				assertTrue(hookValues.containsKey(channelName));
@@ -654,10 +659,10 @@ public class CompressionTest {
 				assertArrayEquals(
 						new double[] { (double) hookMainHeader.getPulseId() + 1, 0, (double) hookMainHeader.getPulseId() },
 						javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			} else {
 				assertEquals(1, hookValues.size());
 				assertEquals(i, hookMainHeader.getPulseId());
@@ -669,10 +674,10 @@ public class CompressionTest {
 				assertArrayEquals(
 						new double[] { (double) hookMainHeader.getPulseId() + 1, 0, (double) hookMainHeader.getPulseId() },
 						javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getMs());
-				assertEquals(0, value.getTimestamp().getNsOffset());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getMs());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNsOffset());
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			}
 		}
 

@@ -7,6 +7,6 @@ public class StandardTimeProvider implements TimeProvider {
 
 	@Override
 	public Timestamp getTime(long pulseId) {
-		return new Timestamp(System.currentTimeMillis(), 0);
+		return Timestamp.ofMillis(System.currentTimeMillis());
 	}
 }
