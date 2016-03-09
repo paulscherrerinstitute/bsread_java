@@ -2,12 +2,16 @@ package ch.psi.bsread.message.commands;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ.Socket;
+
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 
 import ch.psi.bsread.IReceiver;
 import ch.psi.bsread.ReceiverConfig;
@@ -64,14 +68,22 @@ public class MainHeaderCommand extends MainHeader implements Command {
 						ByteBuffer tmpBuf = compression.getCompressor().decompressDataHeader(ByteBuffer.wrap(dataHeaderBytes), receiverState.getDataHeaderAllocator());
 						dataHeaderBytes = ByteBufferHelper.copyToByteArray(tmpBuf);
 					}
-					dataHeader = receiverConfig.getObjectMapper().readValue(dataHeaderBytes, DataHeader.class);
-					receiverState.setDataHeader(dataHeader);
-					receiverState.setDataHeaderHash(getHash());
 
-					if (receiverConfig.isParallelProcessing()) {
-						receiver.getDataHeaderHandlers().parallelStream().forEach(handler -> handler.accept(dataHeader));
-					} else {
-						receiver.getDataHeaderHandlers().forEach(handler -> handler.accept(dataHeader));
+					try {
+						dataHeader = receiverConfig.getObjectMapper().readValue(dataHeaderBytes, DataHeader.class);
+						receiverState.setDataHeader(dataHeader);
+						receiverState.setDataHeaderHash(getHash());
+
+						if (receiverConfig.isParallelProcessing()) {
+							receiver.getDataHeaderHandlers().parallelStream().forEach(handler -> handler.accept(dataHeader));
+						} else {
+							receiver.getDataHeaderHandlers().forEach(handler -> handler.accept(dataHeader));
+						}
+					} catch (JsonParseException | JsonMappingException e) {
+						LOGGER.error("Could not parse DataHeader.", e);
+						String dataHeaderJson = new String(dataHeaderBytes, StandardCharsets.UTF_8);
+						LOGGER.info("DataHeader was '{}'", dataHeaderJson);
+						throw new RuntimeException("Could not parse DataHeader.", e);
 					}
 				}
 			}
