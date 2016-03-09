@@ -8,7 +8,7 @@ import ch.psi.bsread.copy.common.allocator.ReuseByteBufferAllocator;
 import ch.psi.bsread.message.DataHeader;
 
 public class ReceiverState {
-	private String dataHeaderHash = "";
+	private String dataHeaderHash = "unknown";
 	private DataHeader dataHeader = null;
 	private final IntFunction<ByteBuffer> dataHeaderAllocator = new ReuseByteBufferAllocator(new ByteBufferAllocator());
 
