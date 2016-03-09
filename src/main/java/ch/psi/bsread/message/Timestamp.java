@@ -48,6 +48,11 @@ public class Timestamp implements Serializable {
    }
 
    @JsonIgnore
+   public long getAsMillis() {
+      return sec * 1000L + ns / 1000000L;
+   }
+   
+   @JsonIgnore
    public long[] getAsLongArray() {
       return new long[] {sec, ns};
    }
