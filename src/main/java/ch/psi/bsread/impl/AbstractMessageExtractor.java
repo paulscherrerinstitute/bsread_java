@@ -35,7 +35,7 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMessageExtractor.class.getName());
 
    private static final Deferred<ExecutorService> DEFAULT_CONVERSION_SERVICE = new Deferred<>(
-         () -> Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors())));
+         () -> Executors.newFixedThreadPool(2 * Runtime.getRuntime().availableProcessors()));
 
    private DataHeader dataHeader;
    private ValueConverter valueConverter;
