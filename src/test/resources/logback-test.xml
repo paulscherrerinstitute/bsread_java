@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <jmxConfigurator />
+    
 	<appender name="consoleAppender" class="ch.qos.logback.core.ConsoleAppender">
 		<encoder>
 			<Pattern>.%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg %n
@@ -11,7 +13,7 @@
 	</appender>
 
 	<logger name="ch.psi.bsread" additivity="false">
-	    <level value="INFO" />
+	    <level value="DEBUG" />
 		<appender-ref ref="consoleAppender" />
 	</logger>
 

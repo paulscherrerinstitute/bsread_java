@@ -38,6 +38,8 @@ public class MainHeaderCommand extends MainHeader implements Command {
 		Socket socket = receiver.getSocket();
 		DataHeader dataHeader;
 
+		LOGGER.debug("Receive pulse-id '{}'.", getPulseId());
+
 		try {
 			if (!getHtype().startsWith(MainHeaderCommand.HTYPE_VALUE_NO_VERSION)) {
 				String message =
