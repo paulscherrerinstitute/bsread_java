@@ -98,12 +98,6 @@ public class Sender {
 			mainHeader.setDataHeaderCompression(senderConfig.getDataHeaderCompression());
 
 			try {
-				// Send header
-				socket.send(senderConfig.getObjectMapper().writeValueAsBytes(mainHeader), ZMQ.NOBLOCK | ZMQ.SNDMORE);
-
-				// Send data header
-				socket.send(dataHeaderBytes, ZMQ.NOBLOCK | ZMQ.SNDMORE);
-
 				if (LOGGER.isDebugEnabled()) {
 					LOGGER.debug(
 							"Send message for pulse '{}' and channels '{}'.",
@@ -111,6 +105,12 @@ public class Sender {
 							channels.stream().map(dataChannel -> dataChannel.getConfig().getName())
 									.collect(Collectors.joining(", ")));
 				}
+
+				// Send header
+				socket.send(senderConfig.getObjectMapper().writeValueAsBytes(mainHeader), ZMQ.NOBLOCK | ZMQ.SNDMORE);
+
+				// Send data header
+				socket.send(dataHeaderBytes, ZMQ.NOBLOCK | ZMQ.SNDMORE);
 
 				// Send data
 				int lastSendMore;

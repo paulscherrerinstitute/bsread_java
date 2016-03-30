@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -76,8 +77,9 @@ public class ReceiverTest {
 		receiver.connect();
 
 		// We schedule faster as we want to have the testcase execute faster
+		ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
 		ScheduledFuture<?> sendFuture =
-				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
+				scheduledExecutor.scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
 		Message<ByteBuffer> message = null;
@@ -129,6 +131,7 @@ public class ReceiverTest {
 		}
 
 		sendFuture.cancel(true);
+		scheduledExecutor.shutdown();
 		receiver.close();
 		sender.close();
 	}
@@ -170,8 +173,9 @@ public class ReceiverTest {
 		receiver.connect();
 
 		// We schedule faster as we want to have the testcase execute faster
+		ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
 		ScheduledFuture<?> sendFuture =
-				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
+				scheduledExecutor.scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
 		Message<ByteBuffer> message = null;
@@ -223,6 +227,7 @@ public class ReceiverTest {
 		}
 
 		sendFuture.cancel(true);
+		scheduledExecutor.shutdown();
 		receiver.close();
 		sender.close();
 	}
@@ -264,8 +269,9 @@ public class ReceiverTest {
 		receiver.connect();
 
 		// We schedule faster as we want to have the testcase execute faster
+		ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
 		ScheduledFuture<?> sendFuture =
-				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
+				scheduledExecutor.scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
 		Message<ByteBuffer> message = null;
@@ -317,6 +323,7 @@ public class ReceiverTest {
 		}
 
 		sendFuture.cancel(true);
+		scheduledExecutor.shutdown();
 		receiver.close();
 		sender.close();
 	}
@@ -369,8 +376,9 @@ public class ReceiverTest {
 		receiver.connect();
 
 		// We schedule faster as we want to have the testcase execute faster
+		ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
 		ScheduledFuture<?> sendFuture =
-				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
+				scheduledExecutor.scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
 		Message<ByteBuffer> message = null;
@@ -456,6 +464,7 @@ public class ReceiverTest {
 		}
 
 		sendFuture.cancel(true);
+		scheduledExecutor.shutdown();
 		receiver.close();
 		sender.close();
 	}
@@ -513,8 +522,9 @@ public class ReceiverTest {
 		receiver.connect();
 
 		// We schedule faster as we want to have the testcase execute faster
+		ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
 		ScheduledFuture<?> sendFuture =
-				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
+				scheduledExecutor.scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
 
 		// Receive data
 		Message<ByteBuffer> message = null;
@@ -576,6 +586,7 @@ public class ReceiverTest {
 		}
 
 		sendFuture.cancel(true);
+		scheduledExecutor.shutdown();
 		receiver.close();
 		sender.close();
 	}

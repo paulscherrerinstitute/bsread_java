@@ -37,6 +37,7 @@ public class MainHeaderCommand extends MainHeader implements Command {
 		ReceiverState receiverState = receiver.getReceiverState();
 		Socket socket = receiver.getSocket();
 		DataHeader dataHeader;
+		boolean dataHeaderChanged = false;
 
 		LOGGER.debug("Receive pulse-id '{}'.", getPulseId());
 
@@ -49,7 +50,7 @@ public class MainHeaderCommand extends MainHeader implements Command {
 				throw new RuntimeException(message);
 			}
 
-			if (receiverConfig.isParallelProcessing()) {
+			if (receiverConfig.isParallelHandlerProcessing()) {
 				receiver.getMainHeaderHandlers().parallelStream().forEach(handler -> handler.accept(this));
 			} else {
 				receiver.getMainHeaderHandlers().forEach(handler -> handler.accept(this));
@@ -64,6 +65,7 @@ public class MainHeaderCommand extends MainHeader implements Command {
 					socket.base().recv(0);
 				}
 				else {
+					dataHeaderChanged = true;
 					byte[] dataHeaderBytes = socket.recv();
 					Compression compression = getDataHeaderCompression();
 					if (compression != null) {
@@ -76,7 +78,7 @@ public class MainHeaderCommand extends MainHeader implements Command {
 						receiverState.setDataHeader(dataHeader);
 						receiverState.setDataHeaderHash(getHash());
 
-						if (receiverConfig.isParallelProcessing()) {
+						if (receiverConfig.isParallelHandlerProcessing()) {
 							receiver.getDataHeaderHandlers().parallelStream().forEach(handler -> handler.accept(dataHeader));
 						} else {
 							receiver.getDataHeaderHandlers().forEach(handler -> handler.accept(dataHeader));
@@ -102,6 +104,7 @@ public class MainHeaderCommand extends MainHeader implements Command {
 			}
 			// Receiver data
 			Message<V> message = receiverConfig.getMessageExtractor().extractMessage(socket, this);
+			message.setDataHeaderChanged(dataHeaderChanged);
 			Map<String, Value<V>> values = message.getValues();
 
 			if (socket.hasReceiveMore()) {
@@ -115,10 +118,9 @@ public class MainHeaderCommand extends MainHeader implements Command {
 			}
 			// notify hooks with complete values
 			if (!values.isEmpty()) {
-				if (receiverConfig.isParallelProcessing()) {
+				if (receiverConfig.isParallelHandlerProcessing()) {
 					receiver.getValueHandlers().parallelStream().forEach(handler -> handler.accept(values));
-				}
-				else {
+				} else {
 					receiver.getValueHandlers().forEach(handler -> handler.accept(values));
 				}
 			}
