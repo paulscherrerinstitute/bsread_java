@@ -20,4 +20,11 @@ public interface MessageExtractor<V> extends Consumer<DataHeader> {
 	 * @return Message The extracted Message
 	 */
 	Message<V> extractMessage(Socket socket, MainHeader mainHeader);
+
+	/**
+	 * Sets the ReceiverConfig.
+	 * 
+	 * @param config The ReceiverConfig
+	 */
+	public void setReceiverConfig(ReceiverConfig<V> config);
 }

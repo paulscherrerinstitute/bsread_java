@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
+import org.zeromq.ZMQException;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -57,6 +58,7 @@ public class Receiver<V> implements IReceiver<V> {
 	@Override
 	public void connect(String address) {
 		if (isConnected.compareAndSet(false, true)) {
+			this.receiverConfig.setAddress(address);
 			this.context = ZMQ.context(1);
 			this.socket = this.context.socket(receiverConfig.getSocketType());
 			this.socket.setRcvHWM(receiverConfig.getHighWaterMark());
@@ -74,10 +76,12 @@ public class Receiver<V> implements IReceiver<V> {
 	@Override
 	public void close() {
 		if (isConnected.compareAndSet(true, false)) {
+			LOGGER.info("Receiver '{}' stopping...", this.receiverConfig.getAddress());
 			socket.close();
 			socket = null;
 			context.close();
 			context = null;
+			LOGGER.info("Receiver '{}' stopped.", this.receiverConfig.getAddress());
 		}
 	}
 
@@ -125,7 +129,14 @@ public class Receiver<V> implements IReceiver<V> {
 				if (nrOfAlignmentTrys > receiverConfig.getAlignmentRetries()) {
 					throw new RuntimeException("Could not extract Command within max retries.");
 				}
-			}
+			}catch (ZMQException e) {
+                if (e.getErrorCode () == ZMQ.Error.ETERM.getCode ()) {
+                    LOGGER.debug("ZMQ stream stopped/closed due to '{}'. This is considered as a valid state to stop sending.",
+                            e.getMessage());
+                }else{
+                	throw e;
+                }
+            }
 		}
 
 		return message;

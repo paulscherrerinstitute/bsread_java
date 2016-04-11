@@ -5,13 +5,18 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
@@ -19,6 +24,7 @@ import org.zeromq.ZMQ;
 
 import ch.psi.bsread.basic.BasicReceiver;
 import ch.psi.bsread.compression.Compression;
+import ch.psi.bsread.converter.ByteConverter;
 import ch.psi.bsread.converter.MatlabByteConverter;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 import ch.psi.bsread.impl.StandardPulseIdProvider;
@@ -123,14 +129,15 @@ public class ReceiverTest_2 {
 			assertTrue(hookMainHeader.getPulseId() == i);
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
+                Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+				ChannelConfig channelConfig = configIter.next();
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(1, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
 				assertEquals(Type.Float64, channelConfig.getType());
 				assertArrayEquals(new int[] { size }, channelConfig.getShape());
 
-				channelConfig = hookDataHeader.getChannels().get(1);
+				channelConfig = configIter.next();
 				assertEquals("ABB", channelConfig.getName());
 				assertEquals(1, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
@@ -403,6 +410,230 @@ public class ReceiverTest_2 {
 		receiver2.close();
 
 		sender.close();
+	}
+
+	private static final int nrOfReceivers = 15;//2 * Runtime.getRuntime().availableProcessors();
+
+//	@Test
+	public void testManyReceivers_Push_Pull() throws InterruptedException {
+		ByteConverter byteConverter = new MatlabByteConverter();
+		SenderConfig senderConfig = new SenderConfig(
+				new StandardPulseIdProvider(),
+				new TimeProvider() {
+
+					@Override
+					public Timestamp getTime(long pulseId) {
+						return new Timestamp(pulseId, 0);
+					}
+
+				},
+				byteConverter);
+		senderConfig.setSocketType(ZMQ.PUSH);
+
+		Sender sender = new Sender(senderConfig);
+
+		// Register data sources ...
+		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABC", Type.Int64, new int[] { 1 }, 1, 0,
+				ChannelConfig.ENCODING_LITTLE_ENDIAN)) {
+			@Override
+			public Long getValue(long pulseId) {
+				return pulseId;
+			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, pulseId);
+			}
+		});
+		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABCD", Type.Int64, new int[] { 1 }, 1, 0,
+				ChannelConfig.ENCODING_BIG_ENDIAN)) {
+			@Override
+			public Long getValue(long pulseId) {
+				return pulseId + 1;
+			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId + 1, pulseId + 1);
+			}
+		});
+		sender.bind();
+
+		AtomicBoolean sending = new AtomicBoolean(true);
+		AtomicBoolean disconnected = new AtomicBoolean(false);
+		AtomicLong receiveCounter = new AtomicLong();
+		AtomicLong sendCounter = new AtomicLong();
+		AtomicLong disconnectedSendCounter = new AtomicLong();
+		ExecutorService receiverExecutor = Executors.newFixedThreadPool(nrOfReceivers);
+		List<Receiver<Object>> receivers = new ArrayList<>(nrOfReceivers);
+		for (int i = 0; i < nrOfReceivers; ++i) {
+			final int j = i;
+			System.out.println("Create Receiver " + j);
+			ReceiverConfig<Object> config = new ReceiverConfig<Object>(new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+			config.setSocketType(ZMQ.PULL);
+			Receiver<Object> receiver = new BasicReceiver(config);
+			receivers.add(receiver);
+			receiver.connect();
+
+			receiverExecutor.execute(() -> {
+				while (!disconnected.get())
+					try {
+						receiver.receive();
+						if (!disconnected.get()) {
+							System.out.println("Receiver " + j + " receives");
+							receiveCounter.incrementAndGet();
+						}
+					} catch (Exception e) {
+						System.out.println("Receiver " + j + " " + e.getMessage());
+					}
+			});
+		}
+
+		// We schedule faster as we want to have the testcase execute faster
+		ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
+		ScheduledFuture<?> sendFuture =
+				scheduledExecutor.scheduleAtFixedRate(() -> {
+					if (sending.get()) {
+						sender.send();
+						if (!disconnected.get()) {
+							sendCounter.incrementAndGet();
+						} else {
+							disconnectedSendCounter.incrementAndGet();
+						}
+					}
+				}, 0, 100, TimeUnit.MILLISECONDS);
+
+		// Receive data
+		TimeUnit.SECONDS.sleep(10);
+		sending.set(false);
+		TimeUnit.SECONDS.sleep(1);
+		disconnected.set(true);
+		int counter = 0;
+		for (Receiver<Object> receiver : receivers) {
+			System.out.println("Close receiver "+(counter++));
+			receiver.close();
+		}
+		sending.set(true);
+		TimeUnit.SECONDS.sleep(10);
+		receiverExecutor.shutdown();
+		TimeUnit.SECONDS.sleep(1);
+		sendFuture.cancel(true);
+		scheduledExecutor.shutdown();
+		sender.close();
+
+		assertEquals(sendCounter.get(), receiveCounter.get());
+		assertTrue(disconnectedSendCounter.get() > 0);
+	}
+	
+//	@Test
+	public void testManyReceivers_Pub_Sub() throws InterruptedException {
+		ByteConverter byteConverter = new MatlabByteConverter();
+		SenderConfig senderConfig = new SenderConfig(
+				new StandardPulseIdProvider(),
+				new TimeProvider() {
+
+					@Override
+					public Timestamp getTime(long pulseId) {
+						return new Timestamp(pulseId, 0);
+					}
+
+				},
+				byteConverter);
+		senderConfig.setSocketType(ZMQ.PUB);
+
+		Sender sender = new Sender(senderConfig);
+
+		// Register data sources ...
+		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABC", Type.Int64, new int[] { 1 }, 1, 0,
+				ChannelConfig.ENCODING_LITTLE_ENDIAN)) {
+			@Override
+			public Long getValue(long pulseId) {
+				return pulseId;
+			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId, pulseId);
+			}
+		});
+		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABCD", Type.Int64, new int[] { 1 }, 1, 0,
+				ChannelConfig.ENCODING_BIG_ENDIAN)) {
+			@Override
+			public Long getValue(long pulseId) {
+				return pulseId + 1;
+			}
+
+			@Override
+			public Timestamp getTime(long pulseId) {
+				return new Timestamp(pulseId + 1, pulseId + 1);
+			}
+		});
+		sender.bind();
+
+		AtomicBoolean sending = new AtomicBoolean(true);
+		AtomicBoolean disconnected = new AtomicBoolean(false);
+		AtomicLong receiveCounter = new AtomicLong();
+		AtomicLong sendCounter = new AtomicLong();
+		AtomicLong disconnectedSendCounter = new AtomicLong();
+		ExecutorService receiverExecutor = Executors.newFixedThreadPool(nrOfReceivers);
+		List<Receiver<Object>> receivers = new ArrayList<>(nrOfReceivers);
+		for (int i = 0; i < nrOfReceivers; ++i) {
+			final int j = i;
+			System.out.println("Create Receiver " + j);
+			ReceiverConfig<Object> config = new ReceiverConfig<Object>(new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+			config.setSocketType(ZMQ.SUB);
+			Receiver<Object> receiver = new BasicReceiver(config);
+			receivers.add(receiver);
+			receiver.connect();
+
+			receiverExecutor.execute(() -> {
+				while (!disconnected.get())
+					try {
+						receiver.receive();
+						if (!disconnected.get()) {
+							System.out.println("Receiver " + j + " receives");
+							receiveCounter.incrementAndGet();
+						}
+					} catch (Exception e) {
+						System.out.println("Receiver " + j + " " + e.getMessage());
+					}
+			});
+		}
+
+		// We schedule faster as we want to have the testcase execute faster
+		ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
+		ScheduledFuture<?> sendFuture =
+				scheduledExecutor.scheduleAtFixedRate(() -> {
+					if (sending.get()) {
+						sender.send();
+						if (!disconnected.get()) {
+							sendCounter.incrementAndGet();
+						} else {
+							disconnectedSendCounter.incrementAndGet();
+						}
+					}
+				}, 0, 100, TimeUnit.MILLISECONDS);
+
+		// Receive data
+		TimeUnit.SECONDS.sleep(10);
+		sending.set(false);
+		TimeUnit.SECONDS.sleep(1);
+		disconnected.set(true);
+		int counter = 0;
+		for (Receiver<Object> receiver : receivers) {
+			System.out.println("Close receiver "+(counter++));
+			receiver.close();
+		}
+		sending.set(true);
+		TimeUnit.SECONDS.sleep(10);
+		receiverExecutor.shutdown();
+		TimeUnit.SECONDS.sleep(1);
+		sendFuture.cancel(true);
+		scheduledExecutor.shutdown();
+		sender.close();
+
+		assertEquals(sendCounter.get() * nrOfReceivers, receiveCounter.get());
+		assertTrue(disconnectedSendCounter.get() > 0);
 	}
 
 	private void setMainHeader(MainHeader header) {

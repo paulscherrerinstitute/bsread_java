@@ -10,6 +10,7 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Executors;
@@ -113,7 +114,7 @@ public class CompressionTest {
 			assertTrue("Is a 10Hz Channel", hookMainHeader.getPulseId() % 10 == 0);
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 1);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
+				ChannelConfig channelConfig = hookDataHeader.getChannels().iterator().next();
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
@@ -207,7 +208,7 @@ public class CompressionTest {
 			assertTrue("Is a 10Hz Channel", hookMainHeader.getPulseId() % 10 == 0);
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 1);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
+				ChannelConfig channelConfig = hookDataHeader.getChannels().iterator().next();
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
@@ -322,14 +323,15 @@ public class CompressionTest {
 
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
+                Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+				ChannelConfig channelConfig = configIter.next();
 				assertEquals("ABC_10", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
 				assertEquals(Type.Float64, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 
-				channelConfig = hookDataHeader.getChannels().get(1);
+				channelConfig = configIter.next();
 				assertEquals("ABC_100", channelConfig.getName());
 				assertEquals(1, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
@@ -469,14 +471,15 @@ public class CompressionTest {
 
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
+                Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+				ChannelConfig channelConfig = configIter.next();
 				assertEquals("ABC_10", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
 				assertEquals(Type.Float64, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 
-				channelConfig = hookDataHeader.getChannels().get(1);
+				channelConfig = configIter.next();
 				assertEquals("ABC_100", channelConfig.getName());
 				assertEquals(1, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
@@ -616,14 +619,15 @@ public class CompressionTest {
 
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
+				Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+				ChannelConfig channelConfig = configIter.next();
 				assertEquals("ABC_10", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
 				assertEquals(Type.Float64, channelConfig.getType());
 				assertArrayEquals(new int[] { 3 }, channelConfig.getShape());
 
-				channelConfig = hookDataHeader.getChannels().get(1);
+				channelConfig = configIter.next();
 				assertEquals("ABC_100", channelConfig.getName());
 				assertEquals(1, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());

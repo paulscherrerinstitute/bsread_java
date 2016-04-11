@@ -1,9 +1,11 @@
 package ch.psi.bsread.message;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
@@ -16,7 +18,7 @@ public class DataHeader implements Serializable {
 
 	@JsonInclude
 	private String htype = DEFAULT_HTYPE;
-	private List<ChannelConfig> channels = new ArrayList<>();
+	private Map<String, ChannelConfig> channelsMapping = new LinkedHashMap<>();
 
 	public DataHeader() {
 	}
@@ -33,15 +35,23 @@ public class DataHeader implements Serializable {
 		this.htype = htype;
 	}
 
-	public List<ChannelConfig> getChannels() {
-		return channels;
+	public Collection<ChannelConfig> getChannels() {
+		return channelsMapping.values();
 	}
 
-	public void setChannels(List<ChannelConfig> channels) {
-		this.channels = channels;
+	public void setChannels(Collection<ChannelConfig> channels) {
+		this.channelsMapping.clear();
+		for (ChannelConfig channelConfig : channels) {
+			this.channelsMapping.put(channelConfig.getName(), channelConfig);
+		}
 	}
 
 	public void addChannel(ChannelConfig channel) {
-		this.channels.add(channel);
+		this.channelsMapping.put(channel.getName(), channel);
+	}
+
+	@JsonIgnore
+	public Map<String, ChannelConfig> getChannelsMapping() {
+		return channelsMapping;
 	}
 }

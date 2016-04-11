@@ -11,6 +11,7 @@ public class Message<V> implements Serializable {
 	private static final long serialVersionUID = -5438664019568662396L;
 
 	private MainHeader mainHeader = null;
+	private boolean dataHeaderChanged = false;
 	private DataHeader dataHeader = null;
 
 	/**
@@ -18,20 +19,28 @@ public class Message<V> implements Serializable {
 	 */
 	private Map<String, Value<V>> values = new HashMap<>();
 
-	public void setDataHeader(DataHeader dataHeader) {
-		this.dataHeader = dataHeader;
-	}
-
-	public DataHeader getDataHeader() {
-		return dataHeader;
-	}
-
 	public void setMainHeader(MainHeader mainHeader) {
 		this.mainHeader = mainHeader;
 	}
 
 	public MainHeader getMainHeader() {
 		return mainHeader;
+	}
+	
+	public boolean isDataHeaderChanged() {
+		return dataHeaderChanged;
+	}
+
+	public void setDataHeaderChanged(boolean dataHeaderChanged) {
+		this.dataHeaderChanged = dataHeaderChanged;
+	}
+	
+	public void setDataHeader(DataHeader dataHeader) {
+		this.dataHeader = dataHeader;
+	}
+
+	public DataHeader getDataHeader() {
+		return dataHeader;
 	}
 
 	public void setValues(Map<String, Value<V>> values) {
