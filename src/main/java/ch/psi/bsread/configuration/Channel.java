@@ -87,6 +87,6 @@ public class Channel implements Serializable {
 
 	@Override
 	public String toString() {
-		return name + " " + modulo + " " + offset;
+		return name + " modulo: " + modulo + " offset: " + offset;
 	}
 }

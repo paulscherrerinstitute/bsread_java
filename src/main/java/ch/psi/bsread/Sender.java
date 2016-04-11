@@ -168,7 +168,7 @@ public class Sender {
 		DataHeader dataHeader = new DataHeader();
 
 		for (DataChannel<?> channel : channels) {
-			dataHeader.getChannels().add(channel.getConfig());
+			dataHeader.addChannel(channel.getConfig());
 		}
 
 		try {

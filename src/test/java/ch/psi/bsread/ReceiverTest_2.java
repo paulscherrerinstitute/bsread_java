@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -128,14 +129,15 @@ public class ReceiverTest_2 {
 			assertTrue(hookMainHeader.getPulseId() == i);
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
+                Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+				ChannelConfig channelConfig = configIter.next();
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(1, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
 				assertEquals(Type.Float64, channelConfig.getType());
 				assertArrayEquals(new int[] { size }, channelConfig.getShape());
 
-				channelConfig = hookDataHeader.getChannels().get(1);
+				channelConfig = configIter.next();
 				assertEquals("ABB", channelConfig.getName());
 				assertEquals(1, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());

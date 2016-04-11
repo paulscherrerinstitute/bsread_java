@@ -2,7 +2,7 @@ package ch.psi.bsread.impl;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.List;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -51,11 +51,11 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
 		message.setMainHeader(mainHeader);
 		message.setDataHeader(dataHeader);
 		Map<String, Value<V>> values = message.getValues();
-		List<ChannelConfig> channelConfigs = dataHeader.getChannels();
 
 		int i = 0;
-		for (; i < channelConfigs.size() && socket.hasReceiveMore(); ++i) {
-			final ChannelConfig currentConfig = channelConfigs.get(i);
+		final Iterator<ChannelConfig> configIter = dataHeader.getChannels().iterator();
+		while (configIter.hasNext() && socket.hasReceiveMore()) {
+			final ChannelConfig currentConfig = configIter.next();
 			final ByteOrder byteOrder = currentConfig.getByteOrder();
 
 			// # read data blob #
@@ -98,6 +98,8 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
 								receiverConfig.getValueConversionService());
 				value.setFutureValue(futureValue);
 			}
+			
+			++i;
 		}
 
 		// // ensure async conversion is completed
@@ -106,7 +108,7 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
 		// }
 
 		// Sanity check of value list
-		if (i != channelConfigs.size()) {
+		if (i != dataHeader.getChannels().size()) {
 			LOGGER.warn("Number of received values does not match number of channels.");
 		}
 

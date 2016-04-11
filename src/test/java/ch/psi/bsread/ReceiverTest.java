@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -102,7 +103,7 @@ public class ReceiverTest {
 			assertTrue("Is a 10Hz Channel", hookMainHeader.getPulseId() % 10 == 0);
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 1);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
+				ChannelConfig channelConfig = hookDataHeader.getChannels().iterator().next();
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
@@ -198,7 +199,7 @@ public class ReceiverTest {
 			assertTrue("Is a 0.1Hz Channel", hookMainHeader.getPulseId() % 1000 == 0);
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 1);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
+				ChannelConfig channelConfig = hookDataHeader.getChannels().iterator().next();
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(1000, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
@@ -294,7 +295,7 @@ public class ReceiverTest {
 			assertTrue("Is a 10Hz Channel with offset 1", (hookMainHeader.getPulseId() - 1) % 10 == 0);
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 1);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
+				ChannelConfig channelConfig = hookDataHeader.getChannels().iterator().next();
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo(), 0.00000000001);
 				assertEquals(1, channelConfig.getOffset());
@@ -400,14 +401,15 @@ public class ReceiverTest {
 
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
+                Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+				ChannelConfig channelConfig = configIter.next();
 				assertEquals("ABC_10", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
 				assertEquals(Type.Float64, channelConfig.getType());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 
-				channelConfig = hookDataHeader.getChannels().get(1);
+				channelConfig = configIter.next();
 				assertEquals("ABC_100", channelConfig.getName());
 				assertEquals(1, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
@@ -551,8 +553,8 @@ public class ReceiverTest {
 
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
-
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(0);
+                Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+				ChannelConfig channelConfig = configIter.next();
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
@@ -560,7 +562,7 @@ public class ReceiverTest {
 				assertEquals(ChannelConfig.ENCODING_LITTLE_ENDIAN, channelConfig.getEncoding());
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 
-				channelConfig = hookDataHeader.getChannels().get(1);
+				channelConfig = configIter.next();
 				assertEquals("ABCD", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
 				assertEquals(0, channelConfig.getOffset());
@@ -569,9 +571,8 @@ public class ReceiverTest {
 				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 			}
 
-			for (int j = 0; j < hookDataHeader.getChannels().size(); ++j) {
-				ChannelConfig channelConfig = hookDataHeader.getChannels().get(j);
-
+			int j = 0;
+			for (ChannelConfig channelConfig: hookDataHeader.getChannels()) {
 				Value<ByteBuffer> value = hookValues.get(channelConfig.getName());
 				Timestamp iocTimestamp = value.getTimestamp();
 				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getSec());
@@ -582,6 +583,8 @@ public class ReceiverTest {
 						hookMainHeader,
 						null);
 				assertEquals(hookMainHeader.getPulseId() + j, val.longValue());
+				
+				++j;
 			}
 		}
 

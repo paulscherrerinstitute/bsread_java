@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
  */
 
 public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
-	public static final int DEFAULT_DIRECT_THRESHOLD = 1024; // 1K
+	public static final int DEFAULT_DIRECT_THRESHOLD = Integer.MAX_VALUE; //1024; // 1K
 	public static final long DEFAULT_DIRECT_CLEAN_THRESHOLD = 8L * 1024L * 1024L * 1024L; // 8G
 	private static final DirectBufferCleaner DIRECT_BUFFER_CLEANER = new DirectBufferCleaner(DEFAULT_DIRECT_CLEAN_THRESHOLD);
 
