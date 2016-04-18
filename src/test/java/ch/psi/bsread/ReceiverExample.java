@@ -7,9 +7,9 @@ import ch.psi.bsread.message.Message;
 public class ReceiverExample {
 
 	public static void main(String[] args) {
-		Receiver<Object> receiver = new Receiver<Object>(new ReceiverConfig<Object>(new StandardMessageExtractor<Object>(new MatlabByteConverter())));
+		Receiver<Object> receiver = new Receiver<Object>(new ReceiverConfig<Object>("tcp://localhost:9000", new StandardMessageExtractor<Object>(new MatlabByteConverter())));
 
-		receiver.connect("tcp://localhost:9000");
+		receiver.connect();
 
 		// Its also possible to register callbacks for certain message parts.
 		// These callbacks are triggered within the receive() function

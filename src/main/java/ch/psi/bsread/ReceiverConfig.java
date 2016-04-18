@@ -1,5 +1,7 @@
 package ch.psi.bsread;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -11,10 +13,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.psi.bsread.command.Command;
 import ch.psi.bsread.command.PolymorphicCommandMixIn;
+import ch.psi.bsread.configuration.Channel;
 import ch.psi.bsread.copy.common.singleton.Deferred;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 
 public class ReceiverConfig<V> {
+	public static final String DEFAULT_RECEIVING_ADDRESS = "tcp://localhost:9999";
 	public static final int DEFAULT_HIGH_WATER_MARK = 100;
 	public static final int DEFAULT_ALIGNMENT_RETRIES = 20;
 
@@ -29,22 +33,34 @@ public class ReceiverConfig<V> {
 	private ObjectMapper objectMapper;
 	private final MsgAllocator msgAllocator;
 	private int socketType = ZMQ.PULL;
-	private String address;
+	private String address = DEFAULT_RECEIVING_ADDRESS;
 	private ExecutorService valueConversionService;
+	private Collection<Channel> requestedChannels;
 
 	public ReceiverConfig() {
-		this(new StandardMessageExtractor<V>());
+		this(DEFAULT_RECEIVING_ADDRESS);
 	}
 
 	public ReceiverConfig(MessageExtractor<V> messageExtractor) {
-		this(true, false, messageExtractor);
+		this(DEFAULT_RECEIVING_ADDRESS, messageExtractor);
 	}
 
-	public ReceiverConfig(boolean keepListeningOnStop, boolean parallelHandlerProcessing, MessageExtractor<V> messageExtractor) {
-		this(keepListeningOnStop, parallelHandlerProcessing, messageExtractor, null);
+	public ReceiverConfig(String address) {
+		this(address, new StandardMessageExtractor<V>());
 	}
 
-	public ReceiverConfig(boolean keepListeningOnStop, boolean parallelHandlerProcessing, MessageExtractor<V> messageExtractor, MsgAllocator msgAllocator) {
+	public ReceiverConfig(String address, MessageExtractor<V> messageExtractor) {
+		this(address, true, false, messageExtractor);
+	}
+
+	public ReceiverConfig(String address, boolean keepListeningOnStop, boolean parallelHandlerProcessing,
+			MessageExtractor<V> messageExtractor) {
+		this(address, keepListeningOnStop, parallelHandlerProcessing, messageExtractor, null);
+	}
+
+	public ReceiverConfig(String address, boolean keepListeningOnStop, boolean parallelHandlerProcessing,
+			MessageExtractor<V> messageExtractor, MsgAllocator msgAllocator) {
+		this.address = address;
 		this.keepListeningOnStop = keepListeningOnStop;
 		this.parallelHandlerProcessing = parallelHandlerProcessing;
 		this.msgAllocator = msgAllocator;
@@ -118,6 +134,21 @@ public class ReceiverConfig<V> {
 
 	public String getAddress() {
 		return address;
+	}
+
+	public Collection<Channel> getRequestedChannels() {
+		return this.requestedChannels;
+	}
+
+	public void setRequestedChannels(Collection<Channel> requestedChannels) {
+		this.requestedChannels = requestedChannels;
+	}
+
+	public void addRequestedChannel(Channel requestedChannel) {
+		if (this.requestedChannels == null) {
+			this.requestedChannels = new ArrayList<>();
+		}
+		this.requestedChannels.add(requestedChannel);
 	}
 
 	public ExecutorService getValueConversionService() {

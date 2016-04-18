@@ -18,12 +18,9 @@ public interface IReceiver<V> {
 	void close();
 
 	/**
-	 * Connects to an address
-	 * 
-	 * @param address
-	 *            The address
+	 * Establishes the connection.
 	 */
-	void connect(String address);
+	void connect();
 
 	/**
 	 * Drains the socket.

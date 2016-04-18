@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
@@ -46,7 +47,7 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
 	}
 
 	@Override
-	public Message<V> extractMessage(Socket socket, MainHeader mainHeader) {
+	public Message<V> extractMessage(Socket socket, MainHeader mainHeader, Set<String> requestedChannels) {
 		Message<V> message = new Message<V>();
 		message.setMainHeader(mainHeader);
 		message.setDataHeader(dataHeader);
@@ -56,49 +57,71 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
 		final Iterator<ChannelConfig> configIter = dataHeader.getChannels().iterator();
 		while (configIter.hasNext() && socket.hasReceiveMore()) {
 			final ChannelConfig currentConfig = configIter.next();
-			final ByteOrder byteOrder = currentConfig.getByteOrder();
 
-			// # read data blob #
-			// ##################
-			if (!socket.hasReceiveMore()) {
-				final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
-				LOGGER.error(errorMessage);
-				throw new RuntimeException(errorMessage);
+			if (requestedChannels == null || requestedChannels.contains(currentConfig.getName())) {
+				final ByteOrder byteOrder = currentConfig.getByteOrder();
+
+				// # read data blob #
+				// ##################
+				if (!socket.hasReceiveMore()) {
+					final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
+					LOGGER.error(errorMessage);
+					throw new RuntimeException(errorMessage);
+				}
+
+				final Msg valueMsg = receiveMsg(socket);
+				ByteBuffer receivedValueBytes = valueMsg.buf().order(byteOrder);
+
+				// # read timestamp blob #
+				// #######################
+				if (!socket.hasReceiveMore()) {
+					final String errorMessage =
+							String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
+					LOGGER.error(errorMessage);
+					throw new RuntimeException(errorMessage);
+				}
+				final Msg timeMsg = receiveMsg(socket);
+				ByteBuffer timestampBytes = timeMsg.buf().order(byteOrder);
+
+				// Create value object
+				if (receivedValueBytes != null && receivedValueBytes.remaining() > 0) {
+					final Value<V> value = getValue(currentConfig);
+					values.put(currentConfig.getName(), value);
+
+					// c-implementation uses a unsigned long (Json::UInt64,
+					// uint64_t) for time -> decided to ignore this here
+					final Timestamp iocTimestamp = value.getTimestamp();
+					iocTimestamp.setSec(timestampBytes.getLong(timestampBytes.position()));
+					iocTimestamp.setNs(timestampBytes.getLong(timestampBytes.position() + Long.BYTES));
+
+					// offload value conversion work from receiver thread
+					CompletableFuture<V> futureValue =
+							CompletableFuture.supplyAsync(
+									() -> valueConverter.getValue(receivedValueBytes, currentConfig, mainHeader, iocTimestamp),
+									receiverConfig.getValueConversionService());
+					value.setFutureValue(futureValue);
+				}
+			} else {
+				// # read data blob #
+				// ##################
+				if (!socket.hasReceiveMore()) {
+					final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
+					LOGGER.error(errorMessage);
+					throw new RuntimeException(errorMessage);
+				}
+				receiveMsg(socket);
+
+				// # read timestamp blob #
+				// #######################
+				if (!socket.hasReceiveMore()) {
+					final String errorMessage =
+							String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
+					LOGGER.error(errorMessage);
+					throw new RuntimeException(errorMessage);
+				}
+				receiveMsg(socket);
 			}
 
-			final Msg valueMsg = receiveMsg(socket);
-			ByteBuffer receivedValueBytes = valueMsg.buf().order(byteOrder);
-
-			// # read timestamp blob #
-			// #######################
-			if (!socket.hasReceiveMore()) {
-				final String errorMessage =
-						String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
-				LOGGER.error(errorMessage);
-				throw new RuntimeException(errorMessage);
-			}
-			final Msg timeMsg = receiveMsg(socket);
-			ByteBuffer timestampBytes = timeMsg.buf().order(byteOrder);
-
-			// Create value object
-			if (receivedValueBytes != null && receivedValueBytes.remaining() > 0) {
-				final Value<V> value = getValue(currentConfig);
-				values.put(currentConfig.getName(), value);
-
-				// c-implementation uses a unsigned long (Json::UInt64,
-				// uint64_t) for time -> decided to ignore this here
-				final Timestamp iocTimestamp = value.getTimestamp();
-				iocTimestamp.setSec(timestampBytes.getLong(timestampBytes.position()));
-				iocTimestamp.setNs(timestampBytes.getLong(timestampBytes.position() + Long.BYTES));
-
-				// offload value conversion work from receiver thread
-				CompletableFuture<V> futureValue =
-						CompletableFuture.supplyAsync(
-								() -> valueConverter.getValue(receivedValueBytes, currentConfig, mainHeader, iocTimestamp),
-								receiverConfig.getValueConversionService());
-				value.setFutureValue(futureValue);
-			}
-			
 			++i;
 		}
 
@@ -108,7 +131,7 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
 		// }
 
 		// Sanity check of value list
-		if (i != dataHeader.getChannels().size()) {
+		if (requestedChannels != null && i != requestedChannels.size() || requestedChannels == null && i != dataHeader.getChannels().size()) {
 			LOGGER.warn("Number of received values does not match number of channels.");
 		}
 

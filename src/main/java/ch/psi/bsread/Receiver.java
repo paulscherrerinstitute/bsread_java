@@ -28,7 +28,6 @@ import ch.psi.bsread.message.Value;
 
 public class Receiver<V> implements IReceiver<V> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
-	public static final String DEFAULT_RECEIVING_ADDRESS = "tcp://localhost:9999";
 
 	private AtomicBoolean isConnected = new AtomicBoolean();
 	private Context context;
@@ -52,20 +51,14 @@ public class Receiver<V> implements IReceiver<V> {
 	}
 
 	public void connect() {
-		connect(DEFAULT_RECEIVING_ADDRESS);
-	}
-
-	@Override
-	public void connect(String address) {
 		if (isConnected.compareAndSet(false, true)) {
-			this.receiverConfig.setAddress(address);
 			this.context = ZMQ.context(1);
 			this.socket = this.context.socket(receiverConfig.getSocketType());
 			this.socket.setRcvHWM(receiverConfig.getHighWaterMark());
 			if (receiverConfig.getMsgAllocator() != null) {
 				this.socket.base().setSocketOpt(zmq.ZMQ.ZMQ_MSG_ALLOCATOR, receiverConfig.getMsgAllocator());
 			}
-			this.socket.connect(address);
+			this.socket.connect(receiverConfig.getAddress());
 
 			if (ZMQ.SUB == receiverConfig.getSocketType()) {
 				this.socket.subscribe("".getBytes());

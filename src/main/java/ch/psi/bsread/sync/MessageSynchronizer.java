@@ -84,7 +84,7 @@ public class MessageSynchronizer<Msg> {
          }
       } else {
          LOGGER.info(
-               "Drop message of pulse '{}' from channel '{}' since it is bigger than the last send/deleted pulse '{}'",
+               "Drop message of pulse '{}' from channel '{}' since it is smaller than the last send/deleted pulse '{}'",
                pulseId, channelName, lastPulseId);
       }
 

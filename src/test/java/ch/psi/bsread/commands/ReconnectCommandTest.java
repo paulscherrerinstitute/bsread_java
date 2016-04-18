@@ -119,12 +119,12 @@ public class ReconnectCommandTest {
 		sender_03.addSource(channel_03);
 		sender_03.bind(sender_03_Addr);
 
-		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(new ReceiverConfig<ByteBuffer>(false, true, new StandardMessageExtractor<ByteBuffer>()));
+		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(new ReceiverConfig<ByteBuffer>(receiver_01_Addr, false, true, new StandardMessageExtractor<ByteBuffer>()));
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-		receiver.connect(receiver_01_Addr);
+		receiver.connect();
 
 		CountDownLatch latch = new CountDownLatch(1);
 		ExecutorService executor = Executors.newSingleThreadExecutor();

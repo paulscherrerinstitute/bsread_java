@@ -50,7 +50,8 @@ public class ReconnectCommand implements Command {
 		LOGGER.info("Reconnect to '{}'", address);
 
 		receiver.close();
-		receiver.connect(this.address);
+		receiver.getReceiverConfig().setAddress(this.address);
+		receiver.connect();
 
 		return null;
 	}

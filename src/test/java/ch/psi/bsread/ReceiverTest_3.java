@@ -40,14 +40,15 @@ public class ReceiverTest_3 {
 	private Map<String, ChannelConfig> channelConfigs = new HashMap<>();
 
 	protected Receiver<ByteBuffer> getReceiver() {
-		ReceiverConfig<ByteBuffer> config = 
+		ReceiverConfig<ByteBuffer> config =
 				new ReceiverConfig<>(
-				true, 
-				false, 
-				new StandardMessageExtractor<ByteBuffer>(), 
-				new HeaderReservingMsgAllocator(
-						12, 
-						new ByteBufferAllocator())
+						ReceiverConfig.DEFAULT_RECEIVING_ADDRESS,
+						true,
+						false,
+						new StandardMessageExtractor<ByteBuffer>(),
+						new HeaderReservingMsgAllocator(
+								12,
+								new ByteBufferAllocator())
 				);
 		return new Receiver<ByteBuffer>(config);
 	}
@@ -405,7 +406,7 @@ public class ReceiverTest_3 {
 
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
-                Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+				Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
 				ChannelConfig channelConfig = configIter.next();
 				assertEquals("ABC_10", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
@@ -555,7 +556,7 @@ public class ReceiverTest_3 {
 
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
-                Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+				Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
 				ChannelConfig channelConfig = configIter.next();
 				assertEquals("ABC", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
@@ -585,7 +586,7 @@ public class ReceiverTest_3 {
 						hookMainHeader,
 						null);
 				assertEquals(hookMainHeader.getPulseId() + j, val.longValue());
-				
+
 				++j;
 			}
 		}

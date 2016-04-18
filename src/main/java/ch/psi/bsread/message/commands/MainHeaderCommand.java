@@ -3,7 +3,10 @@ package ch.psi.bsread.message.commands;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -18,6 +21,7 @@ import ch.psi.bsread.ReceiverConfig;
 import ch.psi.bsread.ReceiverState;
 import ch.psi.bsread.command.Command;
 import ch.psi.bsread.compression.Compression;
+import ch.psi.bsread.configuration.Channel;
 import ch.psi.bsread.copy.common.helper.ByteBufferHelper;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
@@ -34,6 +38,30 @@ public class MainHeaderCommand extends MainHeader implements Command {
 	@Override
 	public <V> Message<V> process(IReceiver<V> receiver) {
 		ReceiverConfig<V> receiverConfig = receiver.getReceiverConfig();
+
+		Set<String> requestedChannels = null;
+		Collection<Channel> channelFilters = receiver.getReceiverConfig().getRequestedChannels();
+		if (channelFilters != null && !channelFilters.isEmpty()) {
+			requestedChannels = new HashSet<>();
+			for (Channel channelFilter : channelFilters) {
+				if (isRequestedChannel(this.getPulseId(), channelFilter)) {
+					requestedChannels.add(channelFilter.getName());
+				}
+			}
+		}
+
+		// check if there is something to process
+		if (requestedChannels != null && requestedChannels.isEmpty()) {
+			// stop here if channels are not requested
+			// this also means, that clients might not get updated on DataHeader
+			// changes (immediately). However, they stated that they are not
+			// interested in the current pulse-id (and if the filter is applied
+			// earlier in the chain (e.g. server) they would not be informed
+			// either.
+			receiver.drain();
+			return null;
+		}
+
 		ReceiverState receiverState = receiver.getReceiverState();
 		Socket socket = receiver.getSocket();
 		DataHeader dataHeader;
@@ -103,7 +131,7 @@ public class MainHeaderCommand extends MainHeader implements Command {
 						dataHeader.getChannels().stream().map(channel -> channel.getName()).collect(Collectors.joining(", ")));
 			}
 			// Receiver data
-			Message<V> message = receiverConfig.getMessageExtractor().extractMessage(socket, this);
+			Message<V> message = receiverConfig.getMessageExtractor().extractMessage(socket, this, requestedChannels);
 			message.setDataHeaderChanged(dataHeaderChanged);
 			Map<String, Value<V>> values = message.getValues();
 
@@ -130,5 +158,10 @@ public class MainHeaderCommand extends MainHeader implements Command {
 		} catch (IOException e) {
 			throw new RuntimeException("Unable to deserialize message", e);
 		}
+	}
+
+	private boolean isRequestedChannel(long pulseId, Channel channel) {
+		// Check if this channel sends data for given pulseId
+		return ((pulseId - channel.getOffset()) % channel.getModulo()) == 0;
 	}
 }

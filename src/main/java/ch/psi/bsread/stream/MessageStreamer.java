@@ -83,13 +83,13 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
       spliterator = new AsyncTransferSpliterator<>(intoPastElements, intoFutureElements, backpressure);
 
       ReceiverConfig<Value> receiverConfig =
-            new ReceiverConfig<Value>(false, true, new StandardMessageExtractor<Value>(valueConverter), msgAllocator);
+            new ReceiverConfig<Value>(address, false, true, new StandardMessageExtractor<Value>(valueConverter), msgAllocator);
       receiverConfig.setSocketType(socketType);
       receiver = new Receiver<Value>(receiverConfig);
       if (dataHeaderHandler != null) {
          receiver.addDataHeaderHandler(dataHeaderHandler);
       }
-      receiver.connect(address);
+      receiver.connect();
 
       executorFuture = executor.submit(() -> {
          try {

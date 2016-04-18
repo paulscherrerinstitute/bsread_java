@@ -1,5 +1,6 @@
 package ch.psi.bsread;
 
+import java.util.Set;
 import java.util.function.Consumer;
 
 import org.zeromq.ZMQ.Socket;
@@ -17,14 +18,17 @@ public interface MessageExtractor<V> extends Consumer<DataHeader> {
 	 *            The Socket to extract the Message
 	 * @param mainHeader
 	 *            The MainHeader
+	 * @param requestedChannels
+	 *            The requested channels of the stream (based on the filter)
 	 * @return Message The extracted Message
 	 */
-	Message<V> extractMessage(Socket socket, MainHeader mainHeader);
+	Message<V> extractMessage(Socket socket, MainHeader mainHeader, Set<String> requestedChannels);
 
 	/**
 	 * Sets the ReceiverConfig.
 	 * 
-	 * @param config The ReceiverConfig
+	 * @param config
+	 *            The ReceiverConfig
 	 */
 	public void setReceiverConfig(ReceiverConfig<V> config);
 }
