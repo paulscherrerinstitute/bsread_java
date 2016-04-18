@@ -9,8 +9,8 @@ import java.nio.ByteOrder;
 import net.jpountz.lz4.LZ4BlockInputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
 
+import ch.psi.bsread.common.allocator.ThreadLocalByteArrayAllocator;
 import ch.psi.bsread.compression.Compressor;
-import ch.psi.daq.common.allocator.ThreadLocalByteArrayAllocator;
 
 /**
  * Copy of ch.psi.daq.common.helper.ByteBufferHelper

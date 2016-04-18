@@ -8,13 +8,13 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

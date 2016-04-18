@@ -3,7 +3,6 @@ package ch.psi.bsread;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.zeromq.ZMQ;
 
@@ -13,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.psi.bsread.command.Command;
 import ch.psi.bsread.command.PolymorphicCommandMixIn;
+import ch.psi.bsread.common.concurrent.executor.CommonExecutors;
 import ch.psi.bsread.common.concurrent.singleton.Deferred;
 import ch.psi.bsread.configuration.Channel;
 import ch.psi.bsread.impl.StandardMessageExtractor;
@@ -22,8 +22,8 @@ public class ReceiverConfig<V> {
 	public static final int DEFAULT_HIGH_WATER_MARK = 100;
 	public static final int DEFAULT_ALIGNMENT_RETRIES = 20;
 
-	private static final Deferred<ExecutorService> DEFAULT_VALUE_CONVERSION_SERVICE = new Deferred<>(
-			() -> Executors.newFixedThreadPool(2 * Runtime.getRuntime().availableProcessors()));
+	private static final Deferred<ExecutorService> DEFAULT_VALUE_CONVERSION_SERVICE = new Deferred<ExecutorService>(
+			() -> CommonExecutors.newFixedThreadPool(2 * Runtime.getRuntime().availableProcessors(), 10000, "ZMQMessageConversion", CommonExecutors.DEFAULT_IS_MONITORING));
 
 	private boolean keepListeningOnStop;
 	private boolean parallelHandlerProcessing;
