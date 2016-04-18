@@ -1,10 +1,7 @@
-package ch.psi.bsread.copy.common.allocator;
+package ch.psi.bsread.common.allocator;
 
 import java.util.function.IntFunction;
 
-/**
- * Copy of ch.psi.daq.common.allocator.ReuseByteArrayAllocator
- */
 //TODO: Good idea? Could lead to huge blocks of non-freeable memory
 public class ReuseByteArrayAllocator implements IntFunction<byte[]> {
 	private IntFunction<byte[]> allocator;

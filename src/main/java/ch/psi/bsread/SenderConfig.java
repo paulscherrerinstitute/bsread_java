@@ -7,10 +7,10 @@ import org.zeromq.ZMQ;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import ch.psi.bsread.common.allocator.ByteBufferAllocator;
 import ch.psi.bsread.compression.Compression;
 import ch.psi.bsread.converter.ByteConverter;
 import ch.psi.bsread.converter.MatlabByteConverter;
-import ch.psi.bsread.copy.common.allocator.ByteBufferAllocator;
 import ch.psi.bsread.impl.StandardPulseIdProvider;
 import ch.psi.bsread.impl.StandardTimeProvider;
 import ch.psi.bsread.monitors.Monitor;

@@ -1,11 +1,8 @@
-package ch.psi.bsread.copy.common.allocator;
+package ch.psi.bsread.common.allocator;
 
 import java.nio.ByteBuffer;
 import java.util.function.IntFunction;
 
-/**
- * Copy of ch.psi.daq.common.allocator.ReuseByteBufferAllocator
- */
 //TODO: Good idea? Could lead to huge blocks of non-freeable memory
 public class ReuseByteBufferAllocator implements IntFunction<ByteBuffer> {
 	private IntFunction<ByteBuffer> allocator;

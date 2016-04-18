@@ -16,8 +16,8 @@ import org.zeromq.ZMQ.Socket;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 import ch.psi.bsread.command.Command;
+import ch.psi.bsread.common.helper.ByteBufferHelper;
 import ch.psi.bsread.compression.Compression;
-import ch.psi.bsread.copy.common.helper.ByteBufferHelper;
 import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;

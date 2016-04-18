@@ -11,8 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 
-import ch.psi.bsread.copy.common.allocator.ThreadLocalByteBufferAllocator;
-import ch.psi.bsread.copy.common.helper.ByteBufferHelper;
+import ch.psi.bsread.common.allocator.ThreadLocalByteBufferAllocator;
+import ch.psi.bsread.common.helper.ByteBufferHelper;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;

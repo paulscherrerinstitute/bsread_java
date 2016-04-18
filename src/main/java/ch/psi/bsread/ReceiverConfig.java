@@ -13,8 +13,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.psi.bsread.command.Command;
 import ch.psi.bsread.command.PolymorphicCommandMixIn;
+import ch.psi.bsread.common.concurrent.singleton.Deferred;
 import ch.psi.bsread.configuration.Channel;
-import ch.psi.bsread.copy.common.singleton.Deferred;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 
 public class ReceiverConfig<V> {

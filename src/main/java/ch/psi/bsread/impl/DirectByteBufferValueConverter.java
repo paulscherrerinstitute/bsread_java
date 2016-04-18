@@ -3,9 +3,9 @@ package ch.psi.bsread.impl;
 import java.nio.ByteBuffer;
 import java.util.function.IntFunction;
 
+import ch.psi.bsread.common.allocator.ByteBufferAllocator;
+import ch.psi.bsread.common.helper.ByteBufferHelper;
 import ch.psi.bsread.converter.ValueConverter;
-import ch.psi.bsread.copy.common.allocator.ByteBufferAllocator;
-import ch.psi.bsread.copy.common.helper.ByteBufferHelper;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;

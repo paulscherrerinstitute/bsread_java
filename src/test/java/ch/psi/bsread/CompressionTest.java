@@ -21,12 +21,12 @@ import java.util.stream.IntStream;
 
 import org.junit.Test;
 
+import ch.psi.bsread.common.allocator.ByteBufferAllocator;
 import ch.psi.bsread.compression.Compression;
 import ch.psi.bsread.compression.Compressor;
 import ch.psi.bsread.converter.AbstractByteConverter;
 import ch.psi.bsread.converter.MatlabByteConverter;
 import ch.psi.bsread.converter.ValueConverter;
-import ch.psi.bsread.copy.common.allocator.ByteBufferAllocator;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 import ch.psi.bsread.impl.StandardPulseIdProvider;
 import ch.psi.bsread.message.ChannelConfig;
