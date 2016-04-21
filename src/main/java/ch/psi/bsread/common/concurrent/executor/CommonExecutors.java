@@ -15,10 +15,10 @@ public class CommonExecutors {
 	public static final boolean DEFAULT_IS_MONITORING = true;
 	private static final RejectedExecutionHandler DEFAULT_HANDLER = new AbortPolicy();
 
-	public static ExecutorService newFixedThreadPool(int nThreads, int queueSize, String threadsNamePrefix,
+	public static ExecutorService newFixedThreadPool(int nThreads, int queueSize, String poolName,
 			boolean monitoring) {
 		final ThreadFactory threadFactory =
-				new BasicThreadFactory.Builder().namingPattern(threadsNamePrefix + "-%d").build();
+				new BasicThreadFactory.Builder().namingPattern(poolName + "-%d").build();
 
 		BlockingQueue<Runnable> workQueue;
 		if (queueSize > 0) {
@@ -29,9 +29,8 @@ public class CommonExecutors {
 
 		RejectedExecutionHandler rejectedExecutionHandler = DEFAULT_HANDLER;
 
-		if (monitoring) {
-			rejectedExecutionHandler = new MonitoringRejectedExecutionHandler(rejectedExecutionHandler, workQueue);
-		}
+		// always monitor rejections
+		rejectedExecutionHandler = new MonitoringRejectedExecutionHandler(rejectedExecutionHandler, poolName, workQueue);
 
 		ExecutorService executor =
 				new ThreadPoolExecutor(nThreads, nThreads, 0L, TimeUnit.MILLISECONDS, workQueue, threadFactory,
