@@ -1,15 +1,6 @@
 package ch.psi.bsread;
 
-import java.util.Collection;
-import java.util.Map;
-import java.util.function.Consumer;
-
 import org.zeromq.ZMQ.Socket;
-
-import ch.psi.bsread.message.DataHeader;
-import ch.psi.bsread.message.MainHeader;
-import ch.psi.bsread.message.Message;
-import ch.psi.bsread.message.Value;
 
 public interface ConfigIReceiver<V> extends IReceiver<V> {
 
