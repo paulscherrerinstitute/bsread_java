@@ -26,7 +26,7 @@ import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Value;
 
-public class Receiver<V> implements IReceiver<V> {
+public class Receiver<V> implements ConfigIReceiver<V> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
 
 	private AtomicBoolean isConnected = new AtomicBoolean();

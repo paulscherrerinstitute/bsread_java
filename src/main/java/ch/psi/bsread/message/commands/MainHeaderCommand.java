@@ -16,7 +16,7 @@ import org.zeromq.ZMQ.Socket;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
-import ch.psi.bsread.IReceiver;
+import ch.psi.bsread.ConfigIReceiver;
 import ch.psi.bsread.ReceiverConfig;
 import ch.psi.bsread.ReceiverState;
 import ch.psi.bsread.command.Command;
@@ -36,7 +36,7 @@ public class MainHeaderCommand extends MainHeader implements Command {
 	}
 
 	@Override
-	public <V> Message<V> process(IReceiver<V> receiver) {
+	public <V> Message<V> process(ConfigIReceiver<V> receiver) {
 		ReceiverConfig<V> receiverConfig = receiver.getReceiverConfig();
 
 		Set<String> requestedChannels = null;

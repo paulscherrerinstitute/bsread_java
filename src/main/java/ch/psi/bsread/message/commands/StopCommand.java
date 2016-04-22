@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-import ch.psi.bsread.IReceiver;
+import ch.psi.bsread.ConfigIReceiver;
 import ch.psi.bsread.command.Command;
 import ch.psi.bsread.message.Message;
 
@@ -33,7 +33,7 @@ public class StopCommand implements Command {
 	}
 
 	@Override
-	public <V> Message<V> process(IReceiver<V> receiver) {
+	public <V> Message<V> process(ConfigIReceiver<V> receiver) {
 		if (receiver.getReceiverConfig().isKeepListeningOnStop()) {
 			receiver.drain();
 			return null;
