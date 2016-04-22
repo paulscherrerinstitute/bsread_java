@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 
 public class CommonExecutors {
-	public static final boolean DEFAULT_IS_MONITORING = true;
+	public static final boolean DEFAULT_IS_MONITORING = false;
 	private static final RejectedExecutionHandler DEFAULT_HANDLER = new AbortPolicy();
 
 	public static ExecutorService newFixedThreadPool(int nThreads, int queueSize, String poolName,
