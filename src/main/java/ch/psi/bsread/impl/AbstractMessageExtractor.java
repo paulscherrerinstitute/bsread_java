@@ -5,7 +5,7 @@ import java.nio.ByteOrder;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +16,7 @@ import zmq.Msg;
 
 import ch.psi.bsread.MessageExtractor;
 import ch.psi.bsread.ReceiverConfig;
+import ch.psi.bsread.common.concurrent.singleton.Deferred;
 import ch.psi.bsread.converter.ValueConverter;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
@@ -95,11 +96,15 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
 					iocTimestamp.setNs(timestampBytes.getLong(timestampBytes.position() + Long.BYTES));
 
 					// offload value conversion work from receiver thread
-					CompletableFuture<V> futureValue =
-							CompletableFuture.supplyAsync(
-									() -> valueConverter.getValue(receivedValueBytes, currentConfig, mainHeader, iocTimestamp),
-									receiverConfig.getValueConversionService());
-					value.setFutureValue(futureValue);
+					Supplier<V> supplier = new Deferred<>(() -> valueConverter.getValue(receivedValueBytes, currentConfig, mainHeader, iocTimestamp));
+					value.setValue(supplier);
+					// try{ -> ???
+					// CompletableFuture<V> futureValue =
+					// CompletableFuture.supplyAsync(
+					// () -> valueConverter.getValue(receivedValueBytes,
+					// currentConfig, mainHeader, iocTimestamp),
+					// receiverConfig.getValueConversionService());
+					// value.setFutureValue(futureValue);
 				}
 			} else {
 				// # read data blob #

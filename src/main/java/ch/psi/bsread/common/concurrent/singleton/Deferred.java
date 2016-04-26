@@ -7,7 +7,7 @@ import java.util.function.Supplier;
  * Lazy initialization of a Singleton when the blueprint is known at creation
  * time.
  */
-public final class Deferred<T> {
+public final class Deferred<T> implements Supplier<T> {
 	private volatile Supplier<T> supplier = null;
 	private T object = null;
 
@@ -15,6 +15,11 @@ public final class Deferred<T> {
 		this.supplier = Objects.requireNonNull(supplier);
 	}
 
+	public Deferred(T object) {
+		this.object = object;
+	}
+
+	@Override
 	public T get() {
 		if (supplier != null) {
 			synchronized (this) {

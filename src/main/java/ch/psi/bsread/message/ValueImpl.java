@@ -5,18 +5,12 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.function.Supplier;
 
 import ch.psi.bsread.common.allocator.ThreadLocalByteArrayAllocator;
 
 public class ValueImpl<V> implements Value<V> {
 	private static final long serialVersionUID = -3889961098156334653L;
-	private static final Logger LOGGER = LoggerFactory.getLogger(ValueImpl.class);
 	public static final long DEFAULT_TIMEOUT_IN_MILLIS = 30000;
 	private static final ThreadLocalByteArrayAllocator TMP_SERIALIZATION_ALLOCATOR = new ThreadLocalByteArrayAllocator();
 
@@ -24,19 +18,19 @@ public class ValueImpl<V> implements Value<V> {
 	private static final byte DIRECT_POSITION = 1;
 	private static final byte ORDER_POSITION = 2;
 
-	private transient Future<V> futureValue;
+	private transient Supplier<V> value;
 	private Timestamp timestamp;
 
 	public ValueImpl() {
 	}
 
-	public ValueImpl(Future<V> futureValue, Timestamp timestamp) {
-		this.futureValue = futureValue;
+	public ValueImpl(Supplier<V> value, Timestamp timestamp) {
+		this.value = value;
 		this.timestamp = timestamp;
 	}
 
 	public ValueImpl(V value, Timestamp timestamp) {
-		futureValue = CompletableFuture.completedFuture(value);
+		this.setValue(value);
 		this.timestamp = timestamp;
 	}
 
@@ -48,22 +42,16 @@ public class ValueImpl<V> implements Value<V> {
 		return timestamp;
 	}
 
-	public void setFutureValue(Future<V> futureValue) {
-		this.futureValue = futureValue;
+	public void setValue(Supplier<V> value) {
+		this.value = value;
 	}
 
 	public void setValue(V value) {
-		futureValue = CompletableFuture.completedFuture(value);
+		this.value = ()->value;
 	}
 
 	public V getValue() {
-		try {
-			return futureValue.get(DEFAULT_TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS);
-		} catch (Exception e) {
-			// log since exceptions can get lost (e.g.in JAVA Streams)
-			LOGGER.error("Could not load value from future.", e);
-			throw new RuntimeException(e);
-		}
+		return value.get();
 	}
 
 	public <W> W getValue(Class<W> clazz) {
@@ -162,9 +150,9 @@ public class ValueImpl<V> implements Value<V> {
 				byteBuffer.flip();
 			}
 
-			futureValue = CompletableFuture.completedFuture((V) byteBuffer);
+			this.setValue((V) byteBuffer);
 		} else {
-			futureValue = CompletableFuture.completedFuture((V) ois.readObject());
+			this.setValue((V) ois.readObject());
 		}
 	}
 
