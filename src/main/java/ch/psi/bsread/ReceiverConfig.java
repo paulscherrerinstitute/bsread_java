@@ -2,7 +2,6 @@ package ch.psi.bsread;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.ExecutorService;
 
 import org.zeromq.ZMQ;
 
@@ -12,8 +11,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.psi.bsread.command.Command;
 import ch.psi.bsread.command.PolymorphicCommandMixIn;
-import ch.psi.bsread.common.concurrent.executor.CommonExecutors;
-import ch.psi.bsread.common.concurrent.singleton.Deferred;
 import ch.psi.bsread.configuration.Channel;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 
@@ -21,9 +18,6 @@ public class ReceiverConfig<V> {
 	public static final String DEFAULT_RECEIVING_ADDRESS = "tcp://localhost:9999";
 	public static final int DEFAULT_HIGH_WATER_MARK = 100;
 	public static final int DEFAULT_ALIGNMENT_RETRIES = 20;
-
-	private static final Deferred<ExecutorService> DEFAULT_VALUE_CONVERSION_SERVICE = new Deferred<ExecutorService>(
-			() -> CommonExecutors.newFixedThreadPool(2 * Runtime.getRuntime().availableProcessors(), 10000, "ZMQMessageConversion", CommonExecutors.DEFAULT_IS_MONITORING));
 
 	private boolean keepListeningOnStop;
 	private boolean parallelHandlerProcessing;
@@ -34,7 +28,6 @@ public class ReceiverConfig<V> {
 	private final MsgAllocator msgAllocator;
 	private int socketType = ZMQ.PULL;
 	private String address = DEFAULT_RECEIVING_ADDRESS;
-	private ExecutorService valueConversionService;
 	private Collection<Channel> requestedChannels;
 
 	public ReceiverConfig() {
@@ -149,17 +142,6 @@ public class ReceiverConfig<V> {
 			this.requestedChannels = new ArrayList<>();
 		}
 		this.requestedChannels.add(requestedChannel);
-	}
-
-	public ExecutorService getValueConversionService() {
-		if (valueConversionService == null) {
-			valueConversionService = DEFAULT_VALUE_CONVERSION_SERVICE.get();
-		}
-		return valueConversionService;
-	}
-
-	public void setValueConversionService(ExecutorService valueConversionService) {
-		this.valueConversionService = valueConversionService;
 	}
 
 	public static void addObjectMapperMixin(ObjectMapper objectMapper) {

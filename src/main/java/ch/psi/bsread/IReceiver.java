@@ -1,5 +1,6 @@
 package ch.psi.bsread;
 
+import java.io.Closeable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -9,7 +10,7 @@ import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Value;
 
-public interface IReceiver<V> {
+public interface IReceiver<V> extends Closeable {
 
    /**
     * Stop receiving and close resources.
