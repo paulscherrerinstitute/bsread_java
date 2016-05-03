@@ -4,6 +4,8 @@ import java.io.Serializable;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import ch.psi.bsread.Utils;
+
 public class Timestamp implements Serializable {
    private static final long serialVersionUID = 2481654141864121974L;
 
@@ -84,7 +86,7 @@ public class Timestamp implements Serializable {
 
    @Override
    public String toString() {
-      return sec + "." + String.format("%09d", ns);
+      return Utils.format(this);
    }
 
    public static Timestamp ofMillis(long millis) {
