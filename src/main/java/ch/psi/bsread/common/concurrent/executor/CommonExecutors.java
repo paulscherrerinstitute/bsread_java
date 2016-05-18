@@ -5,6 +5,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -30,17 +32,36 @@ public class CommonExecutors {
 		RejectedExecutionHandler rejectedExecutionHandler = DEFAULT_HANDLER;
 
 		// always monitor rejections
-		rejectedExecutionHandler = new MonitoringRejectedExecutionHandler(rejectedExecutionHandler, poolName, workQueue);
+		rejectedExecutionHandler = new MonitoringRejectedExecutionHandler(rejectedExecutionHandler, poolName);
 
-		ExecutorService executor =
+		ThreadPoolExecutor executor =
 				new ThreadPoolExecutor(nThreads, nThreads, 0L, TimeUnit.MILLISECONDS, workQueue, threadFactory,
 						rejectedExecutionHandler);
 
 		if (monitoring) {
-			executor = new MonitoringExecutorService(executor, workQueue, 0);
+			return new MonitoringExecutorService(executor, 0);
+		} else {
+			return executor;
 		}
+	}
 
-		return executor;
+	public static ScheduledExecutorService newScheduledThreadPool(int nThreads, String poolName, boolean monitoring) {
+		final ThreadFactory threadFactory =
+				new BasicThreadFactory.Builder().namingPattern(poolName + "-%d").build();
+
+		RejectedExecutionHandler rejectedExecutionHandler = DEFAULT_HANDLER;
+
+		// always monitor rejections
+		rejectedExecutionHandler = new MonitoringRejectedExecutionHandler(rejectedExecutionHandler, poolName);
+
+		ScheduledThreadPoolExecutor executor =
+				new ScheduledThreadPoolExecutor(nThreads, threadFactory, rejectedExecutionHandler);
+
+		if (monitoring) {
+			return new MonitoringScheduledExecutorService(executor, 0);
+		} else {
+			return executor;
+		}
 	}
 
 	/**

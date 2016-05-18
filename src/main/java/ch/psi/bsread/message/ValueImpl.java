@@ -42,8 +42,12 @@ public class ValueImpl<V> implements Value<V> {
 		return timestamp;
 	}
 
-	public void setValue(Supplier<V> value) {
+	public void setValueSupplier(Supplier<V> value) {
 		this.value = value;
+	}
+	
+	public Supplier<V> getValueSupplier(){
+	   return this.value;
 	}
 
 	public void setValue(V value) {

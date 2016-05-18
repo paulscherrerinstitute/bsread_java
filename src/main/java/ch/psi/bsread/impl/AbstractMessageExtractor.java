@@ -97,7 +97,7 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
 
 					// offload value conversion work from receiver thread
 					Supplier<V> supplier = new Deferred<>(() -> valueConverter.getValue(receivedValueBytes, currentConfig, mainHeader, iocTimestamp));
-					value.setValue(supplier);
+					value.setValueSupplier(supplier);
 					// try{ -> ???
 					// CompletableFuture<V> futureValue =
 					// CompletableFuture.supplyAsync(

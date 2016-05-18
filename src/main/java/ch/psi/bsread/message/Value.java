@@ -10,7 +10,9 @@ public interface Value<V> extends Serializable {
 
 	public Timestamp getTimestamp();
 
-	public void setValue(Supplier<V> value);
+	public void setValueSupplier(Supplier<V> value);
+	
+	public Supplier<V> getValueSupplier();
 
 	public void setValue(V value);
 

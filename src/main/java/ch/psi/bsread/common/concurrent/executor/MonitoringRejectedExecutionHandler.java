@@ -1,6 +1,5 @@
 package ch.psi.bsread.common.concurrent.executor;
 
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -12,17 +11,15 @@ public class MonitoringRejectedExecutionHandler implements RejectedExecutionHand
 
 	private final RejectedExecutionHandler target;
 	private final String poolName;
-	private final BlockingQueue<Runnable> workQueue;
 
-	public MonitoringRejectedExecutionHandler(RejectedExecutionHandler target, String poolName, BlockingQueue<Runnable> workQueue) {
+	public MonitoringRejectedExecutionHandler(RejectedExecutionHandler target, String poolName) {
 		this.target = target;
 		this.poolName = poolName;
-		this.workQueue = workQueue;
 	}
 
 	@Override
 	public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-		LOGGER.warn("'{}' at queue size of '{}' rejects '{}' .", poolName, workQueue.size(), r);
+		LOGGER.warn("'{}' at queue size of '{}' rejects '{}' .", poolName, executor.getQueue().size(), r);
 		target.rejectedExecution(r, executor);
 	}
 }
