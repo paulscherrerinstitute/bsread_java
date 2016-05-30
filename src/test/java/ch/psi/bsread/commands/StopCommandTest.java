@@ -51,6 +51,7 @@ public class StopCommandTest {
 	public void testStop_01() throws Exception {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -146,6 +147,7 @@ public class StopCommandTest {
 	public void testStop_02() throws Exception {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -248,6 +250,7 @@ public class StopCommandTest {
 	@Test
 	public void testStop_03_PUSH_PULL() throws Exception {
 		SenderConfig senderConfig = new SenderConfig(
+				SenderConfig.DEFAULT_SENDING_ADDRESS,
 				new StandardPulseIdProvider(),
 				new TimeProvider() {
 
@@ -361,6 +364,7 @@ public class StopCommandTest {
 	@Test
 	public void testStop_03_PUB_SUB() throws Exception {
 		SenderConfig senderConfig = new SenderConfig(
+				SenderConfig.DEFAULT_SENDING_ADDRESS,
 				new StandardPulseIdProvider(),
 				new TimeProvider() {
 

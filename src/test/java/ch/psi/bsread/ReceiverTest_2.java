@@ -49,6 +49,7 @@ public class ReceiverTest_2 {
 	public void testReceiver() {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -171,6 +172,7 @@ public class ReceiverTest_2 {
 	@Test
 	public void testReceiver_Push_Pull() throws Exception {
 		SenderConfig senderConfig = new SenderConfig(
+				SenderConfig.DEFAULT_SENDING_ADDRESS,
 				new StandardPulseIdProvider(),
 				new TimeProvider() {
 
@@ -293,6 +295,7 @@ public class ReceiverTest_2 {
 	@Test
 	public void testReceiver_Pub_Sub() throws Exception {
 		SenderConfig senderConfig = new SenderConfig(
+				SenderConfig.DEFAULT_SENDING_ADDRESS,
 				new StandardPulseIdProvider(),
 				new TimeProvider() {
 
@@ -418,6 +421,7 @@ public class ReceiverTest_2 {
 	public void testManyReceivers_Push_Pull() throws InterruptedException {
 		ByteConverter byteConverter = new MatlabByteConverter();
 		SenderConfig senderConfig = new SenderConfig(
+				SenderConfig.DEFAULT_SENDING_ADDRESS,
 				new StandardPulseIdProvider(),
 				new TimeProvider() {
 
@@ -529,6 +533,7 @@ public class ReceiverTest_2 {
 	public void testManyReceivers_Pub_Sub() throws InterruptedException {
 		ByteConverter byteConverter = new MatlabByteConverter();
 		SenderConfig senderConfig = new SenderConfig(
+				SenderConfig.DEFAULT_SENDING_ADDRESS,
 				new StandardPulseIdProvider(),
 				new TimeProvider() {
 

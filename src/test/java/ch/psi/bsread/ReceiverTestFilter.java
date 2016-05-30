@@ -24,6 +24,7 @@ public class ReceiverTestFilter {
 	public void testTwoChannelFilter() {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -99,6 +100,7 @@ public class ReceiverTestFilter {
 	public void testTwoChannelFilterOffset() {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 

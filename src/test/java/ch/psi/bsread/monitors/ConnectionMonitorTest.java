@@ -33,6 +33,7 @@ public class ConnectionMonitorTest {
 	@Test
 	public void testReceiver_Push_Pull() throws Exception {
 		SenderConfig senderConfig = new SenderConfig(
+				SenderConfig.DEFAULT_SENDING_ADDRESS,
 				new StandardPulseIdProvider(),
 				new TimeProvider() {
 
@@ -182,6 +183,7 @@ public class ConnectionMonitorTest {
 	@Test
 	public void testReceiver_Pub_Sub() throws Exception {
 		SenderConfig senderConfig = new SenderConfig(
+				SenderConfig.DEFAULT_SENDING_ADDRESS,
 				new StandardPulseIdProvider(),
 				new TimeProvider() {
 

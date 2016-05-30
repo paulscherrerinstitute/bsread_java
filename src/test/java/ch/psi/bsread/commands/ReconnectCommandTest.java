@@ -46,22 +46,11 @@ public class ReconnectCommandTest {
 
 	@Test
 	public void testReconnect_01() throws Exception {
-		Sender sender_01 = new Sender(
-				new SenderConfig(
-						new StandardPulseIdProvider(),
-						new TimeProvider() {
-
-							@Override
-							public Timestamp getTime(long pulseId) {
-								return new Timestamp(pulseId, 0L);
-							}
-						},
-						new MatlabByteConverter())
-				);
 		String sender_01_Addr = "tcp://*:9999";
 		String receiver_01_Addr = "tcp://localhost:9999";
-		Sender sender_02 = new Sender(
+		Sender sender_01 = new Sender(
 				new SenderConfig(
+						sender_01_Addr,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -74,8 +63,9 @@ public class ReconnectCommandTest {
 				);
 		String sender_02_Addr = "tcp://*:9998";
 		String receiver_02_Addr = "tcp://localhost:9998";
-		Sender sender_03 = new Sender(
+		Sender sender_02 = new Sender(
 				new SenderConfig(
+						sender_02_Addr,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -88,6 +78,19 @@ public class ReconnectCommandTest {
 				);
 		String sender_03_Addr = "tcp://*:9997";
 		String receiver_03_Addr = "tcp://localhost:9997";
+		Sender sender_03 = new Sender(
+				new SenderConfig(
+						sender_03_Addr,
+						new StandardPulseIdProvider(),
+						new TimeProvider() {
+
+							@Override
+							public Timestamp getTime(long pulseId) {
+								return new Timestamp(pulseId, 0L);
+							}
+						},
+						new MatlabByteConverter())
+				);
 
 		// Register data sources ...
 		DataChannel<Double> channel_01_02 = new DataChannel<Double>(new ChannelConfig("ABC", Type.Float64, 1, 0)) {
@@ -113,11 +116,11 @@ public class ReconnectCommandTest {
 			}
 		};
 		sender_01.addSource(channel_01_02);
-		sender_01.bind(sender_01_Addr);
+		sender_01.bind();
 		sender_02.addSource(channel_01_02);
-		sender_02.bind(sender_02_Addr);
+		sender_02.bind();
 		sender_03.addSource(channel_03);
-		sender_03.bind(sender_03_Addr);
+		sender_03.bind();
 
 		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(new ReceiverConfig<ByteBuffer>(receiver_01_Addr, false, true, new StandardMessageExtractor<ByteBuffer>()));
 		// Optional - register callbacks

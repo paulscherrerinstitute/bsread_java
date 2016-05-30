@@ -16,6 +16,9 @@ import ch.psi.bsread.impl.StandardTimeProvider;
 import ch.psi.bsread.monitors.Monitor;
 
 public class SenderConfig {
+	public static final String DEFAULT_SENDING_ADDRESS = "tcp://*:9999";
+	public static final int DEFAULT_HIGH_WATER_MARK = 100;
+
 	private final Compression dataHeaderCompression;
 	private final IntFunction<ByteBuffer> valueAllocator;
 	private final IntFunction<ByteBuffer> compressedValueAllocator;
@@ -26,25 +29,32 @@ public class SenderConfig {
 
 	private ObjectMapper objectMapper;
 	private int socketType = ZMQ.PUSH;
+	private String address = DEFAULT_SENDING_ADDRESS;
+	private int highWaterMark = DEFAULT_HIGH_WATER_MARK;
 	private Monitor monitor;
 
 	public SenderConfig() {
-		this(new StandardPulseIdProvider(), new StandardTimeProvider(), new MatlabByteConverter());
+		this(DEFAULT_SENDING_ADDRESS);
 	}
 
-	public SenderConfig(PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter) {
-		this(pulseIdProvider, globalTimeProvider, byteConverter, Compression.none);
+	public SenderConfig(String address) {
+		this(address, new StandardPulseIdProvider(), new StandardTimeProvider(), new MatlabByteConverter());
 	}
 
-	public SenderConfig(PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter,
+	public SenderConfig(String address, PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter) {
+		this(address, pulseIdProvider, globalTimeProvider, byteConverter, Compression.none);
+	}
+
+	public SenderConfig(String address, PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter,
 			Compression dataHeaderCompression) {
-		this(pulseIdProvider, globalTimeProvider, byteConverter, dataHeaderCompression, new ByteBufferAllocator(),
+		this(address, pulseIdProvider, globalTimeProvider, byteConverter, dataHeaderCompression, new ByteBufferAllocator(),
 				new ByteBufferAllocator());
 	}
 
-	public SenderConfig(PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter,
+	public SenderConfig(String address, PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter,
 			Compression dataHeaderCompression, IntFunction<ByteBuffer> valueAllocator,
 			IntFunction<ByteBuffer> compressedValueAllocator) {
+		this.address = address;
 		this.pulseIdProvider = pulseIdProvider;
 		this.globalTimeProvider = globalTimeProvider;
 		this.byteConverter = byteConverter;
@@ -53,6 +63,22 @@ public class SenderConfig {
 		this.compressedValueAllocator = compressedValueAllocator;
 
 		this.setObjectMapper(new ObjectMapper());
+	}
+	
+	public int getHighWaterMark() {
+		return highWaterMark;
+	}
+	
+	public String getAddress() {
+		return address;
+	}
+
+	public void setAddress(String address) {
+		this.address = address;
+	}
+
+	public void setHighWaterMark(int highWaterMark) {
+		this.highWaterMark = highWaterMark;
 	}
 
 	public Compression getDataHeaderCompression() {

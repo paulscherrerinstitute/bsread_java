@@ -28,9 +28,6 @@ import ch.psi.bsread.monitors.MonitorConfig;
 public class Sender {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Sender.class.getName());
 
-	public static final String DEFAULT_SENDING_ADDRESS = "tcp://*:9999";
-	public static final int HIGH_WATER_MARK = 100;
-
 	private Context context;
 	private Socket socket;
 
@@ -51,24 +48,16 @@ public class Sender {
 	}
 
 	public void bind() {
-		bind(DEFAULT_SENDING_ADDRESS);
-	}
-
-	public void bind(String address) {
-		this.bind(address, HIGH_WATER_MARK);
-	}
-
-	public void bind(String address, int highWaterMark) {
 		this.context = ZMQ.context(1);
 		this.socket = this.context.socket(senderConfig.getSocketType());
-		this.socket.setSndHWM(highWaterMark);
+		this.socket.setSndHWM(senderConfig.getHighWaterMark());
 
 		Monitor monitor = senderConfig.getMonitor();
 		if (monitor != null) {
 			monitor.start(new MonitorConfig(context, socket.base(), senderConfig.getObjectMapper(), senderConfig.getSocketType()));
 		}
 
-		this.socket.bind(address);
+		this.socket.bind(senderConfig.getAddress());
 	}
 
 	public void close() {

@@ -45,6 +45,7 @@ public class ReceiverTest {
 	public void testSenderOneChannel10Hz() {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -141,6 +142,7 @@ public class ReceiverTest {
 	public void testSenderOneChannel01Hz() {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -237,6 +239,7 @@ public class ReceiverTest {
 	public void testSenderOneChannel10HzOffset() {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -333,6 +336,7 @@ public class ReceiverTest {
 	public void testSenderTwoChannel100HzAnd10Hz() {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -477,6 +481,7 @@ public class ReceiverTest {
 
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 

@@ -55,6 +55,7 @@ public class CompressionTest {
 	public void testDataHeaderCompressionOneChannel10Hz() throws InterruptedException {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -149,6 +150,7 @@ public class CompressionTest {
 	public void testDataCompressionOneChannel10Hz() throws InterruptedException {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -252,6 +254,7 @@ public class CompressionTest {
 	protected void testDataHeaderCompressionTwoChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) throws InterruptedException {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -401,6 +404,7 @@ public class CompressionTest {
 	protected void testDataCompressionTwoChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) throws InterruptedException {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -549,6 +553,7 @@ public class CompressionTest {
 	protected void testDataCompressionTwoArrayChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) throws InterruptedException {
 		Sender sender = new Sender(
 				new SenderConfig(
+						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
