@@ -22,14 +22,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import ch.psi.bsread.message.commands.StopCommand;
 
 // builds on https://github.com/zeromq/jeromq/blob/master/src/test/java/zmq/TestMonitor.java
-public class ConnectionMonitor implements Monitor {
-	private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionMonitor.class);
+public class ConnectionCounterMonitor implements Monitor {
+	private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionCounterMonitor.class);
 	private ExecutorService executor = Executors.newSingleThreadExecutor();
 	private AtomicInteger connectionCounter = new AtomicInteger();
 	private List<IntConsumer> handlers = new ArrayList<>();
 	private MonitorConfig monitorConfig;
 
-	public ConnectionMonitor() {
+	public ConnectionCounterMonitor() {
 	}
 
 	@Override

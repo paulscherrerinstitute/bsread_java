@@ -36,7 +36,7 @@ import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Type;
 import ch.psi.bsread.message.Value;
 import ch.psi.bsread.message.commands.StopCommand;
-import ch.psi.bsread.monitors.ConnectionMonitor;
+import ch.psi.bsread.monitors.ConnectionCounterMonitor;
 
 public class StopCommandTest {
 	private MainHeader hookMainHeader;
@@ -261,7 +261,7 @@ public class StopCommandTest {
 				},
 				new MatlabByteConverter());
 		senderConfig.setSocketType(ZMQ.PUSH);
-		senderConfig.setMonitor(new ConnectionMonitor());
+		senderConfig.setMonitor(new ConnectionCounterMonitor());
 		Sender sender = new Sender(senderConfig);
 
 		// Register data sources ...
@@ -375,7 +375,7 @@ public class StopCommandTest {
 				},
 				new MatlabByteConverter());
 		senderConfig.setSocketType(ZMQ.PUB);
-		senderConfig.setMonitor(new ConnectionMonitor());
+		senderConfig.setMonitor(new ConnectionCounterMonitor());
 		Sender sender = new Sender(senderConfig);
 
 		// Register data sources ...

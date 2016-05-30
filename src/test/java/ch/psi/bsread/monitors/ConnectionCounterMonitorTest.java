@@ -27,7 +27,7 @@ import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Type;
 
-public class ConnectionMonitorTest {
+public class ConnectionCounterMonitorTest {
 	private long waitTime = 100;
 
 	@Test
@@ -44,7 +44,7 @@ public class ConnectionMonitorTest {
 				},
 				new MatlabByteConverter());
 		senderConfig.setSocketType(ZMQ.PUSH);
-		ConnectionMonitor connectionMonitor = new ConnectionMonitor();
+		ConnectionCounterMonitor connectionMonitor = new ConnectionCounterMonitor();
 		AtomicInteger connectionCounter = new AtomicInteger();
 		connectionMonitor.addHandler((count) -> connectionCounter.set(count));
 		senderConfig.setMonitor(connectionMonitor);
@@ -194,7 +194,7 @@ public class ConnectionMonitorTest {
 				},
 				new MatlabByteConverter());
 		senderConfig.setSocketType(ZMQ.PUB);
-		ConnectionMonitor connectionMonitor = new ConnectionMonitor();
+		ConnectionCounterMonitor connectionMonitor = new ConnectionCounterMonitor();
 		AtomicInteger connectionCounter = new AtomicInteger();
 		connectionMonitor.addHandler((count) -> connectionCounter.set(count));
 		senderConfig.setMonitor(connectionMonitor);
