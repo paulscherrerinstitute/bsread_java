@@ -47,8 +47,7 @@ public class SenderConfig {
 
 	public SenderConfig(String address, PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter,
 			Compression dataHeaderCompression) {
-		this(address, pulseIdProvider, globalTimeProvider, byteConverter, dataHeaderCompression, new ByteBufferAllocator(),
-				new ByteBufferAllocator());
+		this(address, pulseIdProvider, globalTimeProvider, byteConverter, dataHeaderCompression, ByteBufferAllocator.DEFAULT_ALLOCATOR, ByteBufferAllocator.DEFAULT_ALLOCATOR);
 	}
 
 	public SenderConfig(String address, PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter,

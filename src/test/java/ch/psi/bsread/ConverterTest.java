@@ -17,7 +17,7 @@ public class ConverterTest {
 
 	@Test
 	public void test() {
-		ByteBufferAllocator allocator = new ByteBufferAllocator();
+		ByteBufferAllocator allocator = ByteBufferAllocator.DEFAULT_ALLOCATOR;
 		ByteConverter byteConverter = new MatlabByteConverter();
 		ChannelConfig config = new ChannelConfig("Bla", Type.Float64, new int[] { 1 }, 1, 0, ChannelConfig.ENCODING_BIG_ENDIAN);
 

@@ -48,7 +48,7 @@ public class ReceiverTest_3 {
 						new StandardMessageExtractor<ByteBuffer>(),
 						new HeaderReservingMsgAllocator(
 								12,
-								new ByteBufferAllocator())
+								ByteBufferAllocator.DEFAULT_ALLOCATOR)
 				);
 		return new Receiver<ByteBuffer>(config);
 	}

@@ -706,7 +706,7 @@ public class CompressionTest {
 	}
 
 	protected void testAllCompressors(int elements) {
-		IntFunction<ByteBuffer> allocator = new ByteBufferAllocator();
+		IntFunction<ByteBuffer> allocator = ByteBufferAllocator.DEFAULT_ALLOCATOR;
 
 		int offset;
 		int position;

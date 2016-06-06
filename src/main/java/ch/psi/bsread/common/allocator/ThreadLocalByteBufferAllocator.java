@@ -8,7 +8,7 @@ public class ThreadLocalByteBufferAllocator implements IntFunction<ByteBuffer> {
 	private static final ThreadLocal<IntFunction<ByteBuffer>> BYTEBUFFER_ALLOCATOR =
 			ThreadLocal.<IntFunction<ByteBuffer>> withInitial
 					(() -> new ReuseByteBufferAllocator(
-							new ByteBufferAllocator(ByteBufferAllocator.DEFAULT_DIRECT_THRESHOLD)));
+							ByteBufferAllocator.DEFAULT_ALLOCATOR));
 
 	@Override
 	public ByteBuffer apply(int nBytes) {

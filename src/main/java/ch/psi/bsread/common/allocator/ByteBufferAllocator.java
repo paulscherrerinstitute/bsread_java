@@ -13,6 +13,7 @@ public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
 																			// 1K
 	public static final long DEFAULT_DIRECT_CLEAN_THRESHOLD = 8L * 1024L * 1024L * 1024L; // 8G
 	private static final DirectBufferCleaner DIRECT_BUFFER_CLEANER = new DirectBufferCleaner(DEFAULT_DIRECT_CLEAN_THRESHOLD);
+	public static final ByteBufferAllocator DEFAULT_ALLOCATOR = new ByteBufferAllocator(ByteBufferAllocator.DEFAULT_DIRECT_THRESHOLD);
 
 	private int directThreshold;
 
