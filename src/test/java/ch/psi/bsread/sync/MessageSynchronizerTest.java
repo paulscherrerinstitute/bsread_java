@@ -35,7 +35,8 @@ public class MessageSynchronizerTest {
    public void testMessageSynchronizer_100Hz() {
       BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(5);
       MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(completeQueue, 3, false, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
+            new MessageSynchronizer<>(completeQueue, 3, false, false, Arrays.asList(new Channel("A", 1), new Channel(
+                  "B", 1)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
 
       // Test pattern
@@ -187,13 +188,170 @@ public class MessageSynchronizerTest {
    }
 
    /**
+    * Test default setup for MessageBuilder with 100Hz
+    */
+   @Test
+   public void testMessageSynchronizer_100Hz_SendFirstComplete() {
+      BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(5);
+      MessageSynchronizer<TestEvent> mBuffer =
+            new MessageSynchronizer<>(completeQueue, 3, false, true, Arrays.asList(new Channel("A", 1), new Channel(
+                  "B", 1)),
+                  (event) -> event.getChannel(), (event) -> event.getPulseId());
+
+      // Test pattern
+      // A(1) A(2) B(2) B(1)
+      Timestamp globalTime0 = new Timestamp();
+      Timestamp globalTime1 = new Timestamp();
+      Timestamp globalTime2 = new Timestamp();
+      mBuffer.addMessage(newMessage(1, globalTime1, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(2, globalTime2, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(2, globalTime2, "B"));
+
+      // Expecting 1 message
+      assertEquals(1, completeQueue.size());
+      assertEquals(0, mBuffer.getBufferSize());
+      AssembledMessage message = new AssembledMessage(completeQueue.poll());
+      assertEquals(2, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(1, globalTime1, "B"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(0, mBuffer.getBufferSize());
+
+      // Test pattern
+      // A(0) B(0)
+      mBuffer.addMessage(newMessage(0, globalTime0, "A"));
+
+      // Expecting that there will be no messages as the pulse-id 0 is
+      // below the pulse-id already delivered
+      assertEquals(0, mBuffer.getBufferSize());
+      assertTrue(completeQueue.isEmpty());
+
+      mBuffer.addMessage(newMessage(0, globalTime0, "B"));
+
+      assertEquals(0, mBuffer.getBufferSize());
+      assertTrue(completeQueue.isEmpty());
+
+      Timestamp globalTime3 = new Timestamp();
+      Timestamp globalTime4 = new Timestamp();
+      Timestamp globalTime5 = new Timestamp();
+      Timestamp globalTime6 = new Timestamp();
+      // Test Pattern
+      // A(3), A(4), A(5), A(6), B(4), B(3)
+      // 3 should be dropped because exceeding buffer size
+      // 4 should be delivered
+      mBuffer.addMessage(newMessage(3, globalTime3, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(1, mBuffer.getBufferSize());
+      mBuffer.addMessage(newMessage(4, globalTime4, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+      mBuffer.addMessage(newMessage(5, globalTime5, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+      mBuffer.addMessage(newMessage(6, globalTime6, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(4, globalTime4, "B"));
+      assertEquals(1, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(4, message.getPulseId());
+      assertEquals(globalTime4, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(3, globalTime3, "B"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      assertEquals(0, completeQueue.size());
+
+      // State: A(5), A(6) still in buffer
+      Timestamp globalTime7 = new Timestamp();
+      Timestamp globalTime8 = new Timestamp();
+      Timestamp globalTime9 = new Timestamp();
+      mBuffer.addMessage(newMessage(7, globalTime7, "A"));
+      assertEquals(3, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(8, globalTime8, "A"));
+      assertEquals(3, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(9, globalTime9, "A"));
+      assertEquals(3, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+
+      mBuffer.addMessage(newMessage(7, globalTime7, "B"));
+      assertEquals(2, mBuffer.getBufferSize());
+      assertEquals(1, completeQueue.size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(7, message.getPulseId());
+      assertEquals(globalTime7, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(8, globalTime8, "B"));
+      assertEquals(1, mBuffer.getBufferSize());
+      assertEquals(1, completeQueue.size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(8, message.getPulseId());
+      assertEquals(globalTime8, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(9, globalTime9, "B"));
+      assertEquals(0, mBuffer.getBufferSize());
+      assertEquals(1, completeQueue.size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(9, message.getPulseId());
+      assertEquals(globalTime9, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      // Test Pattern
+      // A(11), B(11), B(10), A(10)
+      Timestamp globalTime10 = new Timestamp();
+      Timestamp globalTime11 = new Timestamp();
+      mBuffer.addMessage(newMessage(11, globalTime11, "A"));
+      assertEquals(1, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(11, globalTime11, "B"));
+      assertEquals(1, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(10, globalTime10, "B"));
+      assertEquals(2, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(10, globalTime10, "A"));
+      assertEquals(0, mBuffer.getBufferSize());
+      assertEquals(2, completeQueue.size());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(10, message.getPulseId());
+      assertEquals(globalTime10, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(11, message.getPulseId());
+      assertEquals(globalTime11, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+   }
+
+   /**
     * Test default setup for MessageBuilder with 10Hz
     */
    @Test
    public void testMessageSynchronizer_10Hz() {
       BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(5);
-      MessageSynchronizer<TestEvent> mBuffer = new MessageSynchronizer<>(completeQueue, 3, false, Arrays.asList(new Channel("A", 10), new Channel("B", 10)),
-            (event) -> event.getChannel(), (event) -> event.getPulseId());
+      MessageSynchronizer<TestEvent> mBuffer =
+            new MessageSynchronizer<>(completeQueue, 3, false, false, Arrays.asList(new Channel("A", 10), new Channel(
+                  "B", 10)),
+                  (event) -> event.getChannel(), (event) -> event.getPulseId());
 
       // Test pattern
       // A(1) A(2) B(2) B(1)
@@ -350,13 +508,175 @@ public class MessageSynchronizerTest {
    }
 
    /**
+    * Test default setup for MessageBuilder with 10Hz
+    */
+   @Test
+   public void testMessageSynchronizer_10Hz_SendFirstComplete() {
+      BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(5);
+      MessageSynchronizer<TestEvent> mBuffer =
+            new MessageSynchronizer<>(completeQueue, 3, false, true, Arrays.asList(new Channel("A", 10), new Channel(
+                  "B", 10)),
+                  (event) -> event.getChannel(), (event) -> event.getPulseId());
+
+      // Test pattern
+      // A(1) A(2) B(2) B(1)
+      Timestamp globalTime0 = new Timestamp();
+      Timestamp globalTime1 = new Timestamp();
+      Timestamp globalTime2 = new Timestamp();
+      mBuffer.addMessage(newMessage(10, globalTime1, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(20, globalTime2, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(20, globalTime2, "B"));
+
+      assertEquals(1, completeQueue.size());
+      assertEquals(0, mBuffer.getBufferSize());
+      AssembledMessage message = new AssembledMessage(completeQueue.poll());
+      assertEquals(20, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(10, globalTime1, "B"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(0, mBuffer.getBufferSize());
+
+      // Test pattern
+      // A(0) B(0)
+      mBuffer.addMessage(newMessage(0, globalTime0, "A"));
+
+      // Expecting that there will be no messages as the pulse-id 0 is
+      // below the pulse-id already delivered
+      assertEquals(0, mBuffer.getBufferSize());
+      assertTrue(completeQueue.isEmpty());
+
+      mBuffer.addMessage(newMessage(0, globalTime0, "B"));
+
+      assertEquals(0, mBuffer.getBufferSize());
+      assertTrue(completeQueue.isEmpty());
+
+      Timestamp globalTime3 = new Timestamp();
+      Timestamp globalTime4 = new Timestamp();
+      Timestamp globalTime5 = new Timestamp();
+      Timestamp globalTime6 = new Timestamp();
+      // Test Pattern
+      // A(3), A(4), A(5), A(6), B(4), B(3)
+      // 3 should be dropped because exceeding buffer size
+      // 4 should be delivered
+      mBuffer.addMessage(newMessage(30, globalTime3, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(1, mBuffer.getBufferSize());
+      mBuffer.addMessage(newMessage(40, globalTime4, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+      mBuffer.addMessage(newMessage(50, globalTime5, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+      mBuffer.addMessage(newMessage(60, globalTime6, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(40, globalTime4, "B"));
+      assertEquals(1, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(40, message.getPulseId());
+      assertEquals(globalTime4, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(30, globalTime3, "B"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      assertEquals(0, completeQueue.size());
+
+      // State: A(5), A(6) still in buffer
+      Timestamp globalTime7 = new Timestamp();
+      Timestamp globalTime8 = new Timestamp();
+      Timestamp globalTime9 = new Timestamp();
+      mBuffer.addMessage(newMessage(70, globalTime7, "A"));
+      assertEquals(3, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(80, globalTime8, "A"));
+      assertEquals(3, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(90, globalTime9, "A"));
+      assertEquals(3, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+
+      mBuffer.addMessage(newMessage(70, globalTime7, "B"));
+      assertEquals(2, mBuffer.getBufferSize());
+      assertEquals(1, completeQueue.size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(70, message.getPulseId());
+      assertEquals(globalTime7, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(80, globalTime8, "B"));
+      assertEquals(1, mBuffer.getBufferSize());
+      assertEquals(1, completeQueue.size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(80, message.getPulseId());
+      assertEquals(globalTime8, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(90, globalTime9, "B"));
+      assertEquals(0, mBuffer.getBufferSize());
+      assertEquals(1, completeQueue.size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(90, message.getPulseId());
+      assertEquals(globalTime9, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      // Test Pattern
+      // A(11), B(11), B(10), A(10)
+      Timestamp globalTime10 = new Timestamp();
+      Timestamp globalTime11 = new Timestamp();
+      mBuffer.addMessage(newMessage(110, globalTime11, "A"));
+      assertEquals(1, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(110, globalTime11, "B"));
+      assertEquals(1, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(100, globalTime10, "B"));
+      assertEquals(2, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(100, globalTime10, "A"));
+      assertEquals(0, mBuffer.getBufferSize());
+      assertEquals(2, completeQueue.size());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(100, message.getPulseId());
+      assertEquals(globalTime10, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(110, message.getPulseId());
+      assertEquals(globalTime11, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      // Test wrong frequency
+      Timestamp globalTime12 = new Timestamp();
+      mBuffer.addMessage(newMessage(115, globalTime12, "A"));
+      assertEquals(0, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+   }
+
+   /**
     * Test default setup for MessageBuilder with 10 and 100Hz
     */
    @Test
    public void testMessageSynchronizer_100_10Hz() {
       BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(5);
-      MessageSynchronizer<TestEvent> mBuffer = new MessageSynchronizer<>(completeQueue, 4, false, Arrays.asList(new Channel("A", 1), new Channel("B", 10)),
-            (event) -> event.getChannel(), (event) -> event.getPulseId());
+      MessageSynchronizer<TestEvent> mBuffer =
+            new MessageSynchronizer<>(completeQueue, 4, false, false, Arrays.asList(new Channel("A", 1), new Channel(
+                  "B", 10)),
+                  (event) -> event.getChannel(), (event) -> event.getPulseId());
 
       // Test pattern
       // A(1) A(2) B(2) B(1)
@@ -597,13 +917,260 @@ public class MessageSynchronizerTest {
    }
 
    /**
+    * Test default setup for MessageBuilder with 10 and 100Hz
+    */
+   @Test
+   public void testMessageSynchronizer_100_10Hz_SendFirstComplete() {
+      BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(5);
+      MessageSynchronizer<TestEvent> mBuffer =
+            new MessageSynchronizer<>(completeQueue, 4, false, true, Arrays.asList(new Channel("A", 1), new Channel(
+                  "B", 10)),
+                  (event) -> event.getChannel(), (event) -> event.getPulseId());
+
+      // Test pattern
+      // A(1) A(2) B(2) B(1)
+      Timestamp globalTime1 = new Timestamp();
+      mBuffer.addMessage(newMessage(0, globalTime1, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(1, globalTime1, "A"));
+
+      assertFalse(completeQueue.isEmpty());
+      assertEquals(0, mBuffer.getBufferSize());
+      
+      AssembledMessage message = new AssembledMessage(completeQueue.poll());
+      assertEquals(1, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(10, globalTime1, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(20, globalTime1, "B"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(5, globalTime1, "B"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(0, globalTime1, "B"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      // Test pattern
+      // A(0) B(0)
+      mBuffer.addMessage(newMessage(-1, globalTime1, "A"));
+
+      // Expecting that there will be no messages as the pulse-id 0 is
+      // below the pulse-id already delivered
+      assertEquals(2, mBuffer.getBufferSize());
+      assertTrue(completeQueue.isEmpty());
+
+      mBuffer.addMessage(newMessage(2, globalTime1, "C"));
+
+      // Expecting that there will be no messages since the channel is not
+      // part of the mBuffer
+      assertEquals(2, mBuffer.getBufferSize());
+      assertTrue(completeQueue.isEmpty());
+
+      for (int i = 2; i <= 9; ++i) {
+         mBuffer.addMessage(newMessage(i, globalTime1, "A"));
+
+         assertEquals(1, completeQueue.size());
+         assertEquals(2, mBuffer.getBufferSize());
+
+         message = new AssembledMessage(completeQueue.poll());
+         assertEquals(i, message.getPulseId());
+         assertEquals(globalTime1, message.getGlobalTimestamp());
+         assertEquals(1, message.getValues().size());
+      }
+
+      mBuffer.addMessage(newMessage(11, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(10, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(10, globalTime1, "B"));
+      assertEquals(2, completeQueue.size());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(10, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(11, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      for (int i = 12; i <= 19; ++i) {
+         mBuffer.addMessage(newMessage(i, globalTime1, "A"));
+
+         assertEquals(1, completeQueue.size());
+         assertEquals(1, mBuffer.getBufferSize());
+
+         message = new AssembledMessage(completeQueue.poll());
+         assertEquals(i, message.getPulseId());
+         assertEquals(globalTime1, message.getGlobalTimestamp());
+         assertEquals(1, message.getValues().size());
+      }
+
+      mBuffer.addMessage(newMessage(20, globalTime1, "A"));
+      assertEquals(1, completeQueue.size());
+      assertEquals(0, mBuffer.getBufferSize());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(20, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(30, globalTime1, "B"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(40, globalTime1, "B"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(22, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(23, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(24, globalTime1, "A"));
+      assertEquals(3, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(22, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(23, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(24, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      for (int i = 25; i <= 29; ++i) {
+         mBuffer.addMessage(newMessage(i, globalTime1, "A"));
+
+         assertEquals(1, completeQueue.size());
+         assertEquals(2, mBuffer.getBufferSize());
+
+         message = new AssembledMessage(completeQueue.poll());
+         assertEquals(i, message.getPulseId());
+         assertEquals(globalTime1, message.getGlobalTimestamp());
+         assertEquals(1, message.getValues().size());
+      }
+
+      mBuffer.addMessage(newMessage(31, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(32, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(33, globalTime1, "A"));
+      assertEquals(3, completeQueue.size());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(31, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(32, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(33, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(30, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(35, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(50, globalTime1, "B"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(60, globalTime1, "B"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(70, globalTime1, "B"));
+      assertEquals(1, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(35, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(80, globalTime1, "B"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(34, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(37, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(36, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(40, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(41, globalTime1, "A"));
+      assertEquals(1, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(41, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+   }
+
+   /**
     * Test default setup for MessageBuilder
     */
    @Test
    public void testMessageSynchronizer_PulseIdStart() {
       BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(5);
-      MessageSynchronizer<TestEvent> mBuffer = new MessageSynchronizer<>(completeQueue, 3, false, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
-            (event) -> event.getChannel(), (event) -> event.getPulseId());
+      MessageSynchronizer<TestEvent> mBuffer =
+            new MessageSynchronizer<>(completeQueue, 3, false, false, Arrays.asList(new Channel("A", 1), new Channel(
+                  "B", 1)),
+                  (event) -> event.getChannel(), (event) -> event.getPulseId());
 
       // Test pattern
       // A(2) A(1) B(2) B(1)
@@ -640,13 +1207,71 @@ public class MessageSynchronizerTest {
    }
 
    /**
+    * Test default setup for MessageBuilder
+    */
+   @Test
+   public void testMessageSynchronizer_PulseIdStart_SendFirstComplete() {
+      BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(5);
+      MessageSynchronizer<TestEvent> mBuffer =
+            new MessageSynchronizer<>(completeQueue, 3, false, true, Arrays.asList(new Channel("A", 1), new Channel(
+                  "B", 1)),
+                  (event) -> event.getChannel(), (event) -> event.getPulseId());
+
+      // Test pattern
+      // A(2) A(1) B(2) B(1)
+      Timestamp globalTime1 = new Timestamp();
+      Timestamp globalTime2 = new Timestamp();
+      mBuffer.addMessage(newMessage(2, globalTime2, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(1, globalTime1, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(2, globalTime2, "B"));
+      
+      // Expecting 1 message
+      assertEquals(1, completeQueue.size());
+      assertEquals(0, mBuffer.getBufferSize());
+      AssembledMessage message = new AssembledMessage(completeQueue.poll());
+      assertEquals(2, message.getPulseId());
+      assertEquals(globalTime2, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(1, globalTime1, "B"));
+      
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(0, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(3, globalTime1, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(1, mBuffer.getBufferSize());
+      
+      mBuffer.addMessage(newMessage(3, globalTime1, "B"));
+      
+      // Expecting 1 message
+      assertEquals(1, completeQueue.size());
+      assertEquals(0, mBuffer.getBufferSize());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(3, message.getPulseId());
+      assertEquals(globalTime2, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+   }
+
+   /**
     * Testing MessageSynchronizer if sendIncompleteMessage flag is set to true
     */
    @Test
    public void testMessageSynchronizer_100Hz_Incomplete() {
       BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(5);
-      MessageSynchronizer<TestEvent> mBuffer = new MessageSynchronizer<>(completeQueue, 3, true, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
-            (event) -> event.getChannel(), (event) -> event.getPulseId());
+      MessageSynchronizer<TestEvent> mBuffer =
+            new MessageSynchronizer<>(completeQueue, 3, true, false, Arrays.asList(new Channel("A", 1), new Channel(
+                  "B", 1)),
+                  (event) -> event.getChannel(), (event) -> event.getPulseId());
 
       // Test pattern
       // A(1) A(2) B(2) B(1)
@@ -813,13 +1438,186 @@ public class MessageSynchronizerTest {
    }
 
    /**
+    * Testing MessageSynchronizer if sendIncompleteMessage flag is set to true
+    */
+   @Test
+   public void testMessageSynchronizer_100Hz_Incomplete_SendFirstComplete() {
+      BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(5);
+      MessageSynchronizer<TestEvent> mBuffer =
+            new MessageSynchronizer<>(completeQueue, 3, true, true, Arrays.asList(new Channel("A", 1), new Channel("B",
+                  1)),
+                  (event) -> event.getChannel(), (event) -> event.getPulseId());
+
+      // Test pattern
+      // A(1) A(2) B(2) B(1)
+      Timestamp globalTime0 = new Timestamp();
+      Timestamp globalTime1 = new Timestamp();
+      Timestamp globalTime2 = new Timestamp();
+      mBuffer.addMessage(newMessage(1, globalTime1, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(2, globalTime2, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(2, globalTime2, "B"));
+
+      // Expecting 1 message
+      assertEquals(1, completeQueue.size());
+      assertEquals(0, mBuffer.getBufferSize());
+      AssembledMessage message = new AssembledMessage(completeQueue.poll());
+      assertEquals(2, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(1, globalTime1, "B"));
+      
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(0, mBuffer.getBufferSize());
+
+      // Test pattern
+      // A(0) B(0)
+      mBuffer.addMessage(newMessage(0, globalTime0, "A"));
+
+      // Expecting that there will be no messages as the pulse-id 0 is
+      // below the pulse-id already delivered
+      assertEquals(0, mBuffer.getBufferSize());
+      assertTrue(completeQueue.isEmpty());
+
+      mBuffer.addMessage(newMessage(0, globalTime0, "B"));
+
+      assertEquals(0, mBuffer.getBufferSize());
+      assertTrue(completeQueue.isEmpty());
+
+      Timestamp globalTime3 = new Timestamp();
+      Timestamp globalTime4 = new Timestamp();
+      Timestamp globalTime5 = new Timestamp();
+      Timestamp globalTime6 = new Timestamp();
+      // Test Pattern
+      // A(3), A(4), A(5), A(6), B(4), B(3)
+      // 3 should be send incomplete because exceeding buffer size
+      // 4 should be delivered
+      mBuffer.addMessage(newMessage(3, globalTime3, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(1, mBuffer.getBufferSize());
+      mBuffer.addMessage(newMessage(4, globalTime4, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+      mBuffer.addMessage(newMessage(5, globalTime5, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+      mBuffer.addMessage(newMessage(6, globalTime6, "A"));
+      assertEquals(1, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(3, message.getPulseId());
+      assertEquals(globalTime3, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+      assertTrue(message.getValues().containsKey("A"));
+
+      mBuffer.addMessage(newMessage(4, globalTime4, "B"));
+      assertEquals(1, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(4, message.getPulseId());
+      assertEquals(globalTime4, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(3, globalTime3, "B"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      assertEquals(0, completeQueue.size());
+
+      // State: A(5), A(6) still in buffer
+      Timestamp globalTime7 = new Timestamp();
+      Timestamp globalTime8 = new Timestamp();
+      Timestamp globalTime9 = new Timestamp();
+      mBuffer.addMessage(newMessage(7, globalTime7, "A"));
+      assertEquals(3, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(8, globalTime8, "A"));
+      assertEquals(3, mBuffer.getBufferSize());
+      assertEquals(1, completeQueue.size());
+      assertTrue(message.getValues().containsKey("A"));
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(5, message.getPulseId());
+      assertEquals(globalTime5, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+      assertTrue(message.getValues().containsKey("A"));
+      mBuffer.addMessage(newMessage(9, globalTime9, "A"));
+      assertEquals(3, mBuffer.getBufferSize());
+      assertEquals(1, completeQueue.size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(6, message.getPulseId());
+      assertEquals(globalTime6, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+      assertTrue(message.getValues().containsKey("A"));
+
+      mBuffer.addMessage(newMessage(7, globalTime7, "B"));
+      assertEquals(2, mBuffer.getBufferSize());
+      assertEquals(1, completeQueue.size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(7, message.getPulseId());
+      assertEquals(globalTime7, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(8, globalTime8, "B"));
+      assertEquals(1, mBuffer.getBufferSize());
+      assertEquals(1, completeQueue.size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(8, message.getPulseId());
+      assertEquals(globalTime8, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(9, globalTime9, "B"));
+      assertEquals(0, mBuffer.getBufferSize());
+      assertEquals(1, completeQueue.size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(9, message.getPulseId());
+      assertEquals(globalTime9, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      // Test Pattern
+      // A(11), B(11), B(10), A(10)
+      Timestamp globalTime10 = new Timestamp();
+      Timestamp globalTime11 = new Timestamp();
+      mBuffer.addMessage(newMessage(11, globalTime11, "A"));
+      assertEquals(1, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(11, globalTime11, "B"));
+      assertEquals(1, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(10, globalTime10, "B"));
+      assertEquals(2, mBuffer.getBufferSize());
+      assertEquals(0, completeQueue.size());
+      mBuffer.addMessage(newMessage(10, globalTime10, "A"));
+      assertEquals(0, mBuffer.getBufferSize());
+      assertEquals(2, completeQueue.size());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(10, message.getPulseId());
+      assertEquals(globalTime10, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(11, message.getPulseId());
+      assertEquals(globalTime11, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+   }
+
+   /**
     * Test default setup for MessageBuilder with 10 and 100Hz
     */
    @Test
    public void testMessageSynchronizer_100_10Hz_Incomplete() {
       BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(5);
-      MessageSynchronizer<TestEvent> mBuffer = new MessageSynchronizer<>(completeQueue, 4, true, Arrays.asList(new Channel("A", 1), new Channel("B", 10)),
-            (event) -> event.getChannel(), (event) -> event.getPulseId());
+      MessageSynchronizer<TestEvent> mBuffer =
+            new MessageSynchronizer<>(completeQueue, 4, true, false, Arrays.asList(new Channel("A", 1), new Channel(
+                  "B", 10)),
+                  (event) -> event.getChannel(), (event) -> event.getPulseId());
 
       // Test pattern
       // A(1) A(2) B(2) B(1)
@@ -862,6 +1660,261 @@ public class MessageSynchronizerTest {
       assertEquals(1, message.getPulseId());
       assertEquals(globalTime1, message.getGlobalTimestamp());
       assertEquals(1, message.getValues().size());
+
+      // Test pattern
+      // A(0) B(0)
+      mBuffer.addMessage(newMessage(-1, globalTime1, "A"));
+
+      // Expecting that there will be no messages as the pulse-id 0 is
+      // below the pulse-id already delivered
+      assertEquals(2, mBuffer.getBufferSize());
+      assertTrue(completeQueue.isEmpty());
+
+      mBuffer.addMessage(newMessage(2, globalTime1, "C"));
+
+      // Expecting that there will be no messages since the channel is not
+      // part of the mBuffer
+      assertEquals(2, mBuffer.getBufferSize());
+      assertTrue(completeQueue.isEmpty());
+
+      for (int i = 2; i <= 9; ++i) {
+         mBuffer.addMessage(newMessage(i, globalTime1, "A"));
+
+         assertEquals(1, completeQueue.size());
+         assertEquals(2, mBuffer.getBufferSize());
+
+         message = new AssembledMessage(completeQueue.poll());
+         assertEquals(i, message.getPulseId());
+         assertEquals(globalTime1, message.getGlobalTimestamp());
+         assertEquals(1, message.getValues().size());
+      }
+
+      mBuffer.addMessage(newMessage(11, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(10, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(10, globalTime1, "B"));
+      assertEquals(2, completeQueue.size());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(10, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(11, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      for (int i = 12; i <= 19; ++i) {
+         mBuffer.addMessage(newMessage(i, globalTime1, "A"));
+
+         assertEquals(1, completeQueue.size());
+         assertEquals(1, mBuffer.getBufferSize());
+
+         message = new AssembledMessage(completeQueue.poll());
+         assertEquals(i, message.getPulseId());
+         assertEquals(globalTime1, message.getGlobalTimestamp());
+         assertEquals(1, message.getValues().size());
+      }
+
+      mBuffer.addMessage(newMessage(20, globalTime1, "A"));
+      assertEquals(1, completeQueue.size());
+      assertEquals(0, mBuffer.getBufferSize());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(20, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(2, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(30, globalTime1, "B"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(40, globalTime1, "B"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(22, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(23, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(24, globalTime1, "A"));
+      assertEquals(3, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(22, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(23, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(24, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      for (int i = 25; i <= 29; ++i) {
+         mBuffer.addMessage(newMessage(i, globalTime1, "A"));
+
+         assertEquals(1, completeQueue.size());
+         assertEquals(2, mBuffer.getBufferSize());
+
+         message = new AssembledMessage(completeQueue.poll());
+         assertEquals(i, message.getPulseId());
+         assertEquals(globalTime1, message.getGlobalTimestamp());
+         assertEquals(1, message.getValues().size());
+      }
+
+      mBuffer.addMessage(newMessage(31, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(32, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(33, globalTime1, "A"));
+      assertEquals(4, completeQueue.size());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(30, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+      assertTrue(message.getValues().containsKey("B"));
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(31, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(32, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(33, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(30, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(35, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(50, globalTime1, "B"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(3, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(60, globalTime1, "B"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(70, globalTime1, "B"));
+      assertEquals(1, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(35, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(80, globalTime1, "B"));
+      assertEquals(1, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(40, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+      assertTrue(message.getValues().containsKey("B"));
+
+      mBuffer.addMessage(newMessage(34, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(37, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(36, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(40, globalTime1, "A"));
+      assertEquals(0, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(41, globalTime1, "A"));
+      assertEquals(1, completeQueue.size());
+      assertEquals(4, mBuffer.getBufferSize());
+      message = new AssembledMessage(completeQueue.poll());
+      assertEquals(41, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+   }
+
+   /**
+    * Test default setup for MessageBuilder with 10 and 100Hz
+    */
+   @Test
+   public void testMessageSynchronizer_100_10Hz_Incomplete_SendFirstComplete() {
+      BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(5);
+      MessageSynchronizer<TestEvent> mBuffer =
+            new MessageSynchronizer<>(completeQueue, 4, true, true, Arrays.asList(new Channel("A", 1), new Channel("B",
+                  10)),
+                  (event) -> event.getChannel(), (event) -> event.getPulseId());
+
+      // Test pattern
+      // A(1) A(2) B(2) B(1)
+      Timestamp globalTime1 = new Timestamp();
+      mBuffer.addMessage(newMessage(0, globalTime1, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(1, globalTime1, "A"));
+
+      assertEquals(1, completeQueue.size());
+      assertEquals(0, mBuffer.getBufferSize());
+      
+      AssembledMessage message = new AssembledMessage(completeQueue.poll());
+      assertEquals(1, message.getPulseId());
+      assertEquals(globalTime1, message.getGlobalTimestamp());
+      assertEquals(1, message.getValues().size());
+
+      mBuffer.addMessage(newMessage(10, globalTime1, "A"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(1, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(20, globalTime1, "B"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(5, globalTime1, "B"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(2, mBuffer.getBufferSize());
+
+      mBuffer.addMessage(newMessage(0, globalTime1, "B"));
+
+      assertTrue(completeQueue.isEmpty());
+      assertEquals(2, mBuffer.getBufferSize());
 
       // Test pattern
       // A(0) B(0)
@@ -1119,8 +2172,9 @@ public class MessageSynchronizerTest {
          channels.add(new Channel(channelBase + i, modulo));
       }
       BlockingQueue<Map<String, TestEvent>> completeQueue = new ArrayBlockingQueue<>(nrOfEvents + 1);
-      MessageSynchronizer<TestEvent> buffer = new MessageSynchronizer<>(completeQueue, nrOfEvents + 1, false, channels,
-            (event) -> event.getChannel(), (event) -> event.getPulseId());
+      MessageSynchronizer<TestEvent> buffer =
+            new MessageSynchronizer<>(completeQueue, nrOfEvents + 1, false, false, channels,
+                  (event) -> event.getChannel(), (event) -> event.getPulseId());
       CountDownLatch startSync = new CountDownLatch(1);
       ExecutorService executor = Executors.newFixedThreadPool(nrOfChannels + 2);
 

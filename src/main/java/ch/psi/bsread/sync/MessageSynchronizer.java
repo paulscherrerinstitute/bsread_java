@@ -9,6 +9,7 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
@@ -37,15 +38,18 @@ public class MessageSynchronizer<Msg> {
    private final ConcurrentSkipListMap<Long, Map<String, Msg>> sortedMap = new ConcurrentSkipListMap<>();
    private final Function<Msg, String> channelNameProvider;
    private final ToLongFunction<Msg> pulseIdProvider;
+   private final AtomicBoolean sendFirstComplete;
 
    public MessageSynchronizer(Queue<Map<String, Msg>> completeQueue, int maxNumberOfMessagesToKeep,
-         boolean sendIncompleteMessages, Collection<Channel> channels, Function<Msg, String> channelNameProvider,
+         boolean sendIncompleteMessages, boolean sendFirstComplete, Collection<Channel> channels,
+         Function<Msg, String> channelNameProvider,
          ToLongFunction<Msg> pulseIdProvider) {
       this.completeQueue = completeQueue;
       this.maxNumberOfMessagesToKeep = maxNumberOfMessagesToKeep;
       this.sendIncompleteMessages = sendIncompleteMessages;
       this.channelNameProvider = channelNameProvider;
       this.pulseIdProvider = pulseIdProvider;
+      this.sendFirstComplete = new AtomicBoolean(sendFirstComplete);
 
       this.channelConfigs = new HashMap<>(channels.size());
       for (Channel channel : channels) {
@@ -73,6 +77,19 @@ public class MessageSynchronizer<Msg> {
                      this.sortedMap.computeIfAbsent(pulseId, (k) -> new ConcurrentHashMap<>(this.channelConfigs.size(),
                            0.75f, 1));
                pulseIdMap.put(channelName, msg);
+
+               if (sendFirstComplete.get() && pulseIdMap.size() >= this.getNumberOfExpectedChannels(pulseId)) {
+                  this.updateLastSentOrDeletedPulseId(pulseId - 1);
+                  Entry<Long, Map<String, Msg>> entry = this.sortedMap.firstEntry();
+                  while (entry != null && entry.getKey() < pulseId) {
+                     LOGGER.info("Drop message of pulse '{}' from channel '{}' as there is a later complete start.",
+                           entry.getKey(), channelName);
+                     this.sortedMap.remove(entry.getKey());
+                     entry = this.sortedMap.firstEntry();
+                  }
+                  // set to false as there is no need to enter this code block anymore
+                  sendFirstComplete.set(false);
+               }
             } else {
                LOGGER.debug(
                      "Drop message of pulse '{}' from channel '{}' that does not match modulo '{}' and offset '{}'",
