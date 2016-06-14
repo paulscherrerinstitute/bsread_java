@@ -9,7 +9,6 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
@@ -26,19 +25,20 @@ import ch.psi.bsread.configuration.Channel;
  */
 public class MessageSynchronizer<Msg> {
    private static final Logger LOGGER = LoggerFactory.getLogger(MessageSynchronizer.class.getName());
+   private static final long INITIAL_LAST_SENT_OR_DELETE_PULSEID = Long.MIN_VALUE;
 
    private final int maxNumberOfMessagesToKeep;
    private final boolean sendIncompleteMessages;
 
    private final Map<String, Pair<Long, Long>> channelConfigs;
    private final AtomicLong smallestEverReceivedPulseId = new AtomicLong(Long.MAX_VALUE);
-   private final AtomicLong lastSentOrDeletedPulseId = new AtomicLong(Long.MIN_VALUE);
+   private final AtomicLong lastSentOrDeletedPulseId = new AtomicLong(INITIAL_LAST_SENT_OR_DELETE_PULSEID);
    private final Queue<Map<String, Msg>> completeQueue;
    // map[ pulseId -> map[channel -> value] ]
    private final ConcurrentSkipListMap<Long, Map<String, Msg>> sortedMap = new ConcurrentSkipListMap<>();
    private final Function<Msg, String> channelNameProvider;
    private final ToLongFunction<Msg> pulseIdProvider;
-   private final AtomicBoolean sendFirstComplete;
+   private final boolean sendFirstComplete;
 
    public MessageSynchronizer(Queue<Map<String, Msg>> completeQueue, int maxNumberOfMessagesToKeep,
          boolean sendIncompleteMessages, boolean sendFirstComplete, Collection<Channel> channels,
@@ -49,7 +49,7 @@ public class MessageSynchronizer<Msg> {
       this.sendIncompleteMessages = sendIncompleteMessages;
       this.channelNameProvider = channelNameProvider;
       this.pulseIdProvider = pulseIdProvider;
-      this.sendFirstComplete = new AtomicBoolean(sendFirstComplete);
+      this.sendFirstComplete = sendFirstComplete;
 
       this.channelConfigs = new HashMap<>(channels.size());
       for (Channel channel : channels) {
@@ -78,7 +78,12 @@ public class MessageSynchronizer<Msg> {
                            0.75f, 1));
                pulseIdMap.put(channelName, msg);
 
-               if (sendFirstComplete.get() && pulseIdMap.size() >= this.getNumberOfExpectedChannels(pulseId)) {
+               if (lastPulseId == INITIAL_LAST_SENT_OR_DELETE_PULSEID
+                     && sendFirstComplete
+                     && (pulseIdMap.size() >= this.getNumberOfExpectedChannels(pulseId))
+                     || (pulseId <= this.lastSentOrDeletedPulseId.get())) {
+                  // several threads might enter this code block but it is important that they
+                  // cleanup
                   this.updateLastSentOrDeletedPulseId(pulseId - 1);
                   Entry<Long, Map<String, Msg>> entry = this.sortedMap.firstEntry();
                   while (entry != null && entry.getKey() < pulseId) {
@@ -87,8 +92,6 @@ public class MessageSynchronizer<Msg> {
                      this.sortedMap.remove(entry.getKey());
                      entry = this.sortedMap.firstEntry();
                   }
-                  // set to false as there is no need to enter this code block anymore
-                  sendFirstComplete.set(false);
                }
             } else {
                LOGGER.debug(
