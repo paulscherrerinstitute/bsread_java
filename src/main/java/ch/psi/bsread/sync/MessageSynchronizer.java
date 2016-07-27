@@ -17,8 +17,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ch.psi.bsread.configuration.Channel;
-
 /**
  * MessageBuffer based on a max. allowed size. Accordingly, the time limit messages are kept is
  * given by the frequency and the buffer size (assuming there are constantly messages arriving)
@@ -41,7 +39,7 @@ public class MessageSynchronizer<Msg> {
    private final boolean sendFirstComplete;
 
    public MessageSynchronizer(Queue<Map<String, Msg>> completeQueue, int maxNumberOfMessagesToKeep,
-         boolean sendIncompleteMessages, boolean sendFirstComplete, Collection<Channel> channels,
+         boolean sendIncompleteMessages, boolean sendFirstComplete, Collection<? extends SyncChannel> channels,
          Function<Msg, String> channelNameProvider,
          ToLongFunction<Msg> pulseIdProvider) {
       this.completeQueue = completeQueue;
@@ -52,7 +50,7 @@ public class MessageSynchronizer<Msg> {
       this.sendFirstComplete = sendFirstComplete;
 
       this.channelConfigs = new HashMap<>(channels.size());
-      for (Channel channel : channels) {
+      for (SyncChannel channel : channels) {
          this.channelConfigs.put(channel.getName(), Pair.of((long) channel.getModulo(), (long) channel.getOffset()));
       }
    }
