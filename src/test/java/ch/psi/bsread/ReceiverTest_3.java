@@ -135,7 +135,7 @@ public class ReceiverTest_3 {
 			chConf = this.channelConfigs.get(channelName);
 			assertTrue(hookValues.containsKey(channelName));
 			value = hookValues.get(channelName);
-			javaVal = byteConverter.getValue(value.getValue(), chConf, hookMainHeader, null);
+			javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
 			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
 			assertEquals(0, value.getTimestamp().getNs());
@@ -230,7 +230,7 @@ public class ReceiverTest_3 {
 			chConf = this.channelConfigs.get(channelName);
 			assertTrue(hookValues.containsKey(channelName));
 			value = hookValues.get(channelName);
-			javaVal = byteConverter.getValue(value.getValue(), chConf, hookMainHeader, null);
+			javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
 			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
 			assertEquals(0, value.getTimestamp().getNs());
@@ -325,7 +325,7 @@ public class ReceiverTest_3 {
 			chConf = this.channelConfigs.get(channelName);
 			assertTrue(hookValues.containsKey(channelName));
 			value = hookValues.get(channelName);
-			javaVal = byteConverter.getValue(value.getValue(), chConf, hookMainHeader, null);
+			javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
 			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
 			assertEquals(0, value.getTimestamp().getNs());
@@ -439,7 +439,7 @@ public class ReceiverTest_3 {
 				chConf = this.channelConfigs.get(channelName);
 				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = byteConverter.getValue(value.getValue(), chConf, hookMainHeader, null);
+				javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
 				assertEquals(0, value.getTimestamp().getNs());
@@ -451,7 +451,7 @@ public class ReceiverTest_3 {
 				assertTrue(hookValues.containsKey(channelName));
 				assertEquals(i, hookMainHeader.getPulseId());
 				value = hookValues.get(channelName);
-				javaVal = byteConverter.getValue(value.getValue(), chConf, hookMainHeader, null);
+				javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
 				assertEquals(0, value.getTimestamp().getNs());
@@ -465,7 +465,7 @@ public class ReceiverTest_3 {
 				chConf = this.channelConfigs.get(channelName);
 				assertTrue(hookValues.containsKey(channelName));
 				value = hookValues.get(channelName);
-				javaVal = byteConverter.getValue(value.getValue(), chConf, hookMainHeader, null);
+				javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
 				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
 				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
 				assertEquals(0, value.getTimestamp().getNs());
@@ -586,9 +586,10 @@ public class ReceiverTest_3 {
 				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getSec());
 				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getNs());
 				Number val = this.byteConverter.getValue(
-						value.getValue(),
-						channelConfig,
 						hookMainHeader,
+						hookDataHeader,
+						channelConfig,
+						value.getValue(),
 						null);
 				assertEquals(hookMainHeader.getPulseId() + j, val.longValue());
 

@@ -778,7 +778,7 @@ public class CompressionTest {
 						assertEquals(position, compressed.position());
 						assertEquals(limit, compressed.limit());
 
-						Object newValue = byteConverter.getValue(decompressed, decompressedChannelConfig, null, null);
+						Object newValue = byteConverter.getValue(null, null, decompressedChannelConfig, decompressed, null);
 						assertObjectArrayEquals(value, newValue, compression, byteOrder, type);
 
 						position = valueBytes.position();
@@ -812,7 +812,7 @@ public class CompressionTest {
 						assertEquals(position, compressed.position());
 						assertEquals(limit, compressed.limit());
 
-						newValue = byteConverter.getValue(decompressed, decompressedChannelConfig, null, null);
+						newValue = byteConverter.getValue(null, null, decompressedChannelConfig, decompressed, null);
 						assertObjectArrayEquals(value, newValue, compression, byteOrder, type);
 					}
 

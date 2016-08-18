@@ -5,7 +5,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.function.Supplier;
 
 import ch.psi.bsread.common.allocator.ThreadLocalByteArrayAllocator;
 
@@ -18,19 +17,14 @@ public class ValueImpl<V> implements Value<V> {
 	private static final byte DIRECT_POSITION = 1;
 	private static final byte ORDER_POSITION = 2;
 
-	private transient Supplier<V> value;
+	private transient V value;
 	private Timestamp timestamp;
 
 	public ValueImpl() {
 	}
 
-	public ValueImpl(Supplier<V> value, Timestamp timestamp) {
-		this.value = value;
-		this.timestamp = timestamp;
-	}
-
 	public ValueImpl(V value, Timestamp timestamp) {
-		this.setValue(value);
+		this.value = value;
 		this.timestamp = timestamp;
 	}
 
@@ -42,20 +36,12 @@ public class ValueImpl<V> implements Value<V> {
 		return timestamp;
 	}
 
-	public void setValueSupplier(Supplier<V> value) {
-		this.value = value;
-	}
-	
-	public Supplier<V> getValueSupplier(){
-	   return this.value;
-	}
-
 	public void setValue(V value) {
-		this.value = ()->value;
+		this.value = value;
 	}
 
 	public V getValue() {
-		return value.get();
+		return value;
 	}
 
 	public <W> W getValue(Class<W> clazz) {
