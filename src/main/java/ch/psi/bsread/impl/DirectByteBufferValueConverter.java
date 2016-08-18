@@ -7,6 +7,7 @@ import ch.psi.bsread.common.allocator.ByteBufferAllocator;
 import ch.psi.bsread.common.helper.ByteBufferHelper;
 import ch.psi.bsread.converter.ValueConverter;
 import ch.psi.bsread.message.ChannelConfig;
+import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
 
@@ -26,10 +27,10 @@ public class DirectByteBufferValueConverter implements ValueConverter {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public ByteBuffer getValue(ByteBuffer receivedValueBytes, ChannelConfig config, MainHeader mainHeader,
-	         Timestamp iocTimestamp) {
-		receivedValueBytes = config.getCompression().getCompressor().decompressData(receivedValueBytes, receivedValueBytes.position(), allocator, config.getType().getBytes());
-		receivedValueBytes.order(config.getByteOrder());
+	public ByteBuffer getValue(MainHeader mainHeader, DataHeader dataHeader, ChannelConfig channelConfig, ByteBuffer receivedValueBytes,
+			Timestamp iocTimestamp) {
+		receivedValueBytes = channelConfig.getCompression().getCompressor().decompressData(receivedValueBytes, receivedValueBytes.position(), allocator, channelConfig.getType().getBytes());
+		receivedValueBytes.order(channelConfig.getByteOrder());
 
 		if (receivedValueBytes.remaining() <= directThreshold) {
 			return receivedValueBytes;

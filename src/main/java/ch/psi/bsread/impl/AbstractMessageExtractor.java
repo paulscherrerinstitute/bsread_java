@@ -5,7 +5,6 @@ import java.nio.ByteOrder;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +15,6 @@ import zmq.Msg;
 
 import ch.psi.bsread.MessageExtractor;
 import ch.psi.bsread.ReceiverConfig;
-import ch.psi.bsread.common.concurrent.singleton.Deferred;
 import ch.psi.bsread.converter.ValueConverter;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
@@ -24,7 +22,6 @@ import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Value;
-import ch.psi.bsread.message.ValueImpl;
 
 /**
  * A MessageExtractor that allows to use DirectBuffers to store data blobs that
@@ -43,9 +40,9 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
 		this.valueConverter = valueConverter;
 	}
 
-	protected Value<V> getValue(ChannelConfig channelConfig) {
-		return new ValueImpl<V>((V) null, new Timestamp());
-	}
+	// protected Value<V> getValue(ChannelConfig channelConfig) {
+	// return new ValueImpl<V>((V) null, new Timestamp());
+	// }
 
 	@Override
 	public Message<V> extractMessage(Socket socket, MainHeader mainHeader, Set<String> requestedChannels) {
@@ -86,18 +83,14 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
 
 				// Create value object
 				if (receivedValueBytes != null && receivedValueBytes.remaining() > 0) {
-					final Value<V> value = getValue(currentConfig);
-					values.put(currentConfig.getName(), value);
-
 					// c-implementation uses a unsigned long (Json::UInt64,
 					// uint64_t) for time -> decided to ignore this here
-					final Timestamp iocTimestamp = value.getTimestamp();
-					iocTimestamp.setSec(timestampBytes.getLong(timestampBytes.position()));
-					iocTimestamp.setNs(timestampBytes.getLong(timestampBytes.position() + Long.BYTES));
+					final Timestamp iocTimestamp = new Timestamp(
+							timestampBytes.getLong(timestampBytes.position()),
+							timestampBytes.getLong(timestampBytes.position() + Long.BYTES));
 
-					// offload value conversion work from receiver thread
-					Supplier<V> supplier = new Deferred<>(() -> valueConverter.getValue(receivedValueBytes, currentConfig, mainHeader, iocTimestamp));
-					value.setValueSupplier(supplier);
+					final Value<V> value = valueConverter.getMessageValue(mainHeader, dataHeader, currentConfig, receivedValueBytes, iocTimestamp);
+					values.put(currentConfig.getName(), value);
 					// try{ -> ???
 					// CompletableFuture<V> futureValue =
 					// CompletableFuture.supplyAsync(

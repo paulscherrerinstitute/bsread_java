@@ -1,7 +1,6 @@
 package ch.psi.bsread.message;
 
 import java.io.Serializable;
-import java.util.function.Supplier;
 
 public interface Value<V> extends Serializable {
 	public static final long DEFAULT_TIMEOUT_IN_MILLIS = 30000;
@@ -9,10 +8,6 @@ public interface Value<V> extends Serializable {
 	public void setTimestamp(Timestamp timestamp);
 
 	public Timestamp getTimestamp();
-
-	public void setValueSupplier(Supplier<V> value);
-	
-	public Supplier<V> getValueSupplier();
 
 	public void setValue(V value);
 
