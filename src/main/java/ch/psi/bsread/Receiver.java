@@ -55,6 +55,9 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 			this.context = ZMQ.context(1);
 			this.socket = this.context.socket(receiverConfig.getSocketType());
 			this.socket.setRcvHWM(receiverConfig.getHighWaterMark());
+			if (receiverConfig.getReceiveTimeout() != null) {
+				this.socket.setReceiveTimeOut(receiverConfig.getReceiveTimeout());
+			}
 			if (receiverConfig.getMsgAllocator() != null) {
 				this.socket.base().setSocketOpt(zmq.ZMQ.ZMQ_MSG_ALLOCATOR, receiverConfig.getMsgAllocator());
 			}
@@ -96,6 +99,12 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 			 */
 			try {
 				mainHeaderBytes = socket.recv();
+				if(mainHeaderBytes == null && receiverConfig.getReceiveTimeout() != null){
+					LOGGER.info("Reconnect '{}' due to timeout.", receiverConfig.getAddress());
+					this.close();
+					this.connect();
+					continue;
+				}
 				// test if mainHaderBytes can be interpreted as Command
 				command = objectMapper.readValue(mainHeaderBytes, Command.class);
 				message = command.process(this);
@@ -107,12 +116,12 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 					String mainHeaderJson = new String(mainHeaderBytes, StandardCharsets.UTF_8);
 					LOGGER.info("MainHeader was '{}'", mainHeaderJson);
 				}
-                // drain the socket
-                drain();
+				// drain the socket
+				drain();
 
-                if (nrOfAlignmentTrys > receiverConfig.getAlignmentRetries()) {
-                    throw new RuntimeException("Could not extract Command within max retries.");
-                }
+				if (nrOfAlignmentTrys > receiverConfig.getAlignmentRetries()) {
+					throw new RuntimeException("Could not extract Command within max retries.");
+				}
 			} catch (IOException e) {
 				++nrOfAlignmentTrys;
 				LOGGER.info("Received bytes were not aligned with multipart message.", e);
@@ -122,14 +131,14 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 				if (nrOfAlignmentTrys > receiverConfig.getAlignmentRetries()) {
 					throw new RuntimeException("Could not extract Command within max retries.");
 				}
-			}catch (ZMQException e) {
-                if (e.getErrorCode () == ZMQ.Error.ETERM.getCode ()) {
-                    LOGGER.debug("ZMQ stream stopped/closed due to '{}'. This is considered as a valid state to stop sending.",
-                            e.getMessage());
-                }else{
-                	throw e;
-                }
-            }
+			} catch (ZMQException e) {
+				if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()) {
+					LOGGER.debug("ZMQ stream stopped/closed due to '{}'. This is considered as a valid state to stop sending.",
+							e.getMessage());
+				} else {
+					throw e;
+				}
+			}
 		}
 
 		return message;

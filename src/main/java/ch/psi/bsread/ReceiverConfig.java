@@ -28,6 +28,7 @@ public class ReceiverConfig<V> {
 	private final MsgAllocator msgAllocator;
 	private int socketType = ZMQ.PULL;
 	private String address = DEFAULT_RECEIVING_ADDRESS;
+	private Integer receiveTimeout;
 	private Collection<Channel> requestedChannels;
 
 	public ReceiverConfig() {
@@ -127,6 +128,27 @@ public class ReceiverConfig<V> {
 
 	public String getAddress() {
 		return address;
+	}
+
+	/**
+	 * Setter for the receive timeout in millis (null for default behavior which
+	 * is currently equal to -1 for blocking). In case no message is received
+	 * within this time limit, a reconnect will be triggered.
+	 * 
+	 * @param receiveTimeout
+	 *            The receive timeout
+	 */
+	public void setReceiveTimeout(Integer receiveTimeout) {
+		this.receiveTimeout = receiveTimeout;
+	}
+
+	/**
+	 * Getter for the receive timeout in millis.
+	 * 
+	 * @return Integer The receive timeout
+	 */
+	public Integer getReceiveTimeout() {
+		return receiveTimeout;
 	}
 
 	public Collection<Channel> getRequestedChannels() {
