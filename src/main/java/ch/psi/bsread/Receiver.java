@@ -99,15 +99,30 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 			 */
 			try {
 				mainHeaderBytes = socket.recv();
-				if(mainHeaderBytes == null && receiverConfig.getReceiveTimeout() != null){
-					LOGGER.info("Reconnect '{}' due to timeout.", receiverConfig.getAddress());
-					this.close();
-					this.connect();
-					continue;
+
+				if (mainHeaderBytes != null) {
+					// test if mainHaderBytes can be interpreted as Command
+					command = objectMapper.readValue(mainHeaderBytes, Command.class);
+					message = command.process(this);
 				}
-				// test if mainHaderBytes can be interpreted as Command
-				command = objectMapper.readValue(mainHeaderBytes, Command.class);
-				message = command.process(this);
+				else {
+					if (receiverConfig.getReceiveTimeout() != null) {
+						switch (receiverConfig.getReceiveTimeoutBehavior()) {
+						case RECONNECT:
+							LOGGER.info("Reconnect '{}' due to timeout.", receiverConfig.getAddress());
+							this.close();
+							this.connect();
+							continue;
+						case RETURN:
+						default:
+							LOGGER.warn("Return null for '{}' due to timeout.", receiverConfig.getAddress());
+							return null;
+						}
+					} else {
+						LOGGER.warn("Unknown receive state for '{}'.", receiverConfig.getAddress());
+						message = null;
+					}
+				}
 			} catch (JsonParseException | JsonMappingException e) {
 				++nrOfAlignmentTrys;
 

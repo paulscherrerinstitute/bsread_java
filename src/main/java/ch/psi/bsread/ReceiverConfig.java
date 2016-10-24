@@ -29,6 +29,7 @@ public class ReceiverConfig<V> {
 	private int socketType = ZMQ.PULL;
 	private String address = DEFAULT_RECEIVING_ADDRESS;
 	private Integer receiveTimeout;
+	private ReceiveTimeoutBehavior receiveTimeoutBehavior = ReceiveTimeoutBehavior.RECONNECT;
 	private Collection<Channel> requestedChannels;
 
 	public ReceiverConfig() {
@@ -151,6 +152,14 @@ public class ReceiverConfig<V> {
 		return receiveTimeout;
 	}
 
+	public void setReceiveTimeoutBehavior(ReceiveTimeoutBehavior receiveTimeoutBehavior) {
+		this.receiveTimeoutBehavior = receiveTimeoutBehavior;
+	}
+
+	public ReceiveTimeoutBehavior getReceiveTimeoutBehavior() {
+		return receiveTimeoutBehavior;
+	}
+
 	public Collection<Channel> getRequestedChannels() {
 		return this.requestedChannels;
 	}
@@ -168,5 +177,11 @@ public class ReceiverConfig<V> {
 
 	public static void addObjectMapperMixin(ObjectMapper objectMapper) {
 		objectMapper.addMixIn(Command.class, PolymorphicCommandMixIn.class);
+	}
+
+	public enum ReceiveTimeoutBehavior {
+		RECONNECT,
+		/* Returns null */
+		RETURN;
 	}
 }
