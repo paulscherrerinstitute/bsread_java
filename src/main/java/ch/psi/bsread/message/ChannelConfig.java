@@ -107,7 +107,7 @@ public class ChannelConfig implements Serializable {
       return this.modulo;
    }
 
-   public void setFrequency(int modulo) {
+   public void setModulo(int modulo) {
       this.modulo = modulo;
    }
 
