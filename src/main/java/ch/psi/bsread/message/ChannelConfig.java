@@ -2,6 +2,7 @@ package ch.psi.bsread.message;
 
 import java.io.Serializable;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -169,5 +170,51 @@ public class ChannelConfig implements Serializable {
       else {
          encoding = ChannelConfig.ENCODING_LITTLE_ENDIAN;
       }
+   }
+
+   @Override
+   public int hashCode() {
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + ((compression == null) ? 0 : compression.hashCode());
+      result = prime * result + ((encoding == null) ? 0 : encoding.hashCode());
+      result = prime * result + modulo;
+      result = prime * result + ((name == null) ? 0 : name.hashCode());
+      result = prime * result + offset;
+      result = prime * result + Arrays.hashCode(shape);
+      result = prime * result + ((type == null) ? 0 : type.hashCode());
+      return result;
+   }
+
+   @Override
+   public boolean equals(Object obj) {
+      if (this == obj)
+         return true;
+      if (obj == null)
+         return false;
+      if (getClass() != obj.getClass())
+         return false;
+      ChannelConfig other = (ChannelConfig) obj;
+      if (compression != other.compression)
+         return false;
+      if (encoding == null) {
+         if (other.encoding != null)
+            return false;
+      } else if (!encoding.equals(other.encoding))
+         return false;
+      if (modulo != other.modulo)
+         return false;
+      if (name == null) {
+         if (other.name != null)
+            return false;
+      } else if (!name.equals(other.name))
+         return false;
+      if (offset != other.offset)
+         return false;
+      if (!Arrays.equals(shape, other.shape))
+         return false;
+      if (type != other.type)
+         return false;
+      return true;
    }
 }
