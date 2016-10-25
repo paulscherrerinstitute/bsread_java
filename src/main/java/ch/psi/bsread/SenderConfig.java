@@ -2,6 +2,7 @@ package ch.psi.bsread;
 
 import java.nio.ByteBuffer;
 import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 import org.zeromq.ZMQ;
 
@@ -13,6 +14,7 @@ import ch.psi.bsread.converter.ByteConverter;
 import ch.psi.bsread.converter.MatlabByteConverter;
 import ch.psi.bsread.impl.StandardPulseIdProvider;
 import ch.psi.bsread.impl.StandardTimeProvider;
+import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.monitors.Monitor;
 
 public class SenderConfig {
@@ -22,6 +24,8 @@ public class SenderConfig {
 	private final Compression dataHeaderCompression;
 	private final IntFunction<ByteBuffer> valueAllocator;
 	private final IntFunction<ByteBuffer> compressedValueAllocator;
+	// only for testing purposes
+	private Supplier<MainHeader> mainHeaderSupplier;
 
 	private final PulseIdProvider pulseIdProvider;
 	private final TimeProvider globalTimeProvider;
@@ -63,11 +67,11 @@ public class SenderConfig {
 
 		this.setObjectMapper(new ObjectMapper());
 	}
-	
+
 	public int getHighWaterMark() {
 		return highWaterMark;
 	}
-	
+
 	public String getAddress() {
 		return address;
 	}
@@ -126,5 +130,13 @@ public class SenderConfig {
 
 	public void setMonitor(Monitor monitor) {
 		this.monitor = monitor;
+	}
+
+	public void setMainHeaderSupplier(Supplier<MainHeader> mainHeaderSupplier) {
+		this.mainHeaderSupplier = mainHeaderSupplier;
+	}
+
+	public Supplier<MainHeader> getMainHeaderSupplier() {
+		return mainHeaderSupplier;
 	}
 }

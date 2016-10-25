@@ -33,7 +33,7 @@ public class Sender {
 
 	private SenderConfig senderConfig;
 
-	private MainHeader mainHeader = new MainHeader();
+	private MainHeader mainHeader;
 	private byte[] dataHeaderBytes;
 	private String dataHeaderMD5 = "";
 
@@ -45,6 +45,7 @@ public class Sender {
 
 	public Sender(SenderConfig senderConfig) {
 		this.senderConfig = senderConfig;
+		this.mainHeader = senderConfig.getMainHeaderSupplier() != null ? senderConfig.getMainHeaderSupplier().get() : new MainHeader();
 	}
 
 	public void bind() {
