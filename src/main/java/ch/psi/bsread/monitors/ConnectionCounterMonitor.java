@@ -88,8 +88,6 @@ public class ConnectionCounterMonitor implements Monitor {
 
    @Override
    public synchronized void stop() {
-      handlers.clear();
-      
       if (monitorConfig != null) {
          try {
             String stopCommandStr = monitorConfig.getObjectMapper().writeValueAsString(new StopCommand());
