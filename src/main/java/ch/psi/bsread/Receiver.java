@@ -1,7 +1,6 @@
 package ch.psi.bsread;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -127,10 +126,11 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 				++nrOfAlignmentTrys;
 
 				LOGGER.info("Could not parse MainHeader.", e);
-				if (mainHeaderBytes != null) {
-					String mainHeaderJson = new String(mainHeaderBytes, StandardCharsets.UTF_8);
-					LOGGER.info("MainHeader was '{}'", mainHeaderJson);
-				}
+				// if (mainHeaderBytes != null) {
+				// String mainHeaderJson = new String(mainHeaderBytes,
+				// StandardCharsets.UTF_8);
+				// LOGGER.info("MainHeader was '{}'", mainHeaderJson);
+				// }
 				// drain the socket
 				drain();
 
