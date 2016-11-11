@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ch.psi.bsread.common.concurrent.executor.CommonExecutors;
+import ch.psi.bsread.common.concurrent.singleton.Deferred;
 
 import sun.misc.JavaNioAccess.BufferPool;
 import sun.misc.VM;
@@ -87,7 +88,8 @@ public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
         System.gc();
         syncRef.compareAndSet(syncObj, null);
       };
-      private ExecutorService gcService = CommonExecutors.newSingleThreadExecutor("DirectBufferCleaner");
+      private Deferred<ExecutorService> gcService = new Deferred<>(
+            () -> CommonExecutors.newSingleThreadExecutor("DirectBufferCleaner"));
 
       public DirectBufferCleaner(long gcThreshold) {
          this.gcThreshold = gcThreshold;
@@ -110,7 +112,7 @@ public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
             // or:
             // https://apache.googlesource.com/flume/+/trunk/flume-ng-core/src/main/java/org/apache/flume/tools/DirectMemoryUtils.java
             // -> clean()
-            gcService.execute(gcRunnable);
+            gcService.get().execute(gcRunnable);
          }
       }
    }
