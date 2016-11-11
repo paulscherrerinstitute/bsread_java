@@ -13,14 +13,14 @@ import ch.psi.bsread.message.Timestamp;
 
 public class DirectByteBufferValueConverter implements ValueConverter {
 	private IntFunction<ByteBuffer> allocator;
-	private int directThreshold;
+	private long directThreshold;
 
 	public DirectByteBufferValueConverter() {
 		this.directThreshold = ByteBufferAllocator.DEFAULT_DIRECT_THRESHOLD;
 		this.allocator = ByteBufferAllocator.DEFAULT_ALLOCATOR;
 	}
 
-	public DirectByteBufferValueConverter(int directThreshold) {
+	public DirectByteBufferValueConverter(long directThreshold) {
 		this.directThreshold = directThreshold;
 		this.allocator = new ByteBufferAllocator(directThreshold);
 	}

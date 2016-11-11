@@ -15,7 +15,20 @@ import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 
 public class CommonExecutors {
 	public static final boolean DEFAULT_IS_MONITORING = false;
+	public static final int QUEUE_SIZE_UNBOUNDED = -1;
 	private static final RejectedExecutionHandler DEFAULT_HANDLER = new AbortPolicy();
+
+	public static ExecutorService newSingleThreadExecutor(String poolName) {
+		return newSingleThreadExecutor(QUEUE_SIZE_UNBOUNDED, poolName);
+	}
+	
+	public static ExecutorService newSingleThreadExecutor(int queueSize, String poolName) {
+		return newFixedThreadPool(1, queueSize, poolName, DEFAULT_IS_MONITORING);
+	}
+	
+	public static ExecutorService newFixedThreadPool(int nThreads, String poolName) {
+		return newFixedThreadPool(nThreads, QUEUE_SIZE_UNBOUNDED, poolName, DEFAULT_IS_MONITORING);
+	}
 
 	public static ExecutorService newFixedThreadPool(int nThreads, int queueSize, String poolName,
 			boolean monitoring) {
@@ -45,6 +58,14 @@ public class CommonExecutors {
 		}
 	}
 
+	public static ScheduledExecutorService newSingleThreadScheduledExecutor(String poolName) {
+		return newScheduledThreadPool(1, poolName);
+	}
+	
+	public static ScheduledExecutorService newScheduledThreadPool(int nThreads, String poolName){
+		return newScheduledThreadPool(nThreads, poolName, DEFAULT_IS_MONITORING);
+	}
+	
 	public static ScheduledExecutorService newScheduledThreadPool(int nThreads, String poolName, boolean monitoring) {
 		final ThreadFactory threadFactory =
 				new BasicThreadFactory.Builder().namingPattern(poolName + "-%d").build();

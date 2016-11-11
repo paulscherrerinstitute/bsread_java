@@ -8,13 +8,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import ch.psi.bsread.common.concurrent.executor.CommonExecutors;
 import ch.psi.bsread.common.concurrent.singleton.Deferred;
 
 public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>> {
@@ -25,7 +25,7 @@ public class AsyncTransferSpliterator<T> implements Spliterator<StreamSection<T>
    public static final int DEFAULT_BACKPRESSURE_SIZE = Integer.MAX_VALUE;
    private static final int CHARACTERISTICS = Spliterator.ORDERED | Spliterator.NONNULL;
    private static final Deferred<ExecutorService> DEFAULT_MAPPING_SERVICE = new Deferred<>(
-         () -> Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors())));
+         () -> CommonExecutors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()), "AsyncTransferSpliterator"));
 
    private AtomicBoolean isRunning = new AtomicBoolean(true);
    private ConcurrentSkipListMap<Long, CompletableFuture<T>> values = new ConcurrentSkipListMap<>();

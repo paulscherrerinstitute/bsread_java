@@ -4,7 +4,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntConsumer;
 
@@ -19,12 +18,13 @@ import zmq.ZMQ.Event;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+import ch.psi.bsread.common.concurrent.executor.CommonExecutors;
 import ch.psi.bsread.message.commands.StopCommand;
 
 // builds on https://github.com/zeromq/jeromq/blob/master/src/test/java/zmq/TestMonitor.java
 public class ConnectionCounterMonitor implements Monitor {
    private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionCounterMonitor.class);
-   private ExecutorService executor = Executors.newSingleThreadExecutor();
+   private ExecutorService executor;
    private AtomicInteger connectionCounter = new AtomicInteger();
    private List<IntConsumer> handlers = new ArrayList<>();
    private MonitorConfig monitorConfig;
@@ -34,6 +34,7 @@ public class ConnectionCounterMonitor implements Monitor {
    @Override
    public void start(MonitorConfig monitorConfig) {
       this.monitorConfig = monitorConfig;
+      executor = CommonExecutors.newSingleThreadExecutor(monitorConfig.getMonitorItentifier());
 
       executor.execute(() -> {
          String address = "inproc://" + monitorConfig.getMonitorItentifier();
@@ -106,10 +107,10 @@ public class ConnectionCounterMonitor implements Monitor {
             }
          } catch (JsonProcessingException e) {
             LOGGER.warn("Could not send stop command.", e);
+         }finally{
+             executor.shutdown();
          }
       }
-
-      executor.shutdown();
    }
 
    public int getConnectionCount() {
