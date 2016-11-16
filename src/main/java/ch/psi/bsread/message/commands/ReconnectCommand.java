@@ -47,7 +47,7 @@ public class ReconnectCommand implements Command {
 
 	@Override
 	public <V> Message<V> process(ConfigIReceiver<V> receiver) {
-		LOGGER.info("Reconnect to '{}'", address);
+		LOGGER.info("Reconnect '{}' to '{}'", receiver.getReceiverConfig().getAddress(), address);
 
 		receiver.close();
 		receiver.getReceiverConfig().setAddress(this.address);

@@ -125,7 +125,7 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 			} catch (JsonParseException | JsonMappingException e) {
 				++nrOfAlignmentTrys;
 
-				LOGGER.info("Could not parse MainHeader.", e);
+				LOGGER.info("Could not parse MainHeader of '{}'.", receiverConfig.getAddress(), e);
 				// if (mainHeaderBytes != null) {
 				// String mainHeaderJson = new String(mainHeaderBytes,
 				// StandardCharsets.UTF_8);
@@ -135,21 +135,29 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 				drain();
 
 				if (nrOfAlignmentTrys > receiverConfig.getAlignmentRetries()) {
-					throw new RuntimeException("Could not extract Command within max retries.");
+					String message2 =
+							String.format("Could not extract Command within max retries for '%s'.", receiverConfig.getAddress());
+					LOGGER.error(message2);
+					throw new RuntimeException(message2, e);
 				}
 			} catch (IOException e) {
 				++nrOfAlignmentTrys;
-				LOGGER.info("Received bytes were not aligned with multipart message.", e);
+				LOGGER.info("Received bytes of '{}' were not aligned with multipart message.", receiverConfig.getAddress(),
+						e);
 				// drain the socket
 				drain();
 
 				if (nrOfAlignmentTrys > receiverConfig.getAlignmentRetries()) {
-					throw new RuntimeException("Could not extract Command within max retries.");
+					String message2 =
+							String.format("Could not extract Command within max retries for '%s'.", receiverConfig.getAddress());
+					LOGGER.error(message2);
+					throw new RuntimeException(message2, e);
 				}
 			} catch (ZMQException e) {
 				if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()) {
-					LOGGER.debug("ZMQ stream stopped/closed due to '{}'. This is considered as a valid state to stop sending.",
-							e.getMessage());
+					LOGGER.debug(
+							"ZMQ stream of '{}' stopped/closed due to '{}'. This is considered as a valid state to stop sending.",
+							receiverConfig.getAddress(), e.getMessage());
 				} else {
 					throw e;
 				}

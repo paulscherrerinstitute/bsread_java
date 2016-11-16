@@ -38,7 +38,7 @@ public class StopCommand implements Command {
 			receiver.drain();
 			return null;
 		} else {
-			LOGGER.info("Stop receiving.");
+			LOGGER.info("Stop '{}' due to stop command.", receiver.getReceiverConfig().getAddress());
 			receiver.close();
 			return null;
 		}

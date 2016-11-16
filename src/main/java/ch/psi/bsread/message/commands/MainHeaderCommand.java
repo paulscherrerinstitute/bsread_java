@@ -67,12 +67,12 @@ public class MainHeaderCommand extends MainHeader implements Command {
 		DataHeader dataHeader;
 		boolean dataHeaderChanged = false;
 
-		LOGGER.debug("Receive pulse-id '{}'.", getPulseId());
+		LOGGER.debug("Receive pulse-id '{}' from '{}'.", getPulseId(), receiverConfig.getAddress());
 
 		try {
 			if (!getHtype().startsWith(MainHeaderCommand.HTYPE_VALUE_NO_VERSION)) {
 				String message =
-						String.format("Expect 'bsr_d-[version]' for 'htype' but was '%s'. Skip messge", getHtype());
+						String.format("Expect 'bsr_d-[version]' for 'htype' but was '%s'. Skip messge for '%s'", getHtype(), receiverConfig.getAddress());
 				LOGGER.error(message);
 				receiver.drain();
 				throw new RuntimeException(message);
@@ -112,22 +112,23 @@ public class MainHeaderCommand extends MainHeader implements Command {
 							receiver.getDataHeaderHandlers().forEach(handler -> handler.accept(dataHeader));
 						}
 					} catch (JsonParseException | JsonMappingException e) {
-						LOGGER.error("Could not parse DataHeader.", e);
+						String message = String.format("Could not parse DataHeader of '%s'.", receiverConfig.getAddress());
+						LOGGER.error(message, e);
 						String dataHeaderJson = new String(dataHeaderBytes, StandardCharsets.UTF_8);
 						LOGGER.info("DataHeader was '{}'", dataHeaderJson);
-						throw new RuntimeException("Could not parse DataHeader.", e);
+						throw new RuntimeException(message, e);
 					}
 				}
 			}
 			else {
-				String message = "There is no data header. Skip complete message.";
+				String message = String.format("There is no data header for '%s'. Skip complete message.", receiverConfig.getAddress());
 				LOGGER.error(message);
 				receiver.drain();
 				throw new RuntimeException(message);
 			}
 
 			if (LOGGER.isDebugEnabled()) {
-				LOGGER.debug("Receive message for pulse '{}' and channels '{}'.", getPulseId(),
+				LOGGER.debug("Receive message from '{}' with pulse '{}' and channels '{}'.", receiverConfig.getAddress(), getPulseId(),
 						dataHeader.getChannels().stream().map(channel -> channel.getName()).collect(Collectors.joining(", ")));
 			}
 			// Receiver data
@@ -141,7 +142,9 @@ public class MainHeaderCommand extends MainHeader implements Command {
 				// If there is more than 1 trailing message something is wrong!
 				int messagesDrained = receiver.drain();
 				if (messagesDrained > 1) {
-					throw new RuntimeException("There were more than 1 trailing submessages to the message than expected");
+					String message2 = String.format("'%s' had more than 1 trailing submessages to the message than expected", receiverConfig.getAddress());
+					LOGGER.error(message2);
+					throw new RuntimeException(message2);
 				}
 			}
 			// notify hooks with complete values
@@ -156,7 +159,8 @@ public class MainHeaderCommand extends MainHeader implements Command {
 			return message;
 
 		} catch (IOException e) {
-			throw new RuntimeException("Unable to deserialize message", e);
+			String message2 = String.format("Unable to deserialize message for '%s'", receiverConfig.getAddress());
+			throw new RuntimeException(message2, e);
 		}
 	}
 
