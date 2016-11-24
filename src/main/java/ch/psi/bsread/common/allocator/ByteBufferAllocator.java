@@ -70,12 +70,24 @@ public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
 
 	@Override
 	public ByteBuffer apply(int nBytes) {
-		if (nBytes < directThreshold) {
-			return ByteBuffer.allocate(nBytes);
-		} else {
-			DIRECT_BUFFER_CLEANER.allocateBytes(nBytes);
-			return ByteBuffer.allocateDirect(nBytes);
-		}
+	   return allocate(nBytes);
+	}
+	
+	public ByteBuffer allocate(int nBytes){
+       if (nBytes < directThreshold) {
+          return allocateHeap(nBytes);
+      } else {
+          return allocateDirect(nBytes);
+      }
+	}
+	
+	public ByteBuffer allocateHeap(int nBytes){
+	   return ByteBuffer.allocate(nBytes);
+	}
+	
+	public ByteBuffer allocateDirect(int nBytes){
+       DIRECT_BUFFER_CLEANER.allocateBytes(nBytes);
+       return ByteBuffer.allocateDirect(nBytes);
 	}
 
 	// it happened that DirectBuffer memory was not reclaimed. The cause was was

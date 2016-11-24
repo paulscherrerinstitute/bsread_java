@@ -9,6 +9,7 @@ import java.nio.ByteOrder;
 import net.jpountz.lz4.LZ4BlockInputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
 
+import ch.psi.bsread.common.allocator.ByteBufferAllocator;
 import ch.psi.bsread.common.allocator.ThreadLocalByteArrayAllocator;
 import ch.psi.bsread.compression.Compressor;
 
@@ -47,7 +48,7 @@ public class ByteBufferHelper {
          os.write(identifier);
 
          // write size
-         ByteBuffer sizeBuf = ByteBuffer.allocate(Integer.BYTES);
+         ByteBuffer sizeBuf = ByteBufferAllocator.DEFAULT_ALLOCATOR.allocate(Integer.BYTES);
          sizeBuf.order(buffer.order());
          sizeBuf.putInt(0, buffer.remaining());
          os.write(sizeBuf.array());
@@ -86,7 +87,7 @@ public class ByteBufferHelper {
             ByteBufferHelper.isPositionSet(identifier, ORDER_POSITION) ? ByteOrder.LITTLE_ENDIAN
                   : ByteOrder.BIG_ENDIAN;
 
-      ByteBuffer sizeBuf = ByteBuffer.allocate(Integer.BYTES);
+      ByteBuffer sizeBuf = ByteBufferAllocator.DEFAULT_ALLOCATOR.allocate(Integer.BYTES);
       sizeBuf.order(byteOrder);
       is.read(sizeBuf.array());
       int size = sizeBuf.getInt(0);
@@ -109,9 +110,9 @@ public class ByteBufferHelper {
 
       ByteBuffer buffer;
       if (isDirect) {
-         buffer = ByteBuffer.allocateDirect(size);
+         buffer = ByteBufferAllocator.DEFAULT_ALLOCATOR.allocateDirect(size);
       } else {
-         buffer = ByteBuffer.allocate(size);
+         buffer = ByteBufferAllocator.DEFAULT_ALLOCATOR.allocateHeap(size);
       }
       buffer.order(byteOrder);
 
@@ -317,9 +318,9 @@ public class ByteBufferHelper {
    public static ByteBuffer copy(ByteBuffer buffer) {
       ByteBuffer copy;
       if (buffer.isDirect()) {
-         copy = ByteBuffer.allocateDirect(buffer.remaining());
+         copy = ByteBufferAllocator.DEFAULT_ALLOCATOR.allocateDirect(buffer.remaining());
       } else {
-         copy = ByteBuffer.allocate(buffer.remaining());
+         copy = ByteBufferAllocator.DEFAULT_ALLOCATOR.allocateHeap(buffer.remaining());
       }
 
       copy.put(buffer.duplicate().order(buffer.order()));
@@ -340,7 +341,7 @@ public class ByteBufferHelper {
       if (buffer.isDirect()) {
          return buffer;
       } else {
-         ByteBuffer direct = ByteBuffer.allocateDirect(buffer.remaining());
+         ByteBuffer direct = ByteBufferAllocator.DEFAULT_ALLOCATOR.allocateDirect(buffer.remaining());
 
          direct.order(buffer.order());
          direct.put(buffer.duplicate().order(buffer.order()));

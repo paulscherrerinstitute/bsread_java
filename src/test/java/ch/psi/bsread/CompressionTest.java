@@ -9,6 +9,7 @@ import java.lang.reflect.Array;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -21,6 +22,7 @@ import java.util.stream.IntStream;
 
 import org.junit.Test;
 
+import ch.psi.bitshuffle.BitShuffleLZ4JNICompressor;
 import ch.psi.bsread.common.allocator.ByteBufferAllocator;
 import ch.psi.bsread.compression.Compression;
 import ch.psi.bsread.compression.Compressor;
@@ -326,7 +328,7 @@ public class CompressionTest {
 
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
-                Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+				Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
 				ChannelConfig channelConfig = configIter.next();
 				assertEquals("ABC_10", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
@@ -475,7 +477,7 @@ public class CompressionTest {
 
 			if (hookDataHeaderCalled) {
 				assertEquals(hookDataHeader.getChannels().size(), 2);
-                Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+				Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
 				ChannelConfig channelConfig = configIter.next();
 				assertEquals("ABC_10", channelConfig.getName());
 				assertEquals(10, channelConfig.getModulo());
@@ -546,6 +548,34 @@ public class CompressionTest {
 		for (ByteOrder byteOrder : byteOrders) {
 			for (Compression compression : Compression.values()) {
 				testDataCompressionTwoArrayChannel100HzAnd10Hz(byteOrder, compression);
+			}
+		}
+	}
+
+	@Test
+	public void testBlockSizeAndCompressSize() throws InterruptedException {
+		int[] sizeMulti = new int[] { 1, 4, 8, 16, 126, 127, 128, 1023, 1024, 1025, 2047, 2048, 2049, 2097152, 4194304 };
+		BitShuffleLZ4JNICompressor compressor = new BitShuffleLZ4JNICompressor();
+
+		for (Type type : Type.values()) {
+			int bytes = type.getBytes();
+
+			if (bytes != ValueConverter.DYNAMIC_NUMBER_OF_BYTES) {
+				int javaBlockSize = compressor.getDefaultBlockSizeJava(bytes);
+				int jniBlockSize = compressor.getDefaultBlockSizeJNI(bytes);
+
+				assertTrue(type.getKey(), javaBlockSize > 0);
+				assertTrue(type.getKey(), jniBlockSize > 0);
+				assertEquals(type.getKey(), javaBlockSize, jniBlockSize);
+
+				for (int arraySize : sizeMulti) {
+					int javaMaxCompressLength = compressor.maxCompressedLengthJava(arraySize, bytes, javaBlockSize);
+					int jniMaxCompressLength = compressor.maxCompressedLengthINI(arraySize, bytes, jniBlockSize);
+
+					assertTrue(type.getKey(), javaMaxCompressLength > 0);
+					assertTrue(type.getKey(), jniMaxCompressLength > 0);
+					assertEquals(type.getKey(), javaMaxCompressLength, jniMaxCompressLength);
+				}
 			}
 		}
 	}
@@ -816,14 +846,14 @@ public class CompressionTest {
 						assertObjectArrayEquals(value, newValue, compression, byteOrder, type);
 					}
 
-					// System.out.println(compression + " " +
-					// channelConfig.getType() + " "
-					// + Arrays.toString(channelConfig.getShape()) + " "
-					// + channelConfig.getEncoding());
-					// System.out.println("\tTime: " + totRunTime + " avg: " +
-					// (totRunTime / (runs - warmup)));
-					// System.out.println("\tCompression: " + ((double)
-					// totCompBytes / totBytes));
+					System.out.println(compression + " " +
+							channelConfig.getType() + " "
+							+ Arrays.toString(channelConfig.getShape()) + " "
+							+ channelConfig.getEncoding());
+					System.out.println("\tTime: " + totRunTime + " avg: " +
+							(totRunTime / (runs - warmup)));
+					System.out.println("\tCompression: " + ((double)
+							totCompBytes / totBytes));
 				}
 			}
 		}
