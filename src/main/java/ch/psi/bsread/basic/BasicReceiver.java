@@ -13,6 +13,10 @@ public class BasicReceiver extends Receiver<Object> {
 	public BasicReceiver() {
 		this(new ReceiverConfig<Object>(new StandardMessageExtractor<Object>(new MatlabByteConverter())));
 	}
+	
+	public BasicReceiver(String address) {
+		this(new ReceiverConfig<Object>(address, new StandardMessageExtractor<Object>(new MatlabByteConverter())));
+	}
 
 	public BasicReceiver(ReceiverConfig<Object> receiverConfig) {
 		super(receiverConfig);

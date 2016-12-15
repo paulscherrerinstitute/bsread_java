@@ -5,6 +5,7 @@ import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
 import org.zeromq.ZMQ;
+import org.zeromq.ZMQ.Context;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -21,6 +22,7 @@ public class SenderConfig {
 	public static final String DEFAULT_SENDING_ADDRESS = "tcp://*:9999";
 	public static final int DEFAULT_HIGH_WATER_MARK = 100;
 
+	private Context context;
 	private final Compression dataHeaderCompression;
 	private final IntFunction<ByteBuffer> valueAllocator;
 	private final IntFunction<ByteBuffer> compressedValueAllocator;
@@ -66,6 +68,18 @@ public class SenderConfig {
 		this.compressedValueAllocator = compressedValueAllocator;
 
 		this.setObjectMapper(new ObjectMapper());
+	}
+	
+	public Context getContext() {
+		if (this.context != null) {
+			return context;
+		} else {
+			return ReceiverConfig.DEFERRED_CONTEXT.get();
+		}
+	}
+
+	public void setContext(Context context) {
+		this.context = context;
 	}
 
 	public int getHighWaterMark() {

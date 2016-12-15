@@ -122,7 +122,9 @@ public class ReconnectCommandTest {
 		sender_03.addSource(channel_03);
 		sender_03.bind();
 
-		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(new ReceiverConfig<ByteBuffer>(receiver_01_Addr, false, true, new StandardMessageExtractor<ByteBuffer>()));
+		ReceiverConfig<ByteBuffer> receiverConfig = new ReceiverConfig<ByteBuffer>(receiver_01_Addr, false, true, new StandardMessageExtractor<ByteBuffer>());
+		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(receiverConfig);
+		
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));

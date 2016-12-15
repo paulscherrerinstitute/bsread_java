@@ -5,13 +5,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ;
-import org.zeromq.ZMQ.Context;
+
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
@@ -29,7 +31,6 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
 
 	private AtomicBoolean isConnected = new AtomicBoolean();
-	private Context context;
 	private Socket socket;
 
 	private List<Consumer<MainHeader>> mainHeaderHandlers = new ArrayList<>();
@@ -38,6 +39,12 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 
 	private ReceiverConfig<V> receiverConfig;
 	private ReceiverState receiverState = new ReceiverState();
+
+	private long idleConnectionDuration = 0;
+	private CompletableFuture<Void> mainLoopExitSync;
+	// helps to speedup close in case main receiving thread is not blocked in
+	// receiving
+	private AtomicBoolean isReceivingThreadBlocked = new AtomicBoolean(false);
 
 	public Receiver() {
 		this(new ReceiverConfig<V>());
@@ -51,12 +58,10 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 
 	public void connect() {
 		if (isConnected.compareAndSet(false, true)) {
-			this.context = ZMQ.context(1);
-			this.socket = this.context.socket(receiverConfig.getSocketType());
+			this.mainLoopExitSync = new CompletableFuture<>();
+			this.socket = this.receiverConfig.getContext().socket(receiverConfig.getSocketType());
 			this.socket.setRcvHWM(receiverConfig.getHighWaterMark());
-			if (receiverConfig.getReceiveTimeout() != null) {
-				this.socket.setReceiveTimeOut(receiverConfig.getReceiveTimeout());
-			}
+			this.socket.setReceiveTimeOut((int) receiverConfig.getReceiveTimeout());
 			if (receiverConfig.getMsgAllocator() != null) {
 				this.socket.base().setSocketOpt(zmq.ZMQ.ZMQ_MSG_ALLOCATOR, receiverConfig.getMsgAllocator());
 			}
@@ -72,96 +77,112 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 	public void close() {
 		if (isConnected.compareAndSet(true, false)) {
 			LOGGER.info("Receiver '{}' stopping...", this.receiverConfig.getAddress());
+
+			if (isReceivingThreadBlocked.get()) {
+				try {
+					this.mainLoopExitSync.get((long) Math.max(0, 1.5 * this.receiverConfig.getReceiveTimeout()), TimeUnit.MILLISECONDS);
+				} catch (Exception e) {
+					LOGGER.warn("Could not stop '{}' within timelimits (it might not be receiving messages).",
+							this.receiverConfig.getAddress());
+
+					// let this thread do the cleanup
+					cleanup();
+				}
+			} else {
+				// let this thread do the cleanup
+				cleanup();
+			}
+		}
+	}
+
+	protected void cleanup() {
+		// make sure isConnected is set to false
+		isConnected.set(false);
+		if (socket != null) {
 			socket.close();
 			socket = null;
-			context.close();
-			context = null;
-			LOGGER.info("Receiver '{}' stopped.", this.receiverConfig.getAddress());
 		}
+		mainLoopExitSync.complete(null);
+		LOGGER.info("Receiver '{}' stopped.", this.receiverConfig.getAddress());
 	}
 
 	public Message<V> receive() throws RuntimeException {
 		Message<V> message = null;
 		Command command = null;
-		int nrOfAlignmentTrys = 0;
-		ObjectMapper objectMapper = receiverConfig.getObjectMapper();
+		final ObjectMapper objectMapper = receiverConfig.getObjectMapper();
 		byte[] mainHeaderBytes;
+		idleConnectionDuration = 0;
 
-		while (message == null && isConnected.get()) {
-			mainHeaderBytes = null;
-			/*
-			 * It can happen that bytes received do not represent the start of a
-			 * new multipart message but the start of a submessage (e.g. after
-			 * connection or when messages get lost). Therefore, make sure
-			 * receiver is aligned with the start of the multipart message
-			 * (i.e., it is possible that we loose the first message)
-			 */
-			try {
-				mainHeaderBytes = socket.recv();
+		try {
+			while (message == null && isReceivingThreadBlocked.compareAndSet(false, true) && isConnected.get()) {
+				mainHeaderBytes = null;
+				/*
+				 * It can happen that bytes received do not represent the start
+				 * of a new multipart message but the start of a submessage
+				 * (e.g. after connection or when messages get lost). Therefore,
+				 * make sure receiver is aligned with the start of the multipart
+				 * message (i.e., it is possible that we loose the first
+				 * message)
+				 */
+				try {
+					mainHeaderBytes = socket.recv();
+					isReceivingThreadBlocked.set(false);
 
-				if (mainHeaderBytes != null) {
-					// test if mainHaderBytes can be interpreted as Command
-					command = objectMapper.readValue(mainHeaderBytes, Command.class);
-					message = command.process(this);
-				}
-				else {
-					if (receiverConfig.getReceiveTimeout() != null) {
-						switch (receiverConfig.getReceiveTimeoutBehavior()) {
-						case RECONNECT:
-							LOGGER.info("Reconnect '{}' due to timeout.", receiverConfig.getAddress());
-							this.close();
-							this.connect();
-							continue;
-						case RETURN:
-						default:
-							LOGGER.warn("Return null for '{}' due to timeout.", receiverConfig.getAddress());
-							return null;
-						}
-					} else {
-						LOGGER.warn("Unknown receive state for '{}'.", receiverConfig.getAddress());
-						message = null;
+					if (mainHeaderBytes != null) {
+						// test if mainHaderBytes can be interpreted as Command
+						command = objectMapper.readValue(mainHeaderBytes, Command.class);
+						message = command.process(this);
 					}
-				}
-			} catch (JsonParseException | JsonMappingException e) {
-				++nrOfAlignmentTrys;
-
-				LOGGER.info("Could not parse MainHeader of '{}'.", receiverConfig.getAddress(), e);
-				// if (mainHeaderBytes != null) {
-				// String mainHeaderJson = new String(mainHeaderBytes,
-				// StandardCharsets.UTF_8);
-				// LOGGER.info("MainHeader was '{}'", mainHeaderJson);
-				// }
-				// drain the socket
-				drain();
-
-				if (nrOfAlignmentTrys > receiverConfig.getAlignmentRetries()) {
-					String message2 =
-							String.format("Could not extract Command within max retries for '%s'.", receiverConfig.getAddress());
-					LOGGER.error(message2);
-					throw new RuntimeException(message2, e);
-				}
-			} catch (IOException e) {
-				++nrOfAlignmentTrys;
-				LOGGER.info("Received bytes of '{}' were not aligned with multipart message.", receiverConfig.getAddress(),
-						e);
-				// drain the socket
-				drain();
-
-				if (nrOfAlignmentTrys > receiverConfig.getAlignmentRetries()) {
-					String message2 =
-							String.format("Could not extract Command within max retries for '%s'.", receiverConfig.getAddress());
-					LOGGER.error(message2);
-					throw new RuntimeException(message2, e);
-				}
-			} catch (ZMQException e) {
-				if (e.getErrorCode() == ZMQ.Error.ETERM.getCode()) {
-					LOGGER.debug(
+					else {
+						idleConnectionDuration += receiverConfig.getReceiveTimeout();
+						if (idleConnectionDuration > receiverConfig.getIdleConnectionTimeout()) {
+							switch (receiverConfig.getIdleConnectionTimeoutBehavior()) {
+							case RECONNECT:
+								LOGGER.info("Reconnect '{}' due to timeout.", receiverConfig.getAddress());
+								message = null;
+								this.cleanup();
+								this.connect();
+								break;
+							case STOP:
+								LOGGER.warn("Stop running and return null for '{}' due to idle connection.", receiverConfig.getAddress());
+								message = null;
+								this.cleanup();
+								break;
+							case KEEP_RUNNING:
+							default:
+								LOGGER.info("Idle connection timeout for '{}'. Keep running.", receiverConfig.getAddress());
+								message = null;
+								break;
+							}
+						} else {
+							message = null;
+						}
+					}
+				} catch (JsonParseException | JsonMappingException e) {
+					LOGGER.info("Could not parse MainHeader of '{}'.", receiverConfig.getAddress(), e);
+					// drain the socket
+					drain();
+				} catch (IOException e) {
+					LOGGER.info("Received bytes of '{}' were not aligned with multipart message.", receiverConfig.getAddress(),
+							e);
+					// drain the socket
+					drain();
+				} catch (ZMQException e) {
+					LOGGER.info(
 							"ZMQ stream of '{}' stopped/closed due to '{}'. This is considered as a valid state to stop sending.",
 							receiverConfig.getAddress(), e.getMessage());
-				} else {
-					throw e;
+					message = null;
+					cleanup();
 				}
 			}
+		} catch (Exception e) {
+			LOGGER.error(
+					"ZMQ stream of '{}' stopped unexpectedly.", receiverConfig.getAddress(), e);
+			message = null;
+			cleanup();
+			throw e;
+		} finally {
+			isReceivingThreadBlocked.set(false);
 		}
 
 		return message;

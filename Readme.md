@@ -14,28 +14,42 @@ The documenation on how to use the library can be found in [Matlab.md](Matlab.md
 The most simple receiver looks something like this:
 
 ```java
-Receiver receiver = new Receiver();
-		
-receiver.connect("tcp://localhost:9000");
+   public static void main(String[] args) {
+      IReceiver<Object> receiver = new BasicReceiver();
+      // IReceiver<Object> receiver = new Receiver<Object>(new
+      // ReceiverConfig<Object>("tcp://localhost:9000", new
+      // StandardMessageExtractor<Object>(new MatlabByteConverter())));
 
-// Its also possible to register callbacks for certain message parts.
-// These callbacks are triggered within the receive() function 
-// (within the same thread) it is guaranteed that the sequence is ordered
-// main header, data header, values
+      // Terminate program with ctrl+c
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+         receiver.close();
+      }));
 
-// receiver.addDataHeaderHandler(header -> System.out.println(header));
-// receiver.addMainHeaderHandler(header -> System.out.println(header) );
-// receiver.addValueHandler(data -> System.out.println(data));
-		
-while(!Thread.currentThread().isInterrupted()){
-	Message message = receiver.receive();
-			
-	System.out.println(message.getMainHeader());
-	System.out.println(message.getDataHeader());
-	System.out.println(message.getValues());
-}
-		
-receiver.close();
+      // Its also possible to register callbacks for certain message parts.
+      // These callbacks are triggered within the receive() function
+      // (within the same thread) it is guaranteed that the sequence is
+      // ordered
+      // main header, data header, values
+      //
+      // receiver.addDataHeaderHandler(header -> System.out.println(header));
+      // receiver.addMainHeaderHandler(header -> System.out.println(header) );
+      // receiver.addValueHandler(data -> System.out.println(data));
+
+      try {
+         Message<Object> message;
+         // Due to https://github.com/zeromq/jeromq/issues/116 you must not use Thread.interrupt()
+         // to stop the receiving thread!
+         while ((message = receiver.receive()) != null) {
+            System.out.println(message.getMainHeader());
+            System.out.println(message.getDataHeader());
+            System.out.println(message.getValues());
+         }
+      } finally {
+         // make sure allocated resources get cleaned up (multiple calls to receiver.close() are
+         // side effect free - see shutdown hook)
+         receiver.close();
+      }
+   }
 ```
 
 # Development

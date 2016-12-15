@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import zmq.SocketBase;
 
 public class MonitorConfig {
-
 	private Context context;
 	private SocketBase socket;
 	private String monitorItentifier;

@@ -28,7 +28,6 @@ import ch.psi.bsread.monitors.MonitorConfig;
 public class Sender {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Sender.class.getName());
 
-	private Context context;
 	private Socket socket;
 
 	private SenderConfig senderConfig;
@@ -49,8 +48,8 @@ public class Sender {
 	}
 
 	public void bind() {
-		this.context = ZMQ.context(1);
-		this.socket = this.context.socket(senderConfig.getSocketType());
+		Context context = senderConfig.getContext();
+		this.socket = context.socket(senderConfig.getSocketType());
 		this.socket.setSndHWM(senderConfig.getHighWaterMark());
 
 		Monitor monitor = senderConfig.getMonitor();
@@ -67,7 +66,6 @@ public class Sender {
 			monitor.stop();
 		}
 		socket.close();
-		context.close();
 	}
 
 	public void send() {
