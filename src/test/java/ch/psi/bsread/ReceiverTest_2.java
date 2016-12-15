@@ -275,8 +275,6 @@ public class ReceiverTest_2 {
 		}
 		TimeUnit.SECONDS.sleep(1);
 
-		receiverService.shutdown();
-
 		assertEquals(1, dataHeaderCounter1.get());
 		assertEquals(sendCount / 2, mainHeaderCounter1.get());
 		assertEquals(sendCount / 2, valCounter1.get());
@@ -290,6 +288,7 @@ public class ReceiverTest_2 {
 		receiver2.close();
 
 		sender.close();
+	    receiverService.shutdown();
 	}
 
 	@Test

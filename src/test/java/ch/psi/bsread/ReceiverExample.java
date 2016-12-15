@@ -12,9 +12,7 @@ public class ReceiverExample {
       // StandardMessageExtractor<Object>(new MatlabByteConverter())));
 
       // Terminate program with ctrl+c
-      Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-         receiver.close();
-      }));
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> receiver.close()));
 
       // Its also possible to register callbacks for certain message parts.
       // These callbacks are triggered within the receive() function

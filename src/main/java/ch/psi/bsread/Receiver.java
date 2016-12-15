@@ -30,7 +30,8 @@ import ch.psi.bsread.message.Value;
 public class Receiver<V> implements ConfigIReceiver<V> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
 
-	private AtomicBoolean isConnected = new AtomicBoolean();
+	private AtomicBoolean isRunning = new AtomicBoolean();
+	private AtomicBoolean isCleaned = new AtomicBoolean();
 	private Socket socket;
 
 	private List<Consumer<MainHeader>> mainHeaderHandlers = new ArrayList<>();
@@ -44,7 +45,7 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 	private CompletableFuture<Void> mainLoopExitSync;
 	// helps to speedup close in case main receiving thread is not blocked in
 	// receiving
-	private AtomicBoolean isReceivingThreadBlocked = new AtomicBoolean(false);
+	private volatile Thread receivingThread;
 
 	public Receiver() {
 		this(new ReceiverConfig<V>());
@@ -57,8 +58,11 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 	}
 
 	public void connect() {
-		if (isConnected.compareAndSet(false, true)) {
+		if (isRunning.compareAndSet(false, true)) {
+			this.receivingThread = null;
+			this.isCleaned.set(false);
 			this.mainLoopExitSync = new CompletableFuture<>();
+			
 			this.socket = this.receiverConfig.getContext().socket(receiverConfig.getSocketType());
 			this.socket.setRcvHWM(receiverConfig.getHighWaterMark());
 			this.socket.setReceiveTimeOut((int) receiverConfig.getReceiveTimeout());
@@ -75,10 +79,14 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 
 	@Override
 	public void close() {
-		if (isConnected.compareAndSet(true, false)) {
+		if (isRunning.compareAndSet(true, false)) {
 			LOGGER.info("Receiver '{}' stopping...", this.receiverConfig.getAddress());
 
-			if (isReceivingThreadBlocked.get()) {
+			if (Thread.currentThread().equals(receivingThread)) {
+				// is receiving thread -> do cleanup
+				cleanup();
+			} else {
+				// is not receiving thread - wait until receiving thread exited and did cleanup. 
 				try {
 					this.mainLoopExitSync.get((long) Math.max(0, 1.5 * this.receiverConfig.getReceiveTimeout()), TimeUnit.MILLISECONDS);
 				} catch (Exception e) {
@@ -88,25 +96,26 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 					// let this thread do the cleanup
 					cleanup();
 				}
-			} else {
-				// let this thread do the cleanup
-				cleanup();
 			}
 		}
 	}
 
 	protected void cleanup() {
-		// make sure isConnected is set to false
-		isConnected.set(false);
-		if (socket != null) {
-			socket.close();
-			socket = null;
+		if (isCleaned.compareAndSet(false, true)) {
+			// make sure isRunning is set to false
+			isRunning.set(false);
+			if (socket != null) {
+				socket.close();
+				socket = null;
+			}
+			receivingThread = null;
+			mainLoopExitSync.complete(null);
+			LOGGER.info("Receiver '{}' stopped.", this.receiverConfig.getAddress());
 		}
-		mainLoopExitSync.complete(null);
-		LOGGER.info("Receiver '{}' stopped.", this.receiverConfig.getAddress());
 	}
 
 	public Message<V> receive() throws RuntimeException {
+		receivingThread = Thread.currentThread();
 		Message<V> message = null;
 		Command command = null;
 		final ObjectMapper objectMapper = receiverConfig.getObjectMapper();
@@ -114,7 +123,7 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 		idleConnectionDuration = 0;
 
 		try {
-			while (message == null && isReceivingThreadBlocked.compareAndSet(false, true) && isConnected.get()) {
+			while (message == null && isRunning.get()) {
 				mainHeaderBytes = null;
 				/*
 				 * It can happen that bytes received do not represent the start
@@ -126,7 +135,6 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 				 */
 				try {
 					mainHeaderBytes = socket.recv();
-					isReceivingThreadBlocked.set(false);
 
 					if (mainHeaderBytes != null) {
 						// test if mainHaderBytes can be interpreted as Command
@@ -145,8 +153,7 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 								break;
 							case STOP:
 								LOGGER.warn("Stop running and return null for '{}' due to idle connection.", receiverConfig.getAddress());
-								message = null;
-								this.cleanup();
+								isRunning.set(false);
 								break;
 							case KEEP_RUNNING:
 							default:
@@ -171,18 +178,19 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 					LOGGER.info(
 							"ZMQ stream of '{}' stopped/closed due to '{}'. This is considered as a valid state to stop sending.",
 							receiverConfig.getAddress(), e.getMessage());
-					message = null;
-					cleanup();
+					isRunning.set(false);
 				}
 			}
 		} catch (Exception e) {
 			LOGGER.error(
 					"ZMQ stream of '{}' stopped unexpectedly.", receiverConfig.getAddress(), e);
-			message = null;
-			cleanup();
+			isRunning.set(false);
 			throw e;
 		} finally {
-			isReceivingThreadBlocked.set(false);
+			if (!isRunning.get()) {
+				message = null;
+				cleanup();
+			}
 		}
 
 		return message;

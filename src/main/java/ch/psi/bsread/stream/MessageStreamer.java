@@ -102,7 +102,7 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
 		executorFuture = executor.submit(() -> {
 			try {
 				Message<Value> message;
-				while (isRunning.get() && (message = receiver.receive()) != null) {
+				while ((message = receiver.receive()) != null) {
 					spliterator.onAvailable(message, messageMapper);
 				}
 			} catch (ZMQException e) {
