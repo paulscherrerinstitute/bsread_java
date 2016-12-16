@@ -13,8 +13,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -44,10 +42,12 @@ public class ReceiverTest_2 {
 	private Map<String, Value<Object>> hookValues;
 	private boolean hookValuesCalled;
 	private Map<String, ChannelConfig> channelConfigs = new HashMap<>();
+	private long initialDelay = 200;
+	private long period = 1;
 
 	@Test
 	public void testReceiver() {
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -96,77 +96,77 @@ public class ReceiverTest_2 {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		Receiver<Object> receiver = new BasicReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-		receiver.connect();
 
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture =
-				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
+		try {
+			receiver.connect();
+			// We schedule faster as we want to have the testcase execute faster
+			sender.bind();
+			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
-		// Receive data
-		Message<Object> message = null;
-		for (int i = 0; i < 22; ++i) {
-			hookMainHeaderCalled = false;
-			hookDataHeaderCalled = false;
-			hookValuesCalled = false;
+			// Receive data
+			Message<Object> message = null;
+			for (int i = 0; i < 22; ++i) {
+				hookMainHeaderCalled = false;
+				hookDataHeaderCalled = false;
+				hookValuesCalled = false;
 
-			message = receiver.receive();
+				message = receiver.receive();
 
-			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-			assertEquals("Data header hook should only be called the first time.", i == 0, hookDataHeaderCalled);
-			assertTrue("Value hook should always be called.", hookValuesCalled);
+				assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+				assertEquals("Data header hook should only be called the first time.", i == 0, hookDataHeaderCalled);
+				assertTrue("Value hook should always be called.", hookValuesCalled);
 
-			// should be the same instance
-			assertSame(hookMainHeader, message.getMainHeader());
-			assertSame(hookDataHeader, message.getDataHeader());
-			assertSame(hookValues, message.getValues());
+				// should be the same instance
+				assertSame(hookMainHeader, message.getMainHeader());
+				assertSame(hookDataHeader, message.getDataHeader());
+				assertSame(hookValues, message.getValues());
 
-			assertTrue(hookMainHeader.getPulseId() == i);
-			if (hookDataHeaderCalled) {
-				assertEquals(hookDataHeader.getChannels().size(), 2);
-                Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
-				ChannelConfig channelConfig = configIter.next();
-				assertEquals("ABC", channelConfig.getName());
-				assertEquals(1, channelConfig.getModulo());
-				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Float64, channelConfig.getType());
-				assertArrayEquals(new int[] { size }, channelConfig.getShape());
+				assertTrue(hookMainHeader.getPulseId() == i);
+				if (hookDataHeaderCalled) {
+					assertEquals(hookDataHeader.getChannels().size(), 2);
+					Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+					ChannelConfig channelConfig = configIter.next();
+					assertEquals("ABC", channelConfig.getName());
+					assertEquals(1, channelConfig.getModulo());
+					assertEquals(0, channelConfig.getOffset());
+					assertEquals(Type.Float64, channelConfig.getType());
+					assertArrayEquals(new int[] { size }, channelConfig.getShape());
 
-				channelConfig = configIter.next();
-				assertEquals("ABB", channelConfig.getName());
-				assertEquals(1, channelConfig.getModulo());
-				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Float64, channelConfig.getType());
-				assertArrayEquals(new int[] { size }, channelConfig.getShape());
+					channelConfig = configIter.next();
+					assertEquals("ABB", channelConfig.getName());
+					assertEquals(1, channelConfig.getModulo());
+					assertEquals(0, channelConfig.getOffset());
+					assertEquals(Type.Float64, channelConfig.getType());
+					assertArrayEquals(new int[] { size }, channelConfig.getShape());
+				}
+
+				String channelName;
+				Value<Object> value;
+				double[] javaVal;
+
+				assertEquals(hookValues.size(), 2);
+				assertEquals(i, hookMainHeader.getPulseId());
+
+				channelName = "ABC";
+				assertTrue(hookValues.containsKey(channelName));
+				value = hookValues.get(channelName);
+				javaVal = value.getValue(double[].class);
+				assertEquals(size, javaVal.length);
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			}
-
-			String channelName;
-			Value<Object> value;
-			double[] javaVal;
-
-			assertEquals(hookValues.size(), 2);
-			assertEquals(i, hookMainHeader.getPulseId());
-
-			channelName = "ABC";
-			assertTrue(hookValues.containsKey(channelName));
-			value = hookValues.get(channelName);
-			javaVal = value.getValue(double[].class);
-			assertEquals(size, javaVal.length);
-			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
-			assertEquals(0, value.getTimestamp().getNs());
-			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
-			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+		} finally {
+			receiver.close();
+			sender.close();
 		}
-
-		sendFuture.cancel(true);
-		receiver.close();
-		sender.close();
 	}
 
 	@Test
@@ -183,7 +183,7 @@ public class ReceiverTest_2 {
 				},
 				new MatlabByteConverter());
 		senderConfig.setSocketType(ZMQ.PUSH);
-		Sender sender = new Sender(senderConfig);
+		ScheduledSender sender = new ScheduledSender(senderConfig);
 
 		int size = 2048;
 		Random rand = new Random(0);
@@ -220,7 +220,6 @@ public class ReceiverTest_2 {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		ReceiverConfig<Object> config1 = new ReceiverConfig<Object>(new StandardMessageExtractor<Object>(new MatlabByteConverter()));
 		config1.setSocketType(ZMQ.PULL);
@@ -249,7 +248,7 @@ public class ReceiverTest_2 {
 		ExecutorService receiverService = Executors.newFixedThreadPool(2);
 		receiverService.execute(() -> {
 			try {
-				while (receiver1.receive() != null && !Thread.currentThread().isInterrupted()) {
+				while (receiver1.receive() != null) {
 					loopCounter1.incrementAndGet();
 				}
 			} catch (Throwable t) {
@@ -258,7 +257,7 @@ public class ReceiverTest_2 {
 		});
 		receiverService.execute(() -> {
 			try {
-				while (receiver2.receive() != null && !Thread.currentThread().isInterrupted()) {
+				while (receiver2.receive() != null) {
 					loopCounter2.incrementAndGet();
 				}
 			} catch (Throwable t) {
@@ -266,29 +265,32 @@ public class ReceiverTest_2 {
 			}
 		});
 
-		TimeUnit.SECONDS.sleep(1);
-		// send/receive data
-		int sendCount = 40;
-		for (int i = 0; i < sendCount; ++i) {
-			sender.send();
-			TimeUnit.MILLISECONDS.sleep(1);
+		try {
+			sender.bind();
+			TimeUnit.SECONDS.sleep(1);
+			// send/receive data
+			int sendCount = 40;
+			for (int i = 0; i < sendCount; ++i) {
+				sender.send();
+				TimeUnit.MILLISECONDS.sleep(1);
+			}
+			TimeUnit.SECONDS.sleep(1);
+
+			assertEquals(1, dataHeaderCounter1.get());
+			assertEquals(sendCount / 2, mainHeaderCounter1.get());
+			assertEquals(sendCount / 2, valCounter1.get());
+			assertEquals(sendCount / 2, loopCounter1.get());
+
+			assertEquals(1, dataHeaderCounter2.get());
+			assertEquals(sendCount / 2, mainHeaderCounter2.get());
+			assertEquals(sendCount / 2, valCounter2.get());
+			assertEquals(sendCount / 2, loopCounter2.get());
+		} finally {
+			receiver1.close();
+			receiver2.close();
+			sender.close();
+			receiverService.shutdown();
 		}
-		TimeUnit.SECONDS.sleep(1);
-
-		assertEquals(1, dataHeaderCounter1.get());
-		assertEquals(sendCount / 2, mainHeaderCounter1.get());
-		assertEquals(sendCount / 2, valCounter1.get());
-		assertEquals(sendCount / 2, loopCounter1.get());
-		receiver1.close();
-
-		assertEquals(1, dataHeaderCounter2.get());
-		assertEquals(sendCount / 2, mainHeaderCounter2.get());
-		assertEquals(sendCount / 2, valCounter2.get());
-		assertEquals(sendCount / 2, loopCounter2.get());
-		receiver2.close();
-
-		sender.close();
-	    receiverService.shutdown();
 	}
 
 	@Test
@@ -305,7 +307,7 @@ public class ReceiverTest_2 {
 				},
 				new MatlabByteConverter());
 		senderConfig.setSocketType(ZMQ.PUB);
-		Sender sender = new Sender(senderConfig);
+		ScheduledSender sender = new ScheduledSender(senderConfig);
 
 		int size = 2048;
 		Random rand = new Random(0);
@@ -342,7 +344,6 @@ public class ReceiverTest_2 {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		ReceiverConfig<Object> config1 = new ReceiverConfig<Object>(new StandardMessageExtractor<Object>(new MatlabByteConverter()));
 		config1.setSocketType(ZMQ.SUB);
@@ -371,7 +372,7 @@ public class ReceiverTest_2 {
 		ExecutorService receiverService = Executors.newFixedThreadPool(2);
 		receiverService.execute(() -> {
 			try {
-				while (receiver1.receive() != null && !Thread.currentThread().isInterrupted()) {
+				while (receiver1.receive() != null) {
 					loopCounter1.incrementAndGet();
 				}
 			} catch (Throwable t) {
@@ -380,7 +381,7 @@ public class ReceiverTest_2 {
 		});
 		receiverService.execute(() -> {
 			try {
-				while (receiver2.receive() != null && !Thread.currentThread().isInterrupted()) {
+				while (receiver2.receive() != null) {
 					loopCounter2.incrementAndGet();
 				}
 			} catch (Throwable t) {
@@ -388,35 +389,38 @@ public class ReceiverTest_2 {
 			}
 		});
 
-		TimeUnit.SECONDS.sleep(1);
-		// send/receive data
-		int sendCount = 40;
-		for (int i = 0; i < sendCount; ++i) {
-			sender.send();
-			TimeUnit.MILLISECONDS.sleep(1);
+		try {
+			sender.bind();
+			TimeUnit.SECONDS.sleep(1);
+			// send/receive data
+			int sendCount = 40;
+			for (int i = 0; i < sendCount; ++i) {
+				sender.send();
+				TimeUnit.MILLISECONDS.sleep(1);
+			}
+			TimeUnit.SECONDS.sleep(1);
+
+			assertEquals(1, dataHeaderCounter1.get());
+			assertEquals(sendCount, mainHeaderCounter1.get());
+			assertEquals(sendCount, valCounter1.get());
+			assertEquals(sendCount, loopCounter1.get());
+
+			assertEquals(1, dataHeaderCounter2.get());
+			assertEquals(sendCount, mainHeaderCounter2.get());
+			assertEquals(sendCount, valCounter2.get());
+			assertEquals(sendCount, loopCounter2.get());
+		} finally {
+			receiver1.close();
+			receiver2.close();
+			sender.close();
+			receiverService.shutdown();
 		}
-		TimeUnit.SECONDS.sleep(1);
-
-		receiverService.shutdown();
-
-		assertEquals(1, dataHeaderCounter1.get());
-		assertEquals(sendCount, mainHeaderCounter1.get());
-		assertEquals(sendCount, valCounter1.get());
-		assertEquals(sendCount, loopCounter1.get());
-		receiver1.close();
-
-		assertEquals(1, dataHeaderCounter2.get());
-		assertEquals(sendCount, mainHeaderCounter2.get());
-		assertEquals(sendCount, valCounter2.get());
-		assertEquals(sendCount, loopCounter2.get());
-		receiver2.close();
-
-		sender.close();
 	}
 
-	private static final int nrOfReceivers = 15;//2 * Runtime.getRuntime().availableProcessors();
+	private static final int nrOfReceivers = 15;// 2 *
+												// Runtime.getRuntime().availableProcessors();
 
-//	@Test
+	@Test
 	public void testManyReceivers_Push_Pull() throws InterruptedException {
 		ByteConverter byteConverter = new MatlabByteConverter();
 		SenderConfig senderConfig = new SenderConfig(
@@ -433,7 +437,7 @@ public class ReceiverTest_2 {
 				byteConverter);
 		senderConfig.setSocketType(ZMQ.PUSH);
 
-		Sender sender = new Sender(senderConfig);
+		ScheduledSender sender = new ScheduledSender(senderConfig);
 
 		// Register data sources ...
 		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABC", Type.Int64, new int[] { 1 }, 1, 0,
@@ -460,7 +464,6 @@ public class ReceiverTest_2 {
 				return new Timestamp(pulseId + 1, pulseId + 1);
 			}
 		});
-		sender.bind();
 
 		AtomicBoolean sending = new AtomicBoolean(true);
 		AtomicBoolean disconnected = new AtomicBoolean(false);
@@ -479,9 +482,10 @@ public class ReceiverTest_2 {
 			receiver.connect();
 
 			receiverExecutor.execute(() -> {
-				while (!disconnected.get())
+				Message<Object> message = null;
+				do {
 					try {
-						receiver.receive();
+						message = receiver.receive();
 						if (!disconnected.get()) {
 							System.out.println("Receiver " + j + " receives");
 							receiveCounter.incrementAndGet();
@@ -489,46 +493,51 @@ public class ReceiverTest_2 {
 					} catch (Exception e) {
 						System.out.println("Receiver " + j + " " + e.getMessage());
 					}
+				} while (!disconnected.get() && message != null);
 			});
 		}
 
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
-		ScheduledFuture<?> sendFuture =
-				scheduledExecutor.scheduleAtFixedRate(() -> {
-					if (sending.get()) {
-						sender.send();
-						if (!disconnected.get()) {
-							sendCounter.incrementAndGet();
-						} else {
-							disconnectedSendCounter.incrementAndGet();
-						}
+		try {
+			sender.bind();
+			// We schedule faster as we want to have the testcase execute faster
+			sender.sendAtFixedRate(() -> {
+				if (sending.get()) {
+					sender.sendDirect();
+					if (!disconnected.get()) {
+						sendCounter.incrementAndGet();
+					} else {
+						disconnectedSendCounter.incrementAndGet();
 					}
-				}, 0, 100, TimeUnit.MILLISECONDS);
+				}
+			}, initialDelay, 100, TimeUnit.MILLISECONDS);
 
-		// Receive data
-		TimeUnit.SECONDS.sleep(10);
-		sending.set(false);
-		TimeUnit.SECONDS.sleep(1);
-		disconnected.set(true);
-		int counter = 0;
-		for (Receiver<Object> receiver : receivers) {
-			System.out.println("Close receiver "+(counter++));
-			receiver.close();
+			// Receive data
+			TimeUnit.SECONDS.sleep(10);
+			sending.set(false);
+			TimeUnit.SECONDS.sleep(1);
+			disconnected.set(true);
+			int counter = 0;
+			for (Receiver<Object> receiver : receivers) {
+				System.out.println("Close receiver " + (counter++));
+				receiver.close();
+			}
+			sending.set(true);
+			TimeUnit.SECONDS.sleep(10);
+			sending.set(false);
+
+			assertEquals(sendCounter.get(), receiveCounter.get());
+			assertTrue(disconnectedSendCounter.get() > 0);
+		} finally {
+			for (Receiver<Object> receiver : receivers) {
+				receiver.close();
+			}
+			receiverExecutor.shutdown();
+
+			sender.close();
 		}
-		sending.set(true);
-		TimeUnit.SECONDS.sleep(10);
-		receiverExecutor.shutdown();
-		TimeUnit.SECONDS.sleep(1);
-		sendFuture.cancel(true);
-		scheduledExecutor.shutdown();
-		sender.close();
-
-		assertEquals(sendCounter.get(), receiveCounter.get());
-		assertTrue(disconnectedSendCounter.get() > 0);
 	}
-	
-//	@Test
+
+	@Test
 	public void testManyReceivers_Pub_Sub() throws InterruptedException {
 		ByteConverter byteConverter = new MatlabByteConverter();
 		SenderConfig senderConfig = new SenderConfig(
@@ -545,7 +554,7 @@ public class ReceiverTest_2 {
 				byteConverter);
 		senderConfig.setSocketType(ZMQ.PUB);
 
-		Sender sender = new Sender(senderConfig);
+		ScheduledSender sender = new ScheduledSender(senderConfig);
 
 		// Register data sources ...
 		sender.addSource(new DataChannel<Long>(new ChannelConfig("ABC", Type.Int64, new int[] { 1 }, 1, 0,
@@ -572,7 +581,6 @@ public class ReceiverTest_2 {
 				return new Timestamp(pulseId + 1, pulseId + 1);
 			}
 		});
-		sender.bind();
 
 		AtomicBoolean sending = new AtomicBoolean(true);
 		AtomicBoolean disconnected = new AtomicBoolean(false);
@@ -591,9 +599,10 @@ public class ReceiverTest_2 {
 			receiver.connect();
 
 			receiverExecutor.execute(() -> {
-				while (!disconnected.get())
+				Message<Object> message = null;
+				do {
 					try {
-						receiver.receive();
+						message = receiver.receive();
 						if (!disconnected.get()) {
 							System.out.println("Receiver " + j + " receives");
 							receiveCounter.incrementAndGet();
@@ -601,43 +610,48 @@ public class ReceiverTest_2 {
 					} catch (Exception e) {
 						System.out.println("Receiver " + j + " " + e.getMessage());
 					}
+				} while (!disconnected.get() && message != null);
 			});
 		}
 
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
-		ScheduledFuture<?> sendFuture =
-				scheduledExecutor.scheduleAtFixedRate(() -> {
-					if (sending.get()) {
-						sender.send();
-						if (!disconnected.get()) {
-							sendCounter.incrementAndGet();
-						} else {
-							disconnectedSendCounter.incrementAndGet();
-						}
+		try {
+			sender.bind();
+			// We schedule faster as we want to have the testcase execute faster
+			sender.sendAtFixedRate(() -> {
+				if (sending.get()) {
+					sender.sendDirect();
+					if (!disconnected.get()) {
+						sendCounter.incrementAndGet();
+					} else {
+						disconnectedSendCounter.incrementAndGet();
 					}
-				}, 0, 100, TimeUnit.MILLISECONDS);
+				}
+			}, initialDelay, 100, TimeUnit.MILLISECONDS);
 
-		// Receive data
-		TimeUnit.SECONDS.sleep(10);
-		sending.set(false);
-		TimeUnit.SECONDS.sleep(1);
-		disconnected.set(true);
-		int counter = 0;
-		for (Receiver<Object> receiver : receivers) {
-			System.out.println("Close receiver "+(counter++));
-			receiver.close();
+			// Receive data
+			TimeUnit.SECONDS.sleep(10);
+			sending.set(false);
+			TimeUnit.SECONDS.sleep(1);
+			disconnected.set(true);
+			int counter = 0;
+			for (Receiver<Object> receiver : receivers) {
+				System.out.println("Close receiver " + (counter++));
+				receiver.close();
+			}
+			sending.set(true);
+			TimeUnit.SECONDS.sleep(10);
+			sending.set(false);
+
+			assertEquals(sendCounter.get() * nrOfReceivers, receiveCounter.get());
+			assertTrue(disconnectedSendCounter.get() > 0);
+		} finally {
+			for (Receiver<Object> receiver : receivers) {
+				receiver.close();
+			}
+			receiverExecutor.shutdown();
+
+			sender.close();
 		}
-		sending.set(true);
-		TimeUnit.SECONDS.sleep(10);
-		receiverExecutor.shutdown();
-		TimeUnit.SECONDS.sleep(1);
-		sendFuture.cancel(true);
-		scheduledExecutor.shutdown();
-		sender.close();
-
-		assertEquals(sendCounter.get() * nrOfReceivers, receiveCounter.get());
-		assertTrue(disconnectedSendCounter.get() > 0);
 	}
 
 	private void setMainHeader(MainHeader header) {

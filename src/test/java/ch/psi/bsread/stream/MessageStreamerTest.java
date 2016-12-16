@@ -22,7 +22,7 @@ import org.zeromq.ZMQ;
 
 import ch.psi.bsread.DataChannel;
 import ch.psi.bsread.ReceiverConfig;
-import ch.psi.bsread.Sender;
+import ch.psi.bsread.ScheduledSender;
 import ch.psi.bsread.SenderConfig;
 import ch.psi.bsread.TimeProvider;
 import ch.psi.bsread.converter.MatlabByteConverter;
@@ -42,7 +42,7 @@ public class MessageStreamerTest {
 	@Test
 	public void test_01() throws InterruptedException {
 		String channelName = "ABC";
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -68,13 +68,15 @@ public class MessageStreamerTest {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		AtomicBoolean exited = new AtomicBoolean(false);
 		try (MessageStreamer<Long, Message<Long>> messageStreamer =
 				new MessageStreamer<>(ZMQ.PULL, ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, null, 0, 0,
 						new MatlabByteConverter(), Function.identity())) {
 
+			sender.bind();
+			TimeUnit.MILLISECONDS.sleep(100);
+			
 			// construct to receive messages
 			ValueHandler<StreamSection<Message<Long>>> valueHandler = new ValueHandler<>();
 			EXECUTOR.execute(() -> {
@@ -124,16 +126,15 @@ public class MessageStreamerTest {
 			e.printStackTrace();
 		} finally {
 			TimeUnit.MILLISECONDS.sleep(500);
+			sender.close();
 			assertTrue(exited.get());
 		}
-
-		sender.close();
 	}
 
 	@Test
 	public void test_02() throws InterruptedException {
 		String channelName = "ABC";
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -159,13 +160,14 @@ public class MessageStreamerTest {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		AtomicBoolean exited = new AtomicBoolean(false);
 		try (MessageStreamer<Long, Message<Long>> messageStreamer =
 				new MessageStreamer<>(ZMQ.PULL, ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, null, 3, 2,
 						new MatlabByteConverter(), Function.identity())) {
 
+			sender.bind();
+			TimeUnit.MILLISECONDS.sleep(100);
 			// construct to receive messages
 			ValueHandler<StreamSection<Message<Long>>> valueHandler = new ValueHandler<>();
 			EXECUTOR.execute(() -> {
@@ -260,11 +262,11 @@ public class MessageStreamerTest {
 
 		} catch (Exception e) {
 			e.printStackTrace();
+		} finally {
+			TimeUnit.MILLISECONDS.sleep(500);
+			sender.close();
+			assertTrue(exited.get());
 		}
-
-		TimeUnit.MILLISECONDS.sleep(500);
-		sender.close();
-		assertTrue(exited.get());
 	}
 
 	@Test
@@ -279,7 +281,7 @@ public class MessageStreamerTest {
 
 	public void test_03(int backpressure) throws InterruptedException {
 		String channelName = "ABC";
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -305,7 +307,6 @@ public class MessageStreamerTest {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		int pastElements = 3;
 		int futureElements = 2;
@@ -316,6 +317,8 @@ public class MessageStreamerTest {
 		try (MessageStreamer<Long, Message<Long>> messageStreamer =
 				new MessageStreamer<>(ZMQ.PULL, ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, null, pastElements,
 						futureElements, backpressure, new MatlabByteConverter(), Function.identity())) {
+			sender.bind();
+			TimeUnit.MILLISECONDS.sleep(100);
 
 			// first value based on MessageStreamer config
 			AtomicReference<Long> lastValue = new AtomicReference<Long>(Long.valueOf(pastElements - 1));
@@ -380,10 +383,10 @@ public class MessageStreamerTest {
 
 		} catch (Exception e) {
 			e.printStackTrace();
+		} finally {
+			TimeUnit.MILLISECONDS.sleep(1000);
+			sender.close();
 		}
-
-		TimeUnit.MILLISECONDS.sleep(1000);
-		sender.close();
 
 		try {
 			assertTrue(latch.await(5000, TimeUnit.MILLISECONDS));
@@ -405,7 +408,7 @@ public class MessageStreamerTest {
 
 	public void test_04(int backpressure) throws InterruptedException {
 		String channelName = "ABC";
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -431,7 +434,6 @@ public class MessageStreamerTest {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		CountDownLatch latch = new CountDownLatch(1);
 		int pastElements = 3;
@@ -443,6 +445,8 @@ public class MessageStreamerTest {
 		try (MessageStreamer<Long, Message<Long>> messageStreamer =
 				new MessageStreamer<>(ZMQ.PULL, ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, null, pastElements,
 						futureElements, backpressure, new MatlabByteConverter(), Function.identity())) {
+			sender.bind();
+			TimeUnit.MILLISECONDS.sleep(100);
 
 			// StringBuilder output = new StringBuilder();
 			EXECUTOR.execute(() -> {
@@ -513,24 +517,20 @@ public class MessageStreamerTest {
 				// System.out.println(output.toString());
 			});
 
-			ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
-			Future<?> future =
-					executorService.scheduleAtFixedRate(() -> {
-						sender.send();
+			sender.sendAtFixedRate(() -> {
+						sender.sendDirect();
 						sentValues.incrementAndGet();
 					}, 10, sleepTimeMillis, TimeUnit.MILLISECONDS);
 
 			TimeUnit.SECONDS.sleep(5);
-			future.cancel(true);
-			executorService.shutdown();
 
 			System.out.println("Values send: " + sentValues.get() + " values received: " + nrOfValues.get());
 
 		} catch (Exception e) {
 			e.printStackTrace();
+		} finally {
+			sender.close();
 		}
-
-		sender.close();
 
 		try {
 			assertTrue(latch.await(5000, TimeUnit.MILLISECONDS));

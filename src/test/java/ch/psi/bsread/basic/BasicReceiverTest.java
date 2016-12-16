@@ -1,25 +1,25 @@
 package ch.psi.bsread.basic;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
 import ch.psi.bsread.DataChannel;
-import ch.psi.bsread.Sender;
+import ch.psi.bsread.ScheduledSender;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.Type;
 
 public class BasicReceiverTest {
 
 	private final String testChannel = "ABC";
-	
+	private long initialDelay = 200;
+	private long period = 1;
+
 	@Test
 	public void test() {
-		Sender sender = new Sender();
+		ScheduledSender sender = new ScheduledSender();
 
 		// Register data sources ...
 		sender.addSource(new DataChannel<Double>(new ChannelConfig(testChannel, Type.Float64, 1, 0)) {
@@ -29,24 +29,21 @@ public class BasicReceiverTest {
 			}
 		});
 
-		sender.bind();
-		
 		BasicReceiver receiver = new BasicReceiver();
-		receiver.connect();
-		
-		// We schedule faster than 100 HZ as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 10, TimeUnit.MILLISECONDS);
-				
-		
-		for(double i=0;i<50;i++){
-			Double value = (Double) receiver.receive().getValues().get(testChannel).getValue();
-			assertEquals(i, value, 0.001);
+
+		try {
+			receiver.connect();
+			// We schedule faster as we want to have the testcase execute faster
+			sender.bind();
+			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
+
+			for (double i = 0; i < 50; i++) {
+				Double value = (Double) receiver.receive().getValues().get(testChannel).getValue();
+				assertEquals(i, value, 0.001);
+			}
+		} finally {
+			receiver.close();
+			sender.close();
 		}
-
-		sendFuture.cancel(true);
-		
-		receiver.close();
-		sender.close();
 	}
-
 }

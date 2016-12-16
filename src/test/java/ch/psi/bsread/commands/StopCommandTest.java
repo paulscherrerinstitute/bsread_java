@@ -21,7 +21,7 @@ import org.zeromq.ZMQ;
 import ch.psi.bsread.DataChannel;
 import ch.psi.bsread.Receiver;
 import ch.psi.bsread.ReceiverConfig;
-import ch.psi.bsread.Sender;
+import ch.psi.bsread.ScheduledSender;
 import ch.psi.bsread.SenderConfig;
 import ch.psi.bsread.TimeProvider;
 import ch.psi.bsread.basic.BasicReceiver;
@@ -49,7 +49,7 @@ public class StopCommandTest {
 
 	@Test
 	public void testStop_01() throws Exception {
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -75,77 +75,79 @@ public class StopCommandTest {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(new ReceiverConfig<ByteBuffer>(ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, false, true, new StandardMessageExtractor<ByteBuffer>()));
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-		receiver.connect();
 
-		CountDownLatch latch = new CountDownLatch(1);
-		ExecutorService executor = Executors.newSingleThreadExecutor();
-		executor.execute(() -> {
-			try {
-				sender.send();
-				TimeUnit.MILLISECONDS.sleep(100);
-				sender.send();
-				TimeUnit.MILLISECONDS.sleep(100);
-				sender.sendCommand(new StopCommand());
-				TimeUnit.MILLISECONDS.sleep(100);
-				sender.send();
+		try {
+			sender.bind();
+			receiver.connect();
+			CountDownLatch latch = new CountDownLatch(1);
+			ExecutorService executor = Executors.newSingleThreadExecutor();
+			executor.execute(() -> {
+				try {
+					sender.send();
+					TimeUnit.MILLISECONDS.sleep(100);
+					sender.send();
+					TimeUnit.MILLISECONDS.sleep(100);
+					sender.sendCommand(new StopCommand());
+					TimeUnit.MILLISECONDS.sleep(100);
+					sender.send();
 
-			} catch (Exception e) {
-				e.printStackTrace();
-			} finally {
-				latch.countDown();
-			}
-		});
+					sender.close();
+				} catch (Exception e) {
+					e.printStackTrace();
+				} finally {
+					latch.countDown();
+				}
+			});
 
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		Message<ByteBuffer> message = receiver.receive();
-		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-		assertEquals("Data header hook should only be called the first time.", true, hookDataHeaderCalled);
-		assertTrue("Value hook should always be called.", hookValuesCalled);
-		// should be the same instance
-		assertSame(hookMainHeader, message.getMainHeader());
-		assertSame(hookDataHeader, message.getDataHeader());
-		assertSame(hookValues, message.getValues());
-		assertEquals(0, hookMainHeader.getPulseId());
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			Message<ByteBuffer> message = receiver.receive();
+			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+			assertEquals("Data header hook should only be called the first time.", true, hookDataHeaderCalled);
+			assertTrue("Value hook should always be called.", hookValuesCalled);
+			// should be the same instance
+			assertSame(hookMainHeader, message.getMainHeader());
+			assertSame(hookDataHeader, message.getDataHeader());
+			assertSame(hookValues, message.getValues());
+			assertEquals(0, hookMainHeader.getPulseId());
 
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		message = receiver.receive();
-		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-		assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
-		assertTrue("Value hook should always be called.", hookValuesCalled);
-		// should be the same instance
-		assertSame(hookMainHeader, message.getMainHeader());
-		assertSame(hookDataHeader, message.getDataHeader());
-		assertSame(hookValues, message.getValues());
-		assertEquals(1, hookMainHeader.getPulseId());
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			message = receiver.receive();
+			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+			assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
+			assertTrue("Value hook should always be called.", hookValuesCalled);
+			// should be the same instance
+			assertSame(hookMainHeader, message.getMainHeader());
+			assertSame(hookDataHeader, message.getDataHeader());
+			assertSame(hookValues, message.getValues());
+			assertEquals(1, hookMainHeader.getPulseId());
 
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		// stops on stop
-		message = receiver.receive();
-		assertNull(message);
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			// stops on stop
+			message = receiver.receive();
+			assertNull(message);
 
-		latch.await();
-
-		receiver.close();
-		sender.close();
-		executor.shutdown();
+			latch.await();
+			executor.shutdown();
+		} finally {
+			receiver.close();
+		}
 	}
 
 	@Test
 	public void testStop_02() throws Exception {
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -171,80 +173,83 @@ public class StopCommandTest {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(new ReceiverConfig<ByteBuffer>(ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, true, true, new StandardMessageExtractor<ByteBuffer>()));
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-		receiver.connect();
 
-		CountDownLatch latch = new CountDownLatch(1);
-		ExecutorService executor = Executors.newSingleThreadExecutor();
-		executor.execute(() -> {
-			try {
-				sender.send();
-				TimeUnit.MILLISECONDS.sleep(100);
-				sender.send();
-				TimeUnit.MILLISECONDS.sleep(100);
-				sender.sendCommand(new StopCommand());
-				TimeUnit.MILLISECONDS.sleep(100);
-				sender.send();
+		try {
+			sender.bind();
+			receiver.connect();
 
-			} catch (Exception e) {
-				e.printStackTrace();
-			} finally {
-				latch.countDown();
-			}
-		});
+			CountDownLatch latch = new CountDownLatch(1);
+			ExecutorService executor = Executors.newSingleThreadExecutor();
+			executor.execute(() -> {
+				try {
+					sender.send();
+					TimeUnit.MILLISECONDS.sleep(100);
+					sender.send();
+					TimeUnit.MILLISECONDS.sleep(100);
+					sender.sendCommand(new StopCommand());
+					TimeUnit.MILLISECONDS.sleep(100);
+					sender.send();
 
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		Message<ByteBuffer> message = receiver.receive();
-		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-		assertEquals("Data header hook should only be called the first time.", true, hookDataHeaderCalled);
-		assertTrue("Value hook should always be called.", hookValuesCalled);
-		// should be the same instance
-		assertSame(hookMainHeader, message.getMainHeader());
-		assertSame(hookDataHeader, message.getDataHeader());
-		assertSame(hookValues, message.getValues());
-		assertEquals(0, hookMainHeader.getPulseId());
+					sender.close();
+				} catch (Exception e) {
+					e.printStackTrace();
+				} finally {
+					latch.countDown();
+				}
+			});
 
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		message = receiver.receive();
-		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-		assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
-		assertTrue("Value hook should always be called.", hookValuesCalled);
-		// should be the same instance
-		assertSame(hookMainHeader, message.getMainHeader());
-		assertSame(hookDataHeader, message.getDataHeader());
-		assertSame(hookValues, message.getValues());
-		assertEquals(1, hookMainHeader.getPulseId());
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			Message<ByteBuffer> message = receiver.receive();
+			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+			assertEquals("Data header hook should only be called the first time.", true, hookDataHeaderCalled);
+			assertTrue("Value hook should always be called.", hookValuesCalled);
+			// should be the same instance
+			assertSame(hookMainHeader, message.getMainHeader());
+			assertSame(hookDataHeader, message.getDataHeader());
+			assertSame(hookValues, message.getValues());
+			assertEquals(0, hookMainHeader.getPulseId());
 
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		message = receiver.receive();
-		// does not stop on stop but keeps listening
-		assertNotNull(message);
-		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-		assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
-		assertTrue("Value hook should always be called.", hookValuesCalled);
-		// should be the same instance
-		assertSame(hookMainHeader, message.getMainHeader());
-		assertSame(hookDataHeader, message.getDataHeader());
-		assertSame(hookValues, message.getValues());
-		assertEquals(2, hookMainHeader.getPulseId());
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			message = receiver.receive();
+			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+			assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
+			assertTrue("Value hook should always be called.", hookValuesCalled);
+			// should be the same instance
+			assertSame(hookMainHeader, message.getMainHeader());
+			assertSame(hookDataHeader, message.getDataHeader());
+			assertSame(hookValues, message.getValues());
+			assertEquals(1, hookMainHeader.getPulseId());
 
-		latch.await();
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			message = receiver.receive();
+			// does not stop on stop but keeps listening
+			assertNotNull(message);
+			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+			assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
+			assertTrue("Value hook should always be called.", hookValuesCalled);
+			// should be the same instance
+			assertSame(hookMainHeader, message.getMainHeader());
+			assertSame(hookDataHeader, message.getDataHeader());
+			assertSame(hookValues, message.getValues());
+			assertEquals(2, hookMainHeader.getPulseId());
 
-		receiver.close();
-		sender.close();
-		executor.shutdown();
+			latch.await();
+			executor.shutdown();
+		} finally {
+			receiver.close();
+		}
 	}
 
 	@Test
@@ -262,7 +267,7 @@ public class StopCommandTest {
 				new MatlabByteConverter());
 		senderConfig.setSocketType(ZMQ.PUSH);
 		senderConfig.setMonitor(new ConnectionCounterMonitor());
-		Sender sender = new Sender(senderConfig);
+		ScheduledSender sender = new ScheduledSender(senderConfig);
 
 		// Register data sources ...
 		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Float64, 1, 0)) {
@@ -276,7 +281,6 @@ public class StopCommandTest {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		ReceiverConfig<Object> config1 = new ReceiverConfig<Object>(ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
 		config1.setSocketType(ZMQ.PULL);
@@ -287,7 +291,6 @@ public class StopCommandTest {
 		receiver1.addMainHeaderHandler(header -> mainHeaderCounter1.incrementAndGet());
 		receiver1.addDataHeaderHandler(header -> dataHeaderCounter1.incrementAndGet());
 		receiver1.addValueHandler(values -> valCounter1.incrementAndGet());
-		receiver1.connect();
 
 		ReceiverConfig<Object> config2 = new ReceiverConfig<Object>(ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
 		config2.setSocketType(ZMQ.PULL);
@@ -298,67 +301,72 @@ public class StopCommandTest {
 		receiver2.addMainHeaderHandler(header -> mainHeaderCounter2.incrementAndGet());
 		receiver2.addDataHeaderHandler(header -> dataHeaderCounter2.incrementAndGet());
 		receiver2.addValueHandler(values -> valCounter2.incrementAndGet());
-		receiver2.connect();
 
-		TimeUnit.MILLISECONDS.sleep(500);
-		ExecutorService executor = Executors.newSingleThreadExecutor();
-		executor.execute(() -> {
-			try {
-				sender.send();
-				TimeUnit.MILLISECONDS.sleep(100);
-				sender.send();
-				TimeUnit.MILLISECONDS.sleep(100);
-				sender.send();
-				TimeUnit.MILLISECONDS.sleep(100);
-				sender.send();
-				TimeUnit.MILLISECONDS.sleep(100);
-				sender.close();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		});
+		try {
+			sender.bind();
+			receiver1.connect();
+			receiver2.connect();
 
-		Message<Object> message = receiver1.receive();
-		assertNotNull(message);
-		assertEquals(1, dataHeaderCounter1.getAndSet(0));
-		assertEquals(1, mainHeaderCounter1.getAndSet(0));
-		assertEquals(1, valCounter1.getAndSet(0));
+			// TimeUnit.MILLISECONDS.sleep(500);
+			ExecutorService executor = Executors.newSingleThreadExecutor();
+			executor.execute(() -> {
+				try {
+					sender.send();
+					TimeUnit.MILLISECONDS.sleep(100);
+					sender.send();
+					TimeUnit.MILLISECONDS.sleep(100);
+					sender.send();
+					TimeUnit.MILLISECONDS.sleep(100);
+					sender.send();
+					TimeUnit.MILLISECONDS.sleep(100);
 
-		message = receiver2.receive();
-		assertNotNull(message);
-		assertEquals(1, dataHeaderCounter2.getAndSet(0));
-		assertEquals(1, mainHeaderCounter2.getAndSet(0));
-		assertEquals(1, valCounter2.getAndSet(0));
+					sender.close();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			});
 
-		message = receiver1.receive();
-		assertNotNull(message);
-		assertEquals(0, dataHeaderCounter1.getAndSet(0));
-		assertEquals(1, mainHeaderCounter1.getAndSet(0));
-		assertEquals(1, valCounter1.getAndSet(0));
+			Message<Object> message = receiver1.receive();
+			assertNotNull(message);
+			assertEquals(1, dataHeaderCounter1.getAndSet(0));
+			assertEquals(1, mainHeaderCounter1.getAndSet(0));
+			assertEquals(1, valCounter1.getAndSet(0));
 
-		message = receiver2.receive();
-		assertNotNull(message);
-		assertEquals(0, dataHeaderCounter2.getAndSet(0));
-		assertEquals(1, mainHeaderCounter2.getAndSet(0));
-		assertEquals(1, valCounter2.getAndSet(0));
+			message = receiver2.receive();
+			assertNotNull(message);
+			assertEquals(1, dataHeaderCounter2.getAndSet(0));
+			assertEquals(1, mainHeaderCounter2.getAndSet(0));
+			assertEquals(1, valCounter2.getAndSet(0));
 
-		message = receiver1.receive();
-		assertNull(message);
-		assertEquals(0, dataHeaderCounter1.getAndSet(0));
-		assertEquals(0, mainHeaderCounter1.getAndSet(0));
-		assertEquals(0, valCounter1.getAndSet(0));
+			message = receiver1.receive();
+			assertNotNull(message);
+			assertEquals(0, dataHeaderCounter1.getAndSet(0));
+			assertEquals(1, mainHeaderCounter1.getAndSet(0));
+			assertEquals(1, valCounter1.getAndSet(0));
 
-		message = receiver2.receive();
-		assertNull(message);
-		assertEquals(0, dataHeaderCounter2.getAndSet(0));
-		assertEquals(0, mainHeaderCounter2.getAndSet(0));
-		assertEquals(0, valCounter2.getAndSet(0));
+			message = receiver2.receive();
+			assertNotNull(message);
+			assertEquals(0, dataHeaderCounter2.getAndSet(0));
+			assertEquals(1, mainHeaderCounter2.getAndSet(0));
+			assertEquals(1, valCounter2.getAndSet(0));
 
-		// should not be necessary but check for exceptions etc.
-		receiver1.close();
-		receiver2.close();
+			message = receiver1.receive();
+			assertNull(message);
+			assertEquals(0, dataHeaderCounter1.getAndSet(0));
+			assertEquals(0, mainHeaderCounter1.getAndSet(0));
+			assertEquals(0, valCounter1.getAndSet(0));
 
-		executor.shutdown();
+			message = receiver2.receive();
+			assertNull(message);
+			assertEquals(0, dataHeaderCounter2.getAndSet(0));
+			assertEquals(0, mainHeaderCounter2.getAndSet(0));
+			assertEquals(0, valCounter2.getAndSet(0));
+
+			executor.shutdown();
+		} finally {
+			receiver1.close();
+			receiver2.close();
+		}
 	}
 
 	@Test
@@ -376,7 +384,7 @@ public class StopCommandTest {
 				new MatlabByteConverter());
 		senderConfig.setSocketType(ZMQ.PUB);
 		senderConfig.setMonitor(new ConnectionCounterMonitor());
-		Sender sender = new Sender(senderConfig);
+		ScheduledSender sender = new ScheduledSender(senderConfig);
 
 		// Register data sources ...
 		sender.addSource(new DataChannel<Double>(new ChannelConfig("ABC", Type.Float64, 1, 0)) {
@@ -390,7 +398,6 @@ public class StopCommandTest {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		ReceiverConfig<Object> config1 = new ReceiverConfig<Object>(ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
 		config1.setSocketType(ZMQ.SUB);
@@ -401,7 +408,6 @@ public class StopCommandTest {
 		receiver1.addMainHeaderHandler(header -> mainHeaderCounter1.incrementAndGet());
 		receiver1.addDataHeaderHandler(header -> dataHeaderCounter1.incrementAndGet());
 		receiver1.addValueHandler(values -> valCounter1.incrementAndGet());
-		receiver1.connect();
 
 		ReceiverConfig<Object> config2 = new ReceiverConfig<Object>(ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
 		config2.setSocketType(ZMQ.SUB);
@@ -412,63 +418,66 @@ public class StopCommandTest {
 		receiver2.addMainHeaderHandler(header -> mainHeaderCounter2.incrementAndGet());
 		receiver2.addDataHeaderHandler(header -> dataHeaderCounter2.incrementAndGet());
 		receiver2.addValueHandler(values -> valCounter2.incrementAndGet());
-		receiver2.connect();
 
-		TimeUnit.MILLISECONDS.sleep(500);
-		ExecutorService executor = Executors.newSingleThreadExecutor();
-		executor.execute(() -> {
-			try {
-				sender.send();
-				TimeUnit.MILLISECONDS.sleep(100);
-				sender.send();
-				TimeUnit.MILLISECONDS.sleep(100);
-				sender.close();
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		});
+		try {
+			sender.bind();
+			receiver1.connect();
+			receiver2.connect();
 
-		Message<Object> message = receiver1.receive();
-		assertNotNull(message);
-		assertEquals(1, dataHeaderCounter1.getAndSet(0));
-		assertEquals(1, mainHeaderCounter1.getAndSet(0));
-		assertEquals(1, valCounter1.getAndSet(0));
+			ExecutorService executor = Executors.newSingleThreadExecutor();
+			executor.execute(() -> {
+				try {
+					sender.send();
+					TimeUnit.MILLISECONDS.sleep(100);
+					sender.send();
+					TimeUnit.MILLISECONDS.sleep(100);
+					sender.close();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			});
 
-		message = receiver2.receive();
-		assertNotNull(message);
-		assertEquals(1, dataHeaderCounter2.getAndSet(0));
-		assertEquals(1, mainHeaderCounter2.getAndSet(0));
-		assertEquals(1, valCounter2.getAndSet(0));
+			Message<Object> message = receiver1.receive();
+			assertNotNull(message);
+			assertEquals(1, dataHeaderCounter1.getAndSet(0));
+			assertEquals(1, mainHeaderCounter1.getAndSet(0));
+			assertEquals(1, valCounter1.getAndSet(0));
 
-		message = receiver1.receive();
-		assertNotNull(message);
-		assertEquals(0, dataHeaderCounter1.getAndSet(0));
-		assertEquals(1, mainHeaderCounter1.getAndSet(0));
-		assertEquals(1, valCounter1.getAndSet(0));
+			message = receiver2.receive();
+			assertNotNull(message);
+			assertEquals(1, dataHeaderCounter2.getAndSet(0));
+			assertEquals(1, mainHeaderCounter2.getAndSet(0));
+			assertEquals(1, valCounter2.getAndSet(0));
 
-		message = receiver2.receive();
-		assertNotNull(message);
-		assertEquals(0, dataHeaderCounter2.getAndSet(0));
-		assertEquals(1, mainHeaderCounter2.getAndSet(0));
-		assertEquals(1, valCounter2.getAndSet(0));
+			message = receiver1.receive();
+			assertNotNull(message);
+			assertEquals(0, dataHeaderCounter1.getAndSet(0));
+			assertEquals(1, mainHeaderCounter1.getAndSet(0));
+			assertEquals(1, valCounter1.getAndSet(0));
 
-		message = receiver1.receive();
-		assertNull(message);
-		assertEquals(0, dataHeaderCounter1.getAndSet(0));
-		assertEquals(0, mainHeaderCounter1.getAndSet(0));
-		assertEquals(0, valCounter1.getAndSet(0));
+			message = receiver2.receive();
+			assertNotNull(message);
+			assertEquals(0, dataHeaderCounter2.getAndSet(0));
+			assertEquals(1, mainHeaderCounter2.getAndSet(0));
+			assertEquals(1, valCounter2.getAndSet(0));
 
-		message = receiver2.receive();
-		assertNull(message);
-		assertEquals(0, dataHeaderCounter2.getAndSet(0));
-		assertEquals(0, mainHeaderCounter2.getAndSet(0));
-		assertEquals(0, valCounter2.getAndSet(0));
+			message = receiver1.receive();
+			assertNull(message);
+			assertEquals(0, dataHeaderCounter1.getAndSet(0));
+			assertEquals(0, mainHeaderCounter1.getAndSet(0));
+			assertEquals(0, valCounter1.getAndSet(0));
 
-		// should not be necessary but check for exceptions etc.
-		receiver1.close();
-		receiver2.close();
+			message = receiver2.receive();
+			assertNull(message);
+			assertEquals(0, dataHeaderCounter2.getAndSet(0));
+			assertEquals(0, mainHeaderCounter2.getAndSet(0));
+			assertEquals(0, valCounter2.getAndSet(0));
 
-		executor.shutdown();
+			executor.shutdown();
+		} finally {
+			receiver1.close();
+			receiver2.close();
+		}
 	}
 
 	private void setMainHeader(MainHeader header) {

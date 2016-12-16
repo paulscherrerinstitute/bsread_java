@@ -25,7 +25,8 @@ public class ReceiverConfig<V> {
 
 	// share context due to "too many open files" issue
 	// (http://stackoverflow.com/questions/25380162/jeromq-maximum-socket-opened-issue/25478590#25478590)
-	public static final Deferred<Context> DEFERRED_CONTEXT = new Deferred<>(() -> ZMQ.context(Runtime.getRuntime().availableProcessors()));
+	// TODO: use Runtime.getRuntime().availableProcessors() ?
+	public static final Deferred<Context> DEFERRED_CONTEXT = new Deferred<>(() -> ZMQ.context(1));
 
 	private Context context;
 	private boolean keepListeningOnStop;

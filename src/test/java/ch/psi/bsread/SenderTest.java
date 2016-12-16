@@ -16,48 +16,45 @@ import ch.psi.bsread.message.Type;
 public class SenderTest {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(SenderTest.class.getName());
-	
+
 	private final String testChannel = "ABC";
-	
+
 	@Test
 	public void test() {
 		Sender sender = new Sender();
-		
+
 		// Register data sources ...
 		sender.addSource(new DataChannel<Double>(new ChannelConfig(testChannel, Type.Float64, 1, 0)) {
 			@Override
 			public Double getValue(long pulseId) {
-				return (double)pulseId;
+				return (double) pulseId;
 			}
 		});
-		
-		sender.bind();
-		
-		
-		
+
 		BasicReceiver receiver = new BasicReceiver();
-		receiver.connect();
-		
-		// Waiting some time to ensure the connection is established
 		try {
+			sender.bind();
+
+			receiver.connect();
+
+			// Waiting some time to ensure the connection is established
 			TimeUnit.MILLISECONDS.sleep(100);
-		} catch (InterruptedException e) {
+
+			// Send data
+			for (int pulse = 0; pulse < 11; pulse++) {
+				LOGGER.info("Sending for pulse '{}'.", pulse);
+				sender.send();
+				Message<Object> message = receiver.receive();
+				assertEquals((double) pulse, message.getValues().get(testChannel).getValue(Number.class).doubleValue(), 0.001);
+			}
+		} catch(Exception e){
 			e.printStackTrace();
+		} finally {
+			receiver.close();
+			sender.close();
 		}
-		
-		// Send data
-		for(int pulse=0;pulse<11;pulse++){
-			LOGGER.info("Sending for pulse '{}'.", pulse);
-			sender.send();
-			Message<Object> message = receiver.receive();
-			assertEquals((double) pulse, message.getValues().get(testChannel).getValue(Number.class).doubleValue(), 0.001);
-		}
-		
-		receiver.close();
-		sender.close();
-		
 	}
-	
+
 	// TODO Test whether expected messages are created
 	// TODO Test different modulo sources
 	// TODO Test different offset sources

@@ -59,20 +59,20 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 
 	public void connect() {
 		if (isRunning.compareAndSet(false, true)) {
-			this.receivingThread = null;
-			this.isCleaned.set(false);
-			this.mainLoopExitSync = new CompletableFuture<>();
-			
-			this.socket = this.receiverConfig.getContext().socket(receiverConfig.getSocketType());
-			this.socket.setRcvHWM(receiverConfig.getHighWaterMark());
-			this.socket.setReceiveTimeOut((int) receiverConfig.getReceiveTimeout());
+			receivingThread = null;
+			isCleaned.set(false);
+			mainLoopExitSync = new CompletableFuture<>();
+
+			socket = this.receiverConfig.getContext().socket(receiverConfig.getSocketType());
+			socket.setRcvHWM(receiverConfig.getHighWaterMark());
+			socket.setReceiveTimeOut((int) receiverConfig.getReceiveTimeout());
 			if (receiverConfig.getMsgAllocator() != null) {
-				this.socket.base().setSocketOpt(zmq.ZMQ.ZMQ_MSG_ALLOCATOR, receiverConfig.getMsgAllocator());
+				socket.base().setSocketOpt(zmq.ZMQ.ZMQ_MSG_ALLOCATOR, receiverConfig.getMsgAllocator());
 			}
-			this.socket.connect(receiverConfig.getAddress());
+			socket.connect(receiverConfig.getAddress());
 
 			if (ZMQ.SUB == receiverConfig.getSocketType()) {
-				this.socket.subscribe("".getBytes());
+				socket.subscribe("".getBytes());
 			}
 		}
 	}
@@ -86,12 +86,13 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 				// is receiving thread -> do cleanup
 				cleanup();
 			} else {
-				// is not receiving thread - wait until receiving thread exited and did cleanup. 
+				// is not receiving thread - wait until receiving thread exited
+				// and did cleanup.
 				try {
-					this.mainLoopExitSync.get((long) Math.max(0, 1.5 * this.receiverConfig.getReceiveTimeout()), TimeUnit.MILLISECONDS);
+					mainLoopExitSync.get((long) Math.max(1000, 1.5 * this.receiverConfig.getReceiveTimeout()), TimeUnit.MILLISECONDS);
 				} catch (Exception e) {
-					LOGGER.warn("Could not stop '{}' within timelimits (it might not be receiving messages).",
-							this.receiverConfig.getAddress());
+					LOGGER.warn("Could not stop '{}' within timelimits. Do cleanup in closing thread (this might lead to inconsistent state but still better than no cleanup).",
+							receiverConfig.getAddress());
 
 					// let this thread do the cleanup
 					cleanup();
@@ -108,8 +109,8 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 				socket.close();
 				socket = null;
 			}
-			receivingThread = null;
 			mainLoopExitSync.complete(null);
+			receivingThread = null;
 			LOGGER.info("Receiver '{}' stopped.", this.receiverConfig.getAddress());
 		}
 	}
@@ -144,12 +145,14 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 					else {
 						idleConnectionDuration += receiverConfig.getReceiveTimeout();
 						if (idleConnectionDuration > receiverConfig.getIdleConnectionTimeout()) {
+							
 							switch (receiverConfig.getIdleConnectionTimeoutBehavior()) {
 							case RECONNECT:
 								LOGGER.info("Reconnect '{}' due to timeout.", receiverConfig.getAddress());
 								message = null;
 								this.cleanup();
 								this.connect();
+								receivingThread = Thread.currentThread();
 								break;
 							case STOP:
 								LOGGER.warn("Stop running and return null for '{}' due to idle connection.", receiverConfig.getAddress());
@@ -161,6 +164,8 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 								message = null;
 								break;
 							}
+							
+							idleConnectionDuration = 0;
 						} else {
 							message = null;
 						}

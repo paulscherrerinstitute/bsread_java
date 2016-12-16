@@ -5,8 +5,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
@@ -32,7 +30,7 @@ public class IdleConnectionTimeoutTest {
 
 	@Test
 	public void testSenderReceiverTimeout_Reconnect() {
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -58,72 +56,71 @@ public class IdleConnectionTimeoutTest {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
-		ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
-
-		int idleConnectionTimeout = (int)TimeUnit.MILLISECONDS.toMillis(500);
+		int idleConnectionTimeout = (int) TimeUnit.MILLISECONDS.toMillis(500);
 		int receiveTimeout = idleConnectionTimeout / 4;
 		ReceiverConfig<ByteBuffer> receiverConfig = new ReceiverConfig<>();
 		receiverConfig.setReceiveTimeout(receiveTimeout);
 		receiverConfig.setIdleConnectionTimeout(idleConnectionTimeout);
 		receiverConfig.setIdleConnectionTimeoutBehavior(IdleConnectionTimeoutBehavior.RECONNECT);
 		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(receiverConfig);
-		receiver.connect();
 
 		// Send/Receive data
 		Message<ByteBuffer> message = null;
+		try {
+			sender.bind();
+			receiver.connect();
+			
+			sender.send();
+			message = receiver.receive();
+			assertNotNull(message);
 
-		sender.send();
-		message = receiver.receive();
-		assertNotNull(message);
+			sender.send();
+			message = receiver.receive();
+			assertNotNull(message);
 
-		sender.send();
-		message = receiver.receive();
-		assertNotNull(message);
+			sender.send((long) (1.5 * idleConnectionTimeout), TimeUnit.MILLISECONDS);
+			// should reconnect and wait for new messages
+			message = receiver.receive();
+			assertNotNull(message);
 
-		scheduledExecutor.schedule(() -> sender.send(), (long) (1.5 * idleConnectionTimeout), TimeUnit.MILLISECONDS);
-		// should reconnect and wait for new messages
-		message = receiver.receive();
-		assertNotNull(message);
+			sender.send();
+			message = receiver.receive();
+			assertNotNull(message);
 
-		sender.send();
-		message = receiver.receive();
-		assertNotNull(message);
+			sender.send();
+			message = receiver.receive();
+			assertNotNull(message);
 
-		sender.send();
-		message = receiver.receive();
-		assertNotNull(message);
+			sender.send((long) (2.0 * idleConnectionTimeout), TimeUnit.MILLISECONDS);
+			// should reconnect and wait for new messages
+			message = receiver.receive();
+			assertNotNull(message);
 
-		scheduledExecutor.schedule(() -> sender.send(), (long) (2.0 * idleConnectionTimeout), TimeUnit.MILLISECONDS);
-		// should reconnect and wait for new messages
-		message = receiver.receive();
-		assertNotNull(message);
+			sender.send();
+			message = receiver.receive();
+			assertNotNull(message);
 
-		sender.send();
-		message = receiver.receive();
-		assertNotNull(message);
+			sender.send();
+			message = receiver.receive();
+			assertNotNull(message);
 
-		sender.send();
-		message = receiver.receive();
-		assertNotNull(message);
+			sender.send((long) (3.0 * idleConnectionTimeout), TimeUnit.MILLISECONDS);
+			// should reconnect and wait for new messages
+			message = receiver.receive();
+			assertNotNull(message);
 
-		scheduledExecutor.schedule(() -> sender.send(), (long) (3.0 * idleConnectionTimeout), TimeUnit.MILLISECONDS);
-		// should reconnect and wait for new messages
-		message = receiver.receive();
-		assertNotNull(message);
+			sender.send();
+			message = receiver.receive();
+			assertNotNull(message);
 
-		sender.send();
-		message = receiver.receive();
-		assertNotNull(message);
-
-		sender.send();
-		message = receiver.receive();
-		assertNotNull(message);
-
-		scheduledExecutor.shutdown();
-		receiver.close();
-		sender.close();
+			sender.send();
+			message = receiver.receive();
+			assertNotNull(message);
+		} finally {
+			receiver.close();
+			sender.close();
+		}
 	}
 
 	@Test
@@ -154,33 +151,35 @@ public class IdleConnectionTimeoutTest {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
-		int idleConnectionTimeout = (int)TimeUnit.MILLISECONDS.toMillis(500);
+		int idleConnectionTimeout = (int) TimeUnit.MILLISECONDS.toMillis(500);
 		int receiveTimeout = idleConnectionTimeout / 4;
 		ReceiverConfig<ByteBuffer> receiverConfig = new ReceiverConfig<>();
 		receiverConfig.setReceiveTimeout(receiveTimeout);
 		receiverConfig.setIdleConnectionTimeout(idleConnectionTimeout);
 		receiverConfig.setIdleConnectionTimeoutBehavior(IdleConnectionTimeoutBehavior.STOP);
 		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(receiverConfig);
-		receiver.connect();
 
 		// Send/Receive data
 		Message<ByteBuffer> message = null;
+		try {
+			sender.bind();
+			receiver.connect();
+			
+			sender.send();
+			message = receiver.receive();
+			assertNotNull(message);
 
-		sender.send();
-		message = receiver.receive();
-		assertNotNull(message);
+			sender.send();
+			message = receiver.receive();
+			assertNotNull(message);
 
-		sender.send();
-		message = receiver.receive();
-		assertNotNull(message);
-
-		// should timeout and return null
-		message = receiver.receive();
-		assertNull(message);
-
-		receiver.close();
-		sender.close();
+			// should timeout and return null
+			message = receiver.receive();
+			assertNull(message);
+		} finally {
+			receiver.close();
+			sender.close();
+		}
 	}
 }

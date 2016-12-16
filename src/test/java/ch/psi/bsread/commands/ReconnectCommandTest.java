@@ -19,7 +19,7 @@ import org.junit.Test;
 import ch.psi.bsread.DataChannel;
 import ch.psi.bsread.Receiver;
 import ch.psi.bsread.ReceiverConfig;
-import ch.psi.bsread.Sender;
+import ch.psi.bsread.ScheduledSender;
 import ch.psi.bsread.SenderConfig;
 import ch.psi.bsread.TimeProvider;
 import ch.psi.bsread.converter.MatlabByteConverter;
@@ -48,7 +48,7 @@ public class ReconnectCommandTest {
 	public void testReconnect_01() throws Exception {
 		String sender_01_Addr = "tcp://*:9999";
 		String receiver_01_Addr = "tcp://localhost:9999";
-		Sender sender_01 = new Sender(
+		ScheduledSender sender_01 = new ScheduledSender(
 				new SenderConfig(
 						sender_01_Addr,
 						new StandardPulseIdProvider(),
@@ -63,7 +63,7 @@ public class ReconnectCommandTest {
 				);
 		String sender_02_Addr = "tcp://*:9998";
 		String receiver_02_Addr = "tcp://localhost:9998";
-		Sender sender_02 = new Sender(
+		ScheduledSender sender_02 = new ScheduledSender(
 				new SenderConfig(
 						sender_02_Addr,
 						new StandardPulseIdProvider(),
@@ -78,7 +78,7 @@ public class ReconnectCommandTest {
 				);
 		String sender_03_Addr = "tcp://*:9997";
 		String receiver_03_Addr = "tcp://localhost:9997";
-		Sender sender_03 = new Sender(
+		ScheduledSender sender_03 = new ScheduledSender(
 				new SenderConfig(
 						sender_03_Addr,
 						new StandardPulseIdProvider(),
@@ -116,149 +116,153 @@ public class ReconnectCommandTest {
 			}
 		};
 		sender_01.addSource(channel_01_02);
-		sender_01.bind();
 		sender_02.addSource(channel_01_02);
-		sender_02.bind();
 		sender_03.addSource(channel_03);
-		sender_03.bind();
 
 		ReceiverConfig<ByteBuffer> receiverConfig = new ReceiverConfig<ByteBuffer>(receiver_01_Addr, false, true, new StandardMessageExtractor<ByteBuffer>());
 		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(receiverConfig);
-		
+
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-		receiver.connect();
 
-		CountDownLatch latch = new CountDownLatch(1);
-		ExecutorService executor = Executors.newSingleThreadExecutor();
-		executor.execute(() -> {
-			try {
-				sender_01.send();
-				TimeUnit.MILLISECONDS.sleep(10);
-				sender_01.send();
-				sender_01.sendCommand(new ReconnectCommand(receiver_02_Addr));
-				TimeUnit.MILLISECONDS.sleep(50);
-				// should not receive this
-				sender_01.send();
+		try {
+			sender_01.bind();
+			sender_02.bind();
+			sender_03.bind();
+			receiver.connect();
+			// TimeUnit.MILLISECONDS.sleep(500);
 
-				sender_02.send();
-				TimeUnit.MILLISECONDS.sleep(10);
-				sender_02.send();
-				sender_02.sendCommand(new ReconnectCommand(receiver_03_Addr));
-				TimeUnit.MILLISECONDS.sleep(50);
-				// should not receive this
-				sender_02.send();
+			CountDownLatch latch = new CountDownLatch(1);
+			ExecutorService executor = Executors.newSingleThreadExecutor();
+			executor.execute(() -> {
+				try {
+					sender_01.send();
+					TimeUnit.MILLISECONDS.sleep(10);
+					sender_01.send();
+					sender_01.sendCommand(new ReconnectCommand(receiver_02_Addr));
+					TimeUnit.MILLISECONDS.sleep(50);
+					// should not receive this
+					sender_01.send();
 
-				sender_03.send();
-				TimeUnit.MILLISECONDS.sleep(10);
-				sender_03.send();
-				sender_03.sendCommand(new StopCommand());
+					sender_02.send();
+					TimeUnit.MILLISECONDS.sleep(10);
+					sender_02.send();
+					sender_02.sendCommand(new ReconnectCommand(receiver_03_Addr));
+					TimeUnit.MILLISECONDS.sleep(50);
+					// should not receive this
+					sender_02.send();
 
-			} catch (Exception e) {
-				e.printStackTrace();
-			} finally {
-				latch.countDown();
-			}
-		});
+					sender_03.send();
+					TimeUnit.MILLISECONDS.sleep(10);
+					sender_03.send();
+					sender_03.sendCommand(new StopCommand());
 
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		Message<ByteBuffer> message = receiver.receive();
-		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-		assertEquals("Data header hook should only be called the first time.", true, hookDataHeaderCalled);
-		assertTrue("Value hook should always be called.", hookValuesCalled);
-		// should be the same instance
-		assertSame(hookMainHeader, message.getMainHeader());
-		assertSame(hookDataHeader, message.getDataHeader());
-		assertSame(hookValues, message.getValues());
-		assertEquals(0, hookMainHeader.getPulseId());
+					sender_01.close();
+					sender_02.close();
+					sender_03.close();
+				} catch (Exception e) {
+					e.printStackTrace();
+				} finally {
+					latch.countDown();
+				}
+			});
 
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		message = receiver.receive();
-		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-		assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
-		assertTrue("Value hook should always be called.", hookValuesCalled);
-		// should be the same instance
-		assertSame(hookMainHeader, message.getMainHeader());
-		assertSame(hookDataHeader, message.getDataHeader());
-		assertSame(hookValues, message.getValues());
-		assertEquals(1, hookMainHeader.getPulseId());
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			Message<ByteBuffer> message = receiver.receive();
+			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+			assertEquals("Data header hook should only be called the first time.", true, hookDataHeaderCalled);
+			assertTrue("Value hook should always be called.", hookValuesCalled);
+			// should be the same instance
+			assertSame(hookMainHeader, message.getMainHeader());
+			assertSame(hookDataHeader, message.getDataHeader());
+			assertSame(hookValues, message.getValues());
+			assertEquals(0, hookMainHeader.getPulseId());
 
-		// change address
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		message = receiver.receive();
-		assertNotNull(message);
-		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-		assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
-		assertTrue("Value hook should always be called.", hookValuesCalled);
-		// should be the same instance
-		assertSame(hookMainHeader, message.getMainHeader());
-		assertSame(hookDataHeader, message.getDataHeader());
-		assertSame(hookValues, message.getValues());
-		assertEquals(0, hookMainHeader.getPulseId());
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			message = receiver.receive();
+			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+			assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
+			assertTrue("Value hook should always be called.", hookValuesCalled);
+			// should be the same instance
+			assertSame(hookMainHeader, message.getMainHeader());
+			assertSame(hookDataHeader, message.getDataHeader());
+			assertSame(hookValues, message.getValues());
+			assertEquals(1, hookMainHeader.getPulseId());
 
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		message = receiver.receive();
-		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-		assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
-		assertTrue("Value hook should always be called.", hookValuesCalled);
-		// should be the same instance
-		assertSame(hookMainHeader, message.getMainHeader());
-		assertSame(hookDataHeader, message.getDataHeader());
-		assertSame(hookValues, message.getValues());
-		assertEquals(1, hookMainHeader.getPulseId());
+			// change address
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			message = receiver.receive();
+			assertNotNull(message);
+			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+			assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
+			assertTrue("Value hook should always be called.", hookValuesCalled);
+			// should be the same instance
+			assertSame(hookMainHeader, message.getMainHeader());
+			assertSame(hookDataHeader, message.getDataHeader());
+			assertSame(hookValues, message.getValues());
+			assertEquals(0, hookMainHeader.getPulseId());
 
-		// change address and channel -> new DataHeader
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		message = receiver.receive();
-		assertNotNull(message);
-		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-		assertEquals("Data header hook should only be called the first time.", true, hookDataHeaderCalled);
-		assertTrue("Value hook should always be called.", hookValuesCalled);
-		// should be the same instance
-		assertSame(hookMainHeader, message.getMainHeader());
-		assertSame(hookDataHeader, message.getDataHeader());
-		assertSame(hookValues, message.getValues());
-		assertEquals(0, hookMainHeader.getPulseId());
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			message = receiver.receive();
+			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+			assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
+			assertTrue("Value hook should always be called.", hookValuesCalled);
+			// should be the same instance
+			assertSame(hookMainHeader, message.getMainHeader());
+			assertSame(hookDataHeader, message.getDataHeader());
+			assertSame(hookValues, message.getValues());
+			assertEquals(1, hookMainHeader.getPulseId());
 
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		message = receiver.receive();
-		assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-		assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
-		assertTrue("Value hook should always be called.", hookValuesCalled);
-		// should be the same instance
-		assertSame(hookMainHeader, message.getMainHeader());
-		assertSame(hookDataHeader, message.getDataHeader());
-		assertSame(hookValues, message.getValues());
-		assertEquals(1, hookMainHeader.getPulseId());
+			// change address and channel -> new DataHeader
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			message = receiver.receive();
+			assertNotNull(message);
+			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+			assertEquals("Data header hook should only be called the first time.", true, hookDataHeaderCalled);
+			assertTrue("Value hook should always be called.", hookValuesCalled);
+			// should be the same instance
+			assertSame(hookMainHeader, message.getMainHeader());
+			assertSame(hookDataHeader, message.getDataHeader());
+			assertSame(hookValues, message.getValues());
+			assertEquals(0, hookMainHeader.getPulseId());
 
-		hookMainHeaderCalled = false;
-		hookDataHeaderCalled = false;
-		hookValuesCalled = false;
-		// stops on stop
-		message = receiver.receive();
-		assertNull(message);
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			message = receiver.receive();
+			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+			assertEquals("Data header hook should only be called the first time.", false, hookDataHeaderCalled);
+			assertTrue("Value hook should always be called.", hookValuesCalled);
+			// should be the same instance
+			assertSame(hookMainHeader, message.getMainHeader());
+			assertSame(hookDataHeader, message.getDataHeader());
+			assertSame(hookValues, message.getValues());
+			assertEquals(1, hookMainHeader.getPulseId());
 
-		latch.await();
+			hookMainHeaderCalled = false;
+			hookDataHeaderCalled = false;
+			hookValuesCalled = false;
+			// stops on stop
+			message = receiver.receive();
+			assertNull(message);
 
-		receiver.close();
-		sender_01.close();
-		sender_02.close();
-		sender_03.close();
-		executor.shutdown();
+			latch.await();
+			executor.shutdown();
+		} finally {
+			receiver.close();
+		}
 	}
 
 	private void setMainHeader(MainHeader header) {

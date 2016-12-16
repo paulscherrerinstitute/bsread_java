@@ -3,9 +3,6 @@ package ch.psi.bsread;
 import static org.junit.Assert.assertEquals;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
@@ -19,10 +16,12 @@ import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Type;
 
 public class ReceiverTestFilter {
+	private long initialDelay = 200;
+	private long period = 1;
 
 	@Test
 	public void testTwoChannelFilter() {
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -61,44 +60,40 @@ public class ReceiverTestFilter {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>();
 		receiver.getReceiverConfig().addRequestedChannel(new Channel(channel_01, 10, 0));
 		receiver.getReceiverConfig().addRequestedChannel(new Channel(channel_02, 100, 0));
-		receiver.connect();
 
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
-		ScheduledFuture<?> sendFuture =
-				scheduledExecutor.scheduleAtFixedRate(() -> {
-					sender.send();
-				}, 0, 1, TimeUnit.MILLISECONDS);
+		try {
+			receiver.connect();
+			// We schedule faster as we want to have the testcase execute faster
+			sender.bind();
+			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
-		// Receive data
-		Message<ByteBuffer> message = null;
-		for (int i = 0; i < 100; ++i) {
-			message = receiver.receive();
+			// Receive data
+			Message<ByteBuffer> message = null;
+			for (int i = 0; i < 100; ++i) {
+				message = receiver.receive();
 
-			if (message.getMainHeader().getPulseId() % 100 == 0) {
-				assertEquals(2, message.getValues().size());
-			} else if (message.getMainHeader().getPulseId() % 10 == 0) {
-				assertEquals(1, message.getValues().size());
-			} else {
-				// these messages should be filtered
-				assertEquals(0, message.getValues().size());
+				if (message.getMainHeader().getPulseId() % 100 == 0) {
+					assertEquals(2, message.getValues().size());
+				} else if (message.getMainHeader().getPulseId() % 10 == 0) {
+					assertEquals(1, message.getValues().size());
+				} else {
+					// these messages should be filtered
+					assertEquals(0, message.getValues().size());
+				}
 			}
+		} finally {
+			receiver.close();
+			sender.close();
 		}
-
-		sendFuture.cancel(true);
-		scheduledExecutor.shutdown();
-		receiver.close();
-		sender.close();
 	}
-	
+
 	@Test
 	public void testTwoChannelFilterOffset() {
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -137,38 +132,34 @@ public class ReceiverTestFilter {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>();
 		receiver.getReceiverConfig().addRequestedChannel(new Channel(channel_01, 10, 0));
 		receiver.getReceiverConfig().addRequestedChannel(new Channel(channel_02, 100, 50));
-		receiver.connect();
 
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1);
-		ScheduledFuture<?> sendFuture =
-				scheduledExecutor.scheduleAtFixedRate(() -> {
-					sender.send();
-				}, 0, 1, TimeUnit.MILLISECONDS);
+		try {
+			receiver.connect();
+			// We schedule faster as we want to have the testcase execute faster
+			sender.bind();
+			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
-		// Receive data
-		Message<ByteBuffer> message = null;
-		for (int i = 0; i < 100; ++i) {
-			message = receiver.receive();
+			// Receive data
+			Message<ByteBuffer> message = null;
+			for (int i = 0; i < 100; ++i) {
+				message = receiver.receive();
 
-			if ((message.getMainHeader().getPulseId() + 50) % 100 == 0) {
-				assertEquals(2, message.getValues().size());
-			} else if (message.getMainHeader().getPulseId() % 10 == 0) {
-				assertEquals(1, message.getValues().size());
-			} else {
-				// these messages should be filtered
-				assertEquals(0, message.getValues().size());
+				if ((message.getMainHeader().getPulseId() + 50) % 100 == 0) {
+					assertEquals(2, message.getValues().size());
+				} else if (message.getMainHeader().getPulseId() % 10 == 0) {
+					assertEquals(1, message.getValues().size());
+				} else {
+					// these messages should be filtered
+					assertEquals(0, message.getValues().size());
+				}
 			}
+		} finally {
+			receiver.close();
+			sender.close();
 		}
-
-		sendFuture.cancel(true);
-		scheduledExecutor.shutdown();
-		receiver.close();
-		sender.close();
 	}
 }

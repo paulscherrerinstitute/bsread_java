@@ -9,8 +9,6 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
@@ -38,6 +36,8 @@ public class ReceiverTest_3 {
 	private Map<String, Value<ByteBuffer>> hookValues;
 	private boolean hookValuesCalled;
 	private Map<String, ChannelConfig> channelConfigs = new HashMap<>();
+	private long initialDelay = 200;
+	private long period = 1;
 
 	protected Receiver<ByteBuffer> getReceiver() {
 		ReceiverConfig<ByteBuffer> config =
@@ -55,7 +55,7 @@ public class ReceiverTest_3 {
 
 	@Test
 	public void testSenderOneChannel10Hz() {
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -81,76 +81,76 @@ public class ReceiverTest_3 {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		Receiver<ByteBuffer> receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-		receiver.connect();
 
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture =
-				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
+		try {
+			receiver.connect();
+			// We schedule faster as we want to have the testcase execute faster
+			sender.bind();
+			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
-		// Receive data
-		Message<ByteBuffer> message = null;
-		for (int i = 0; i < 22; ++i) {
-			hookMainHeaderCalled = false;
-			hookDataHeaderCalled = false;
-			hookValuesCalled = false;
+			// Receive data
+			Message<ByteBuffer> message = null;
+			for (int i = 0; i < 22; ++i) {
+				hookMainHeaderCalled = false;
+				hookDataHeaderCalled = false;
+				hookValuesCalled = false;
 
-			message = receiver.receive();
+				message = receiver.receive();
 
-			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-			assertEquals("Data header hook should only be called the first time.", i == 0, hookDataHeaderCalled);
-			assertTrue("Value hook should always be called.", hookValuesCalled);
+				assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+				assertEquals("Data header hook should only be called the first time.", i == 0, hookDataHeaderCalled);
+				assertTrue("Value hook should always be called.", hookValuesCalled);
 
-			// should be the same instance
-			assertSame(hookMainHeader, message.getMainHeader());
-			assertSame(hookDataHeader, message.getDataHeader());
-			assertSame(hookValues, message.getValues());
+				// should be the same instance
+				assertSame(hookMainHeader, message.getMainHeader());
+				assertSame(hookDataHeader, message.getDataHeader());
+				assertSame(hookValues, message.getValues());
 
-			assertTrue("Is a 10Hz Channel", hookMainHeader.getPulseId() % 10 == 0);
-			if (hookDataHeaderCalled) {
-				assertEquals(hookDataHeader.getChannels().size(), 1);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().iterator().next();
-				assertEquals("ABC", channelConfig.getName());
-				assertEquals(10, channelConfig.getModulo());
-				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Float64, channelConfig.getType());
-				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
+				assertTrue("Is a 10Hz Channel", hookMainHeader.getPulseId() % 10 == 0);
+				if (hookDataHeaderCalled) {
+					assertEquals(hookDataHeader.getChannels().size(), 1);
+					ChannelConfig channelConfig = hookDataHeader.getChannels().iterator().next();
+					assertEquals("ABC", channelConfig.getName());
+					assertEquals(10, channelConfig.getModulo());
+					assertEquals(0, channelConfig.getOffset());
+					assertEquals(Type.Float64, channelConfig.getType());
+					assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
+				}
+
+				String channelName;
+				ChannelConfig chConf;
+				Value<ByteBuffer> value;
+				Double javaVal;
+
+				assertEquals(hookValues.size(), 1);
+				assertEquals(i * 10, hookMainHeader.getPulseId());
+
+				channelName = "ABC";
+				chConf = this.channelConfigs.get(channelName);
+				assertTrue(hookValues.containsKey(channelName));
+				value = hookValues.get(channelName);
+				javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
+				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			}
-
-			String channelName;
-			ChannelConfig chConf;
-			Value<ByteBuffer> value;
-			Double javaVal;
-
-			assertEquals(hookValues.size(), 1);
-			assertEquals(i * 10, hookMainHeader.getPulseId());
-
-			channelName = "ABC";
-			chConf = this.channelConfigs.get(channelName);
-			assertTrue(hookValues.containsKey(channelName));
-			value = hookValues.get(channelName);
-			javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
-			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
-			assertEquals(0, value.getTimestamp().getNs());
-			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
-			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+		} finally {
+			receiver.close();
+			sender.close();
 		}
-
-		sendFuture.cancel(true);
-		receiver.close();
-		sender.close();
 	}
 
 	@Test
 	public void testSenderOneChannel01Hz() {
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -176,76 +176,76 @@ public class ReceiverTest_3 {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		Receiver<ByteBuffer> receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-		receiver.connect();
 
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture =
-				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
+		try {
+			receiver.connect();
+			// We schedule faster as we want to have the testcase execute faster
+			sender.bind();
+			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
-		// Receive data
-		Message<ByteBuffer> message = null;
-		for (int i = 0; i < 5; ++i) {
-			hookMainHeaderCalled = false;
-			hookDataHeaderCalled = false;
-			hookValuesCalled = false;
+			// Receive data
+			Message<ByteBuffer> message = null;
+			for (int i = 0; i < 5; ++i) {
+				hookMainHeaderCalled = false;
+				hookDataHeaderCalled = false;
+				hookValuesCalled = false;
 
-			message = receiver.receive();
+				message = receiver.receive();
 
-			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-			assertEquals("Data header hook should only be called the first time.", i == 0, hookDataHeaderCalled);
-			assertTrue("Value hook should always be called.", hookValuesCalled);
+				assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+				assertEquals("Data header hook should only be called the first time.", i == 0, hookDataHeaderCalled);
+				assertTrue("Value hook should always be called.", hookValuesCalled);
 
-			// should be the same instance
-			assertSame(hookMainHeader, message.getMainHeader());
-			assertSame(hookDataHeader, message.getDataHeader());
-			assertSame(hookValues, message.getValues());
+				// should be the same instance
+				assertSame(hookMainHeader, message.getMainHeader());
+				assertSame(hookDataHeader, message.getDataHeader());
+				assertSame(hookValues, message.getValues());
 
-			assertTrue("Is a 0.1Hz Channel", hookMainHeader.getPulseId() % 1000 == 0);
-			if (hookDataHeaderCalled) {
-				assertEquals(hookDataHeader.getChannels().size(), 1);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().iterator().next();
-				assertEquals("ABC", channelConfig.getName());
-				assertEquals(1000, channelConfig.getModulo());
-				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Float64, channelConfig.getType());
-				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
+				assertTrue("Is a 0.1Hz Channel", hookMainHeader.getPulseId() % 1000 == 0);
+				if (hookDataHeaderCalled) {
+					assertEquals(hookDataHeader.getChannels().size(), 1);
+					ChannelConfig channelConfig = hookDataHeader.getChannels().iterator().next();
+					assertEquals("ABC", channelConfig.getName());
+					assertEquals(1000, channelConfig.getModulo());
+					assertEquals(0, channelConfig.getOffset());
+					assertEquals(Type.Float64, channelConfig.getType());
+					assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
+				}
+
+				String channelName;
+				ChannelConfig chConf;
+				Value<ByteBuffer> value;
+				Double javaVal;
+
+				assertEquals(hookValues.size(), 1);
+				assertEquals(i * 1000, hookMainHeader.getPulseId());
+
+				channelName = "ABC";
+				chConf = this.channelConfigs.get(channelName);
+				assertTrue(hookValues.containsKey(channelName));
+				value = hookValues.get(channelName);
+				javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
+				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			}
-
-			String channelName;
-			ChannelConfig chConf;
-			Value<ByteBuffer> value;
-			Double javaVal;
-
-			assertEquals(hookValues.size(), 1);
-			assertEquals(i * 1000, hookMainHeader.getPulseId());
-
-			channelName = "ABC";
-			chConf = this.channelConfigs.get(channelName);
-			assertTrue(hookValues.containsKey(channelName));
-			value = hookValues.get(channelName);
-			javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
-			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
-			assertEquals(0, value.getTimestamp().getNs());
-			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
-			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+		} finally {
+			receiver.close();
+			sender.close();
 		}
-
-		sendFuture.cancel(true);
-		receiver.close();
-		sender.close();
 	}
 
 	@Test
 	public void testSenderOneChannel10HzOffset() {
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -271,76 +271,76 @@ public class ReceiverTest_3 {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		Receiver<ByteBuffer> receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-		receiver.connect();
 
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture =
-				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
+		try {
+			receiver.connect();
+			// We schedule faster as we want to have the testcase execute faster
+			sender.bind();
+			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
-		// Receive data
-		Message<ByteBuffer> message = null;
-		for (int i = 0; i < 22; ++i) {
-			hookMainHeaderCalled = false;
-			hookDataHeaderCalled = false;
-			hookValuesCalled = false;
+			// Receive data
+			Message<ByteBuffer> message = null;
+			for (int i = 0; i < 22; ++i) {
+				hookMainHeaderCalled = false;
+				hookDataHeaderCalled = false;
+				hookValuesCalled = false;
 
-			message = receiver.receive();
+				message = receiver.receive();
 
-			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-			assertEquals("Data header hook should only be called the first time.", i == 0, hookDataHeaderCalled);
-			assertTrue("Value hook should always be called.", hookValuesCalled);
+				assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+				assertEquals("Data header hook should only be called the first time.", i == 0, hookDataHeaderCalled);
+				assertTrue("Value hook should always be called.", hookValuesCalled);
 
-			// should be the same instance
-			assertSame(hookMainHeader, message.getMainHeader());
-			assertSame(hookDataHeader, message.getDataHeader());
-			assertSame(hookValues, message.getValues());
+				// should be the same instance
+				assertSame(hookMainHeader, message.getMainHeader());
+				assertSame(hookDataHeader, message.getDataHeader());
+				assertSame(hookValues, message.getValues());
 
-			assertTrue("Is a 10Hz Channel with offset 1", (hookMainHeader.getPulseId() - 1) % 10 == 0);
-			if (hookDataHeaderCalled) {
-				assertEquals(hookDataHeader.getChannels().size(), 1);
-				ChannelConfig channelConfig = hookDataHeader.getChannels().iterator().next();
-				assertEquals("ABC", channelConfig.getName());
-				assertEquals(10, channelConfig.getModulo(), 0.00000000001);
-				assertEquals(1, channelConfig.getOffset());
-				assertEquals(Type.Float64, channelConfig.getType());
-				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
+				assertTrue("Is a 10Hz Channel with offset 1", (hookMainHeader.getPulseId() - 1) % 10 == 0);
+				if (hookDataHeaderCalled) {
+					assertEquals(hookDataHeader.getChannels().size(), 1);
+					ChannelConfig channelConfig = hookDataHeader.getChannels().iterator().next();
+					assertEquals("ABC", channelConfig.getName());
+					assertEquals(10, channelConfig.getModulo(), 0.00000000001);
+					assertEquals(1, channelConfig.getOffset());
+					assertEquals(Type.Float64, channelConfig.getType());
+					assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
+				}
+
+				String channelName;
+				ChannelConfig chConf;
+				Value<ByteBuffer> value;
+				Double javaVal;
+
+				assertEquals(hookValues.size(), 1);
+				assertEquals((i * 10) + 1, hookMainHeader.getPulseId());
+
+				channelName = "ABC";
+				chConf = this.channelConfigs.get(channelName);
+				assertTrue(hookValues.containsKey(channelName));
+				value = hookValues.get(channelName);
+				javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
+				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
+				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+				assertEquals(0, value.getTimestamp().getNs());
+				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
 			}
-
-			String channelName;
-			ChannelConfig chConf;
-			Value<ByteBuffer> value;
-			Double javaVal;
-
-			assertEquals(hookValues.size(), 1);
-			assertEquals((i * 10) + 1, hookMainHeader.getPulseId());
-
-			channelName = "ABC";
-			chConf = this.channelConfigs.get(channelName);
-			assertTrue(hookValues.containsKey(channelName));
-			value = hookValues.get(channelName);
-			javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
-			assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-			assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
-			assertEquals(0, value.getTimestamp().getNs());
-			assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
-			assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+		} finally {
+			receiver.close();
+			sender.close();
 		}
-
-		sendFuture.cancel(true);
-		receiver.close();
-		sender.close();
 	}
 
 	@Test
 	public void testSenderTwoChannel100HzAnd10Hz() {
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -377,113 +377,113 @@ public class ReceiverTest_3 {
 				return new Timestamp(pulseId, 0L);
 			}
 		});
-		sender.bind();
 
 		Receiver<ByteBuffer> receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-		receiver.connect();
 
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture =
-				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
+		try {
+			receiver.connect();
+			// We schedule faster as we want to have the testcase execute faster
+			sender.bind();
+			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
-		// Receive data
-		Message<ByteBuffer> message = null;
-		for (int i = 0; i < 22; ++i) {
-			hookMainHeaderCalled = false;
-			hookDataHeaderCalled = false;
-			hookValuesCalled = false;
+			// Receive data
+			Message<ByteBuffer> message = null;
+			for (int i = 0; i < 22; ++i) {
+				hookMainHeaderCalled = false;
+				hookDataHeaderCalled = false;
+				hookValuesCalled = false;
 
-			message = receiver.receive();
+				message = receiver.receive();
 
-			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-			assertEquals("Data header hook should only be called the first time.", i == 0, hookDataHeaderCalled);
-			assertTrue("Value hook should always be called.", hookValuesCalled);
+				assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+				assertEquals("Data header hook should only be called the first time.", i == 0, hookDataHeaderCalled);
+				assertTrue("Value hook should always be called.", hookValuesCalled);
 
-			// should be the same instance
-			assertSame(hookMainHeader, message.getMainHeader());
-			assertSame(hookDataHeader, message.getDataHeader());
-			assertSame(hookValues, message.getValues());
+				// should be the same instance
+				assertSame(hookMainHeader, message.getMainHeader());
+				assertSame(hookDataHeader, message.getDataHeader());
+				assertSame(hookValues, message.getValues());
 
-			if (hookDataHeaderCalled) {
-				assertEquals(hookDataHeader.getChannels().size(), 2);
-				Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
-				ChannelConfig channelConfig = configIter.next();
-				assertEquals("ABC_10", channelConfig.getName());
-				assertEquals(10, channelConfig.getModulo());
-				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Float64, channelConfig.getType());
-				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
+				if (hookDataHeaderCalled) {
+					assertEquals(hookDataHeader.getChannels().size(), 2);
+					Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+					ChannelConfig channelConfig = configIter.next();
+					assertEquals("ABC_10", channelConfig.getName());
+					assertEquals(10, channelConfig.getModulo());
+					assertEquals(0, channelConfig.getOffset());
+					assertEquals(Type.Float64, channelConfig.getType());
+					assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 
-				channelConfig = configIter.next();
-				assertEquals("ABC_100", channelConfig.getName());
-				assertEquals(1, channelConfig.getModulo());
-				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Float64, channelConfig.getType());
-				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
+					channelConfig = configIter.next();
+					assertEquals("ABC_100", channelConfig.getName());
+					assertEquals(1, channelConfig.getModulo());
+					assertEquals(0, channelConfig.getOffset());
+					assertEquals(Type.Float64, channelConfig.getType());
+					assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
+				}
+
+				// 10Hz -> both channels should have values
+				String channelName;
+				ChannelConfig chConf;
+				Value<ByteBuffer> value;
+				Double javaVal;
+				if (hookMainHeader.getPulseId() % 10 == 0) {
+					assertEquals(2, hookValues.size());
+					assertEquals(i, hookMainHeader.getPulseId());
+
+					channelName = "ABC_10";
+					chConf = this.channelConfigs.get(channelName);
+					assertTrue(hookValues.containsKey(channelName));
+					value = hookValues.get(channelName);
+					javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
+					assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
+					assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+					assertEquals(0, value.getTimestamp().getNs());
+					assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+					assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+
+					channelName = "ABC_100";
+					chConf = this.channelConfigs.get(channelName);
+					assertTrue(hookValues.containsKey(channelName));
+					assertEquals(i, hookMainHeader.getPulseId());
+					value = hookValues.get(channelName);
+					javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
+					assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
+					assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+					assertEquals(0, value.getTimestamp().getNs());
+					assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+					assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+				} else {
+					assertEquals(1, hookValues.size());
+					assertEquals(i, hookMainHeader.getPulseId());
+
+					channelName = "ABC_100";
+					chConf = this.channelConfigs.get(channelName);
+					assertTrue(hookValues.containsKey(channelName));
+					value = hookValues.get(channelName);
+					javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
+					assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
+					assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
+					assertEquals(0, value.getTimestamp().getNs());
+					assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
+					assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
+				}
 			}
-
-			// 10Hz -> both channels should have values
-			String channelName;
-			ChannelConfig chConf;
-			Value<ByteBuffer> value;
-			Double javaVal;
-			if (hookMainHeader.getPulseId() % 10 == 0) {
-				assertEquals(2, hookValues.size());
-				assertEquals(i, hookMainHeader.getPulseId());
-
-				channelName = "ABC_10";
-				chConf = this.channelConfigs.get(channelName);
-				assertTrue(hookValues.containsKey(channelName));
-				value = hookValues.get(channelName);
-				javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
-				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
-				assertEquals(0, value.getTimestamp().getNs());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
-
-				channelName = "ABC_100";
-				chConf = this.channelConfigs.get(channelName);
-				assertTrue(hookValues.containsKey(channelName));
-				assertEquals(i, hookMainHeader.getPulseId());
-				value = hookValues.get(channelName);
-				javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
-				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
-				assertEquals(0, value.getTimestamp().getNs());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
-			} else {
-				assertEquals(1, hookValues.size());
-				assertEquals(i, hookMainHeader.getPulseId());
-
-				channelName = "ABC_100";
-				chConf = this.channelConfigs.get(channelName);
-				assertTrue(hookValues.containsKey(channelName));
-				value = hookValues.get(channelName);
-				javaVal = byteConverter.getValue(hookMainHeader, hookDataHeader, chConf, value.getValue(), null);
-				assertEquals(Double.valueOf(hookMainHeader.getPulseId()), javaVal, 0.00000000001);
-				assertEquals(hookMainHeader.getPulseId(), value.getTimestamp().getSec());
-				assertEquals(0, value.getTimestamp().getNs());
-				assertEquals(hookMainHeader.getPulseId(), hookMainHeader.getGlobalTimestamp().getSec());
-				assertEquals(0, hookMainHeader.getGlobalTimestamp().getNs());
-			}
+		} finally {
+			receiver.close();
+			sender.close();
 		}
-
-		sendFuture.cancel(true);
-		receiver.close();
-		sender.close();
 	}
 
 	@Test
 	public void testSenderEncoding() {
 		ByteConverter byteConverter = new MatlabByteConverter();
 
-		Sender sender = new Sender(
+		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
 						SenderConfig.DEFAULT_SENDING_ADDRESS,
 						new StandardPulseIdProvider(),
@@ -523,83 +523,83 @@ public class ReceiverTest_3 {
 				return new Timestamp(pulseId + 1, pulseId + 1);
 			}
 		});
-		sender.bind();
 
 		Receiver<ByteBuffer> receiver = getReceiver();
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
-		receiver.connect();
 
-		// We schedule faster as we want to have the testcase execute faster
-		ScheduledFuture<?> sendFuture =
-				Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> sender.send(), 0, 1, TimeUnit.MILLISECONDS);
+		try {
+			receiver.connect();
+			// We schedule faster as we want to have the testcase execute faster
+			sender.bind();
+			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
-		// Receive data
-		Message<ByteBuffer> message = null;
-		for (int i = 0; i < 22; ++i) {
-			hookMainHeaderCalled = false;
-			hookDataHeaderCalled = false;
-			hookValuesCalled = false;
+			// Receive data
+			Message<ByteBuffer> message = null;
+			for (int i = 0; i < 22; ++i) {
+				hookMainHeaderCalled = false;
+				hookDataHeaderCalled = false;
+				hookValuesCalled = false;
 
-			message = receiver.receive();
+				message = receiver.receive();
 
-			assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
-			assertEquals("Data header hook should only be called the first time.", i == 0, hookDataHeaderCalled);
-			assertTrue("Value hook should always be called.", hookValuesCalled);
+				assertTrue("Main header hook should always be called.", hookMainHeaderCalled);
+				assertEquals("Data header hook should only be called the first time.", i == 0, hookDataHeaderCalled);
+				assertTrue("Value hook should always be called.", hookValuesCalled);
 
-			// should be the same instance
-			assertSame(hookMainHeader, message.getMainHeader());
-			assertSame(hookDataHeader, message.getDataHeader());
-			assertSame(hookValues, message.getValues());
+				// should be the same instance
+				assertSame(hookMainHeader, message.getMainHeader());
+				assertSame(hookDataHeader, message.getDataHeader());
+				assertSame(hookValues, message.getValues());
 
-			assertTrue("Is a 10Hz Channel", hookMainHeader.getPulseId() % 10 == 0);
-			Timestamp globalTimestamp = hookMainHeader.getGlobalTimestamp();
-			assertEquals(hookMainHeader.getPulseId(), globalTimestamp.getSec());
-			assertEquals(0, globalTimestamp.getNs());
+				assertTrue("Is a 10Hz Channel", hookMainHeader.getPulseId() % 10 == 0);
+				Timestamp globalTimestamp = hookMainHeader.getGlobalTimestamp();
+				assertEquals(hookMainHeader.getPulseId(), globalTimestamp.getSec());
+				assertEquals(0, globalTimestamp.getNs());
 
-			if (hookDataHeaderCalled) {
-				assertEquals(hookDataHeader.getChannels().size(), 2);
-				Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
-				ChannelConfig channelConfig = configIter.next();
-				assertEquals("ABC", channelConfig.getName());
-				assertEquals(10, channelConfig.getModulo());
-				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Int64, channelConfig.getType());
-				assertEquals(ChannelConfig.ENCODING_LITTLE_ENDIAN, channelConfig.getEncoding());
-				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
+				if (hookDataHeaderCalled) {
+					assertEquals(hookDataHeader.getChannels().size(), 2);
+					Iterator<ChannelConfig> configIter = hookDataHeader.getChannels().iterator();
+					ChannelConfig channelConfig = configIter.next();
+					assertEquals("ABC", channelConfig.getName());
+					assertEquals(10, channelConfig.getModulo());
+					assertEquals(0, channelConfig.getOffset());
+					assertEquals(Type.Int64, channelConfig.getType());
+					assertEquals(ChannelConfig.ENCODING_LITTLE_ENDIAN, channelConfig.getEncoding());
+					assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
 
-				channelConfig = configIter.next();
-				assertEquals("ABCD", channelConfig.getName());
-				assertEquals(10, channelConfig.getModulo());
-				assertEquals(0, channelConfig.getOffset());
-				assertEquals(Type.Int64, channelConfig.getType());
-				assertEquals(ChannelConfig.ENCODING_BIG_ENDIAN, channelConfig.getEncoding());
-				assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
+					channelConfig = configIter.next();
+					assertEquals("ABCD", channelConfig.getName());
+					assertEquals(10, channelConfig.getModulo());
+					assertEquals(0, channelConfig.getOffset());
+					assertEquals(Type.Int64, channelConfig.getType());
+					assertEquals(ChannelConfig.ENCODING_BIG_ENDIAN, channelConfig.getEncoding());
+					assertArrayEquals(new int[] { 1 }, channelConfig.getShape());
+				}
+
+				int j = 0;
+				for (ChannelConfig channelConfig : hookDataHeader.getChannels()) {
+					Value<ByteBuffer> value = hookValues.get(channelConfig.getName());
+					Timestamp iocTimestamp = value.getTimestamp();
+					assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getSec());
+					assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getNs());
+					Number val = this.byteConverter.getValue(
+							hookMainHeader,
+							hookDataHeader,
+							channelConfig,
+							value.getValue(),
+							null);
+					assertEquals(hookMainHeader.getPulseId() + j, val.longValue());
+
+					++j;
+				}
 			}
-
-			int j = 0;
-			for (ChannelConfig channelConfig : hookDataHeader.getChannels()) {
-				Value<ByteBuffer> value = hookValues.get(channelConfig.getName());
-				Timestamp iocTimestamp = value.getTimestamp();
-				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getSec());
-				assertEquals(hookMainHeader.getPulseId() + j, iocTimestamp.getNs());
-				Number val = this.byteConverter.getValue(
-						hookMainHeader,
-						hookDataHeader,
-						channelConfig,
-						value.getValue(),
-						null);
-				assertEquals(hookMainHeader.getPulseId() + j, val.longValue());
-
-				++j;
-			}
+		} finally {
+			receiver.close();
+			sender.close();
 		}
-
-		sendFuture.cancel(true);
-		receiver.close();
-		sender.close();
 	}
 
 	private void setMainHeader(MainHeader header) {

@@ -5,6 +5,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -49,15 +50,22 @@ public class Sender {
 
 	public void bind() {
 		Context context = senderConfig.getContext();
-		this.socket = context.socket(senderConfig.getSocketType());
-		this.socket.setSndHWM(senderConfig.getHighWaterMark());
+		socket = context.socket(senderConfig.getSocketType());
+		socket.setSndHWM(senderConfig.getHighWaterMark());
 
 		Monitor monitor = senderConfig.getMonitor();
 		if (monitor != null) {
 			monitor.start(new MonitorConfig(context, socket.base(), senderConfig.getObjectMapper(), senderConfig.getSocketType()));
 		}
 
-		this.socket.bind(senderConfig.getAddress());
+		socket.bind(senderConfig.getAddress());
+		
+		try {
+			// it seems that the socket does sometimes not bind in a timely manner.
+			TimeUnit.MILLISECONDS.sleep(100);
+		} catch (InterruptedException e) {
+			LOGGER.error("Interrupted while sleeping.");
+		}
 	}
 
 	public void close() {
@@ -66,6 +74,13 @@ public class Sender {
 			monitor.stop();
 		}
 		socket.close();
+		
+		try {
+			// it seems that the socket does sometimes not get closed in a timely manner.
+			TimeUnit.MILLISECONDS.sleep(100);
+		} catch (InterruptedException e) {
+			LOGGER.error("Interrupted while sleeping.");
+		}
 	}
 
 	public void send() {
@@ -203,5 +218,9 @@ public class Sender {
 	 */
 	public List<DataChannel<?>> getChannels() {
 		return Collections.unmodifiableList(channels);
+	}
+	
+	public SenderConfig getSenderConfig(){
+		return senderConfig;
 	}
 }
