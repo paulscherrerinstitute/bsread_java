@@ -18,6 +18,7 @@ import zmq.ZMQ.Event;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
+import ch.psi.bsread.ReceiverConfig;
 import ch.psi.bsread.common.concurrent.executor.CommonExecutors;
 import ch.psi.bsread.message.commands.StopCommand;
 
@@ -43,6 +44,8 @@ public class ConnectionCounterMonitor implements Monitor {
 			try {
 				monitorConfig.getSocket().monitor(address, ZMQ.ZMQ_EVENT_ACCEPTED | ZMQ.ZMQ_EVENT_DISCONNECTED | ZMQ.ZMQ_EVENT_CLOSED);
 				monitorSock = monitorConfig.getContext().socket(ZMQ.ZMQ_PAIR);
+				monitorSock.setRcvHWM(ReceiverConfig.DEFAULT_HIGH_WATER_MARK);
+				monitorSock.setLinger(ReceiverConfig.DEFAULT_LINGER);
 				monitorSock.connect(address);
 
 				

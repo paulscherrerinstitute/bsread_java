@@ -52,6 +52,7 @@ public class Sender {
 		Context context = senderConfig.getContext();
 		socket = context.socket(senderConfig.getSocketType());
 		socket.setSndHWM(senderConfig.getHighWaterMark());
+		socket.setLinger(senderConfig.getLinger());
 
 		Monitor monitor = senderConfig.getMonitor();
 		if (monitor != null) {

@@ -20,6 +20,8 @@ import ch.psi.bsread.impl.StandardMessageExtractor;
 public class ReceiverConfig<V> {
 	public static final String DEFAULT_RECEIVING_ADDRESS = "tcp://localhost:9999";
 	public static final int DEFAULT_HIGH_WATER_MARK = 100;
+	// drop pending messages immediately when socket is closed
+	public static final long DEFAULT_LINGER = 0;
 	public static final int DEFAULT_IDLE_CONNECTION_TIMEOUT = Integer.MAX_VALUE;
 	public static final int DEFAULT_RECEIVE_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(1);
 
@@ -32,6 +34,7 @@ public class ReceiverConfig<V> {
 	private boolean keepListeningOnStop;
 	private boolean parallelHandlerProcessing;
 	private int highWaterMark = DEFAULT_HIGH_WATER_MARK;
+	private long linger = DEFAULT_LINGER;
 	private MessageExtractor<V> messageExtractor;
 	private ObjectMapper objectMapper;
 	private final MsgAllocator msgAllocator;
@@ -104,6 +107,18 @@ public class ReceiverConfig<V> {
 
 	public int getHighWaterMark() {
 		return highWaterMark;
+	}
+
+	public void setHighWaterMark(int highWaterMark) {
+		this.highWaterMark = highWaterMark;
+	}
+
+	public long getLinger() {
+		return linger;
+	}
+
+	public void setLinger(long linger) {
+		this.linger = linger;
 	}
 
 	public MessageExtractor<V> getMessageExtractor() {
@@ -207,8 +222,7 @@ public class ReceiverConfig<V> {
 	}
 
 	public enum IdleConnectionTimeoutBehavior {
-		RECONNECT,
-		KEEP_RUNNING,
+		RECONNECT, KEEP_RUNNING,
 		/* Returns null */
 		STOP;
 	}

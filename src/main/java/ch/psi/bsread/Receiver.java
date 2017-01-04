@@ -65,6 +65,7 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 
 			socket = this.receiverConfig.getContext().socket(receiverConfig.getSocketType());
 			socket.setRcvHWM(receiverConfig.getHighWaterMark());
+			socket.setLinger(receiverConfig.getLinger());
 			socket.setReceiveTimeOut((int) receiverConfig.getReceiveTimeout());
 			if (receiverConfig.getMsgAllocator() != null) {
 				socket.base().setSocketOpt(zmq.ZMQ.ZMQ_MSG_ALLOCATOR, receiverConfig.getMsgAllocator());
