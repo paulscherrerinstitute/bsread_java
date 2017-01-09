@@ -60,9 +60,10 @@ public class Sender {
 		}
 
 		socket.bind(senderConfig.getAddress());
-		
+
 		try {
-			// it seems that the socket does sometimes not bind in a timely manner.
+			// it seems that the socket does sometimes not bind in a timely
+			// manner.
 			TimeUnit.MILLISECONDS.sleep(100);
 		} catch (InterruptedException e) {
 			LOGGER.error("Interrupted while sleeping.");
@@ -74,10 +75,13 @@ public class Sender {
 		if (monitor != null) {
 			monitor.stop();
 		}
-		socket.close();
-		
+		if (socket != null) {
+			socket.close();
+		}
+
 		try {
-			// it seems that the socket does sometimes not get closed in a timely manner.
+			// it seems that the socket does sometimes not get closed in a
+			// timely manner.
 			TimeUnit.MILLISECONDS.sleep(100);
 		} catch (InterruptedException e) {
 			LOGGER.error("Interrupted while sleeping.");
@@ -130,25 +134,21 @@ public class Sender {
 						// TODO: conversion could be done in parallel as a
 						// pre-step (Important: change allocators to non-reusing
 						// types)
-						ByteBuffer valueBuffer =
-								senderConfig.getByteConverter().getBytes(value, channel.getConfig().getType(), byteOrder, senderConfig.getValueAllocator());
-						valueBuffer =
-								channel
-										.getConfig()
-										.getCompression()
-										.getCompressor()
-										.compressData(valueBuffer, valueBuffer.position(), valueBuffer.remaining(), 0,
-												senderConfig.getCompressedValueAllocator(), channel.getConfig().getType().getBytes());
+						ByteBuffer valueBuffer = senderConfig.getByteConverter().getBytes(value, channel.getConfig().getType(), byteOrder, senderConfig.getValueAllocator());
+						valueBuffer = channel
+								.getConfig()
+								.getCompression()
+								.getCompressor()
+								.compressData(valueBuffer, valueBuffer.position(), valueBuffer.remaining(), 0,
+										senderConfig.getCompressedValueAllocator(), channel.getConfig().getType().getBytes());
 						socket.sendByteBuffer(valueBuffer, ZMQ.NOBLOCK | ZMQ.SNDMORE);
 
 						Timestamp timestamp = channel.getTime(pulseId);
 						// c-implementation uses a unsigned long (Json::UInt64,
 						// uint64_t) for time -> decided to ignore this here
-						ByteBuffer timeBuffer =
-								senderConfig.getByteConverter().getBytes(timestamp.getAsLongArray(), Type.Int64, byteOrder, senderConfig.getValueAllocator());
+						ByteBuffer timeBuffer = senderConfig.getByteConverter().getBytes(timestamp.getAsLongArray(), Type.Int64, byteOrder, senderConfig.getValueAllocator());
 						socket.sendByteBuffer(timeBuffer, lastSendMore);
-					}
-					else {
+					} else {
 						// Send placeholder
 						socket.send((byte[]) null, ZMQ.NOBLOCK | ZMQ.SNDMORE);
 						socket.send((byte[]) null, lastSendMore);
@@ -178,9 +178,8 @@ public class Sender {
 		try {
 			dataHeaderBytes = senderConfig.getObjectMapper().writeValueAsBytes(dataHeader);
 			if (!Compression.none.equals(senderConfig.getDataHeaderCompression())) {
-				ByteBuffer tmpBuf =
-						senderConfig.getDataHeaderCompression().getCompressor().compressDataHeader(ByteBuffer.wrap(dataHeaderBytes),
-								senderConfig.getCompressedValueAllocator());
+				ByteBuffer tmpBuf = senderConfig.getDataHeaderCompression().getCompressor().compressDataHeader(ByteBuffer.wrap(dataHeaderBytes),
+						senderConfig.getCompressedValueAllocator());
 				dataHeaderBytes = ByteBufferHelper.copyToByteArray(tmpBuf);
 			}
 			// decided to compute hash from the bytes that are send to Receivers
@@ -220,8 +219,8 @@ public class Sender {
 	public List<DataChannel<?>> getChannels() {
 		return Collections.unmodifiableList(channels);
 	}
-	
-	public SenderConfig getSenderConfig(){
+
+	public SenderConfig getSenderConfig() {
 		return senderConfig;
 	}
 }
