@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.function.LongUnaryOperator;
 import java.util.function.ToLongFunction;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -25,8 +26,10 @@ import org.slf4j.LoggerFactory;
 public class MessageSynchronizer<Msg> {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MessageSynchronizer.class.getName());
 	private static final long INITIAL_LAST_SENT_OR_DELETE_PULSEID = Long.MIN_VALUE;
+	public static final LongUnaryOperator CURRENT_TIME_SUPPLIER = (pulseId) -> System.currentTimeMillis();
 
 	private final int maxNumberOfMessagesToKeep;
+	private final long messageSendTimeoutMillis;
 	private final boolean sendIncompleteMessages;
 
 	private final Map<String, Pair<Long, Long>> channelConfigs;
@@ -34,20 +37,40 @@ public class MessageSynchronizer<Msg> {
 	private final AtomicLong lastSentOrDeletedPulseId = new AtomicLong(INITIAL_LAST_SENT_OR_DELETE_PULSEID);
 	private final Queue<Map<String, Msg>> completeQueue;
 	// map[ pulseId -> map[channel -> value] ]
-	private final ConcurrentSkipListMap<Long, Map<String, Msg>> sortedMap = new ConcurrentSkipListMap<>();
+	private final ConcurrentSkipListMap<Long, Pair<Long, Map<String, Msg>>> sortedMap = new ConcurrentSkipListMap<>();
 	private final Function<Msg, String> channelNameProvider;
 	private final ToLongFunction<Msg> pulseIdProvider;
+	private final LongUnaryOperator currentTimeProvider;
 	private final boolean sendFirstComplete;
 
 	public MessageSynchronizer(Queue<Map<String, Msg>> completeQueue, int maxNumberOfMessagesToKeep,
 			boolean sendIncompleteMessages, boolean sendFirstComplete, Collection<? extends SyncChannel> channels,
-			Function<Msg, String> channelNameProvider,
-			ToLongFunction<Msg> pulseIdProvider) {
+			Function<Msg, String> channelNameProvider, ToLongFunction<Msg> pulseIdProvider) {
+		this(completeQueue, maxNumberOfMessagesToKeep, Long.MAX_VALUE, sendIncompleteMessages, sendFirstComplete, channels, channelNameProvider, pulseIdProvider, (pulseId) -> 0);
+	}
+
+	public MessageSynchronizer(Queue<Map<String, Msg>> completeQueue, long messageSendTimeoutMillis,
+			boolean sendIncompleteMessages, boolean sendFirstComplete, Collection<? extends SyncChannel> channels,
+			Function<Msg, String> channelNameProvider, ToLongFunction<Msg> pulseIdProvider) {
+		this(completeQueue, Integer.MAX_VALUE, messageSendTimeoutMillis, sendIncompleteMessages, sendFirstComplete, channels, channelNameProvider, pulseIdProvider, CURRENT_TIME_SUPPLIER);
+	}
+
+	public MessageSynchronizer(Queue<Map<String, Msg>> completeQueue, long messageSendTimeoutMillis,
+			boolean sendIncompleteMessages, boolean sendFirstComplete, Collection<? extends SyncChannel> channels,
+			Function<Msg, String> channelNameProvider, ToLongFunction<Msg> pulseIdProvider, LongUnaryOperator currentTimeProvider) {
+		this(completeQueue, Integer.MAX_VALUE, messageSendTimeoutMillis, sendIncompleteMessages, sendFirstComplete, channels, channelNameProvider, pulseIdProvider, currentTimeProvider);
+	}
+
+	public MessageSynchronizer(Queue<Map<String, Msg>> completeQueue, int maxNumberOfMessagesToKeep, long messageSendTimeoutMillis,
+			boolean sendIncompleteMessages, boolean sendFirstComplete, Collection<? extends SyncChannel> channels,
+			Function<Msg, String> channelNameProvider, ToLongFunction<Msg> pulseIdProvider, LongUnaryOperator currentTimeProvider) {
 		this.completeQueue = completeQueue;
 		this.maxNumberOfMessagesToKeep = maxNumberOfMessagesToKeep;
+		this.messageSendTimeoutMillis = messageSendTimeoutMillis;
 		this.sendIncompleteMessages = sendIncompleteMessages;
 		this.channelNameProvider = channelNameProvider;
 		this.pulseIdProvider = pulseIdProvider;
+		this.currentTimeProvider = currentTimeProvider;
 		this.sendFirstComplete = sendFirstComplete;
 
 		this.channelConfigs = new HashMap<>(channels.size());
@@ -60,7 +83,8 @@ public class MessageSynchronizer<Msg> {
 		final long pulseId = pulseIdProvider.applyAsLong(msg);
 		final String channelName = channelNameProvider.apply(msg);
 		this.updateSmallestEverReceivedPulseId(pulseId);
-		long lastPulseId = this.lastSentOrDeletedPulseId.get();
+		final long lastPulseId = lastSentOrDeletedPulseId.get();
+		final long currentTime = currentTimeProvider.applyAsLong(pulseId);
 
 		if (pulseId > lastPulseId) {
 			final Pair<Long, Long> channelConfig = this.channelConfigs.get(channelName);
@@ -72,8 +96,12 @@ public class MessageSynchronizer<Msg> {
 					// A ConcurrentMap is needed due to later put (addMessage is
 					// called concurrently when subscribed to more than one
 					// ITopic.
-					Map<String, Msg> pulseIdMap = this.sortedMap.computeIfAbsent(pulseId, (k) -> new ConcurrentHashMap<>(this.channelConfigs.size(),
-							0.75f, 1));
+					final Map<String, Msg> pulseIdMap = this.sortedMap.computeIfAbsent(
+							pulseId,
+							(k) -> Pair.of(
+									currentTime,
+									new ConcurrentHashMap<>(this.channelConfigs.size(), 0.75f, 1)))
+							.getRight();
 					pulseIdMap.put(channelName, msg);
 
 					if (lastPulseId == INITIAL_LAST_SENT_OR_DELETE_PULSEID
@@ -84,7 +112,7 @@ public class MessageSynchronizer<Msg> {
 						// important that they
 						// cleanup
 						this.updateLastSentOrDeletedPulseId(pulseId - 1);
-						Entry<Long, Map<String, Msg>> entry = this.sortedMap.firstEntry();
+						Entry<Long, Pair<Long, Map<String, Msg>>> entry = this.sortedMap.firstEntry();
 						while (entry != null && entry.getKey() < pulseId) {
 							LOGGER.info("Drop message of pulse '{}' from channel '{}' as there is a later complete start.",
 									entry.getKey(), channelName);
@@ -107,58 +135,60 @@ public class MessageSynchronizer<Msg> {
 					pulseId, channelName, lastPulseId);
 		}
 
-		this.checkForCompleteMessages();
+		this.checkForCompleteMessages(currentTime);
 	}
 
-	private void checkForCompleteMessages() {
+	private void checkForCompleteMessages(long currentTime) {
+		Entry<Long, Pair<Long, Map<String, Msg>>> entry;
 
-		// handle all messages that exceed the messages to keep
-		// TODO: sortedMap.size() is an expensive operation -> consider using
-		// ConcurrentHashMap
-		// (Collections.setFromMap()) for
-		// counting (see: http://stackoverflow.com/a/22996395) or use an
-		// AtomicInteger as counter
-		// (uncertainty here is that computeIfAbsent does not guarantee atomic
-		// execution of creator
-		// function)
-		int sortedMapSize = this.sortedMap.size();
-		while (sortedMapSize > this.maxNumberOfMessagesToKeep) {
-			// Remove oldest pulse ID - i.e. first
-			Entry<Long, Map<String, Msg>> entry = this.sortedMap.pollFirstEntry();
-			--sortedMapSize;
+		// Size eviction: Handle all messages that exceed the messages to keep
+		if (maxNumberOfMessagesToKeep < Integer.MAX_VALUE) {
+			// TODO: sortedMap.size() is an expensive operation -> consider
+			// using
+			// an AtomicInteger as counter (see ConcurrentLongHistogram for a
+			// possibility to get around map.compute() does not guarantee atomic
+			// execution of creator function)
+			entry = this.sortedMap.firstEntry();
+			while (entry != null && this.sortedMap.size() > this.maxNumberOfMessagesToKeep) {
+				if (handleIncompleteMessages(entry)) {
+					entry = this.sortedMap.firstEntry();
+				} else {
+					// stop
+					return;
+				}
+			}
+		}
 
-			long numberOfChannels = this.getNumberOfExpectedChannels(entry.getKey());
-			// check if message is complete
-			if (entry.getValue().size() >= numberOfChannels) {
-				// we send complete messages by definition
-				LOGGER.debug("Send complete pulse '{}'.", entry.getKey());
-				this.handleCompleteMessages(entry.getKey(), entry.getValue());
-
-			} else if (this.sendIncompleteMessages) {
-				// the user also wants incomplete messages
-				LOGGER.debug("Send incomplete pulse '{}'.", entry.getKey());
-				this.handleCompleteMessages(entry.getKey(), entry.getValue());
-			} else {
-				LOGGER.info("Drop messages for pulse '{}'. Requested number of channels '{}' but got only '{}'.",
-						entry.getKey(), numberOfChannels, entry.getValue().size());
-				this.updateLastSentOrDeletedPulseId(entry.getKey());
+		// Time eviction: Handle all messages that are older than specified
+		// timeout
+		if (messageSendTimeoutMillis < Long.MAX_VALUE) {
+			entry = this.sortedMap.firstEntry();
+			final Entry<Long, Pair<Long, Map<String, Msg>>> lastEntry = this.sortedMap.lastEntry();
+			while (entry != null && lastEntry != null && lastEntry.getValue().getLeft().longValue() - entry.getValue().getLeft().longValue() >= messageSendTimeoutMillis) {
+				if (handleIncompleteMessages(entry)) {
+					entry = this.sortedMap.firstEntry();
+					// lastEntry = this.sortedMap.lastEntry();
+				} else {
+					// stop
+					return;
+				}
 			}
 		}
 
 		// handle all complete messages
-		Entry<Long, Map<String, Msg>> entry = this.sortedMap.firstEntry();
-		while (entry != null && entry.getValue().size() >= this.getNumberOfExpectedChannels(entry.getKey())) {
+		entry = this.sortedMap.firstEntry();
+		while (entry != null && entry.getValue().getRight().size() >= this.getNumberOfExpectedChannels(entry.getKey())) {
 			// make sure there is no pulse missing (i.e. there should be a pulse
 			// before the currently handled one but we have not yet received a
 			// message for this pulse
 			final Long pulseId = entry.getKey();
 			if (!this.isPulseIdMissing(pulseId)) {
-				Map<String, Msg> messages = this.sortedMap.remove(pulseId);
+				final Pair<Long, Map<String, Msg>> messages = this.sortedMap.remove(pulseId);
 				// in case there was another Thread that was also checking this
 				// pulse and was faster
 				if (messages != null) {
 					LOGGER.debug("Send complete pulse '{}'.", pulseId);
-					this.handleCompleteMessages(entry.getKey(), entry.getValue());
+					this.handleCompleteMessages(entry.getKey(), entry.getValue().getRight());
 				}
 				entry = this.sortedMap.firstEntry();
 			} else {
@@ -166,6 +196,36 @@ public class MessageSynchronizer<Msg> {
 				// stop since there are still elements missing
 				entry = null;
 			}
+		}
+	}
+
+	private boolean handleIncompleteMessages(final Entry<Long, Pair<Long, Map<String, Msg>>> entry) {
+		// Remove oldest pulse ID - i.e. first
+		final Pair<Long, Map<String, Msg>> messages = this.sortedMap.remove(entry.getKey());
+
+		if (messages != null) {
+			final long numberOfChannels = this.getNumberOfExpectedChannels(entry.getKey());
+			// check if message is complete
+			if (entry.getValue().getRight().size() >= numberOfChannels) {
+				// we send complete messages by definition
+				LOGGER.debug("Send complete pulse '{}' due to size eviction.", entry.getKey());
+				this.handleCompleteMessages(entry.getKey(), entry.getValue().getRight());
+
+			} else if (this.sendIncompleteMessages) {
+				// the user also wants incomplete messages
+				LOGGER.debug("Send incomplete pulse '{}' due to size eviction.", entry.getKey());
+				this.handleCompleteMessages(entry.getKey(), entry.getValue().getRight());
+			} else {
+				LOGGER.info("Drop messages for pulse '{}' due to size eviction. Requested number of channels '{}' but got only '{}'.",
+						entry.getKey(), numberOfChannels, entry.getValue().getRight().size());
+				this.updateLastSentOrDeletedPulseId(entry.getKey());
+			}
+			// keep going
+			return true;
+		} else {
+			LOGGER.debug("Another thread is handling message of pulse '{}'. Let it do the work.", entry.getKey());
+			// stop here
+			return false;
 		}
 	}
 
@@ -250,8 +310,8 @@ public class MessageSynchronizer<Msg> {
 	 */
 	public List<Msg> retrieveBufferedMessages() {
 		List<Msg> remainingMsgs = new LinkedList<>();
-		for (Map<String, Msg> map : sortedMap.values()) {
-			remainingMsgs.addAll(map.values());
+		for (Pair<Long, Map<String, Msg>> pair : sortedMap.values()) {
+			remainingMsgs.addAll(pair.getRight().values());
 		}
 
 		return remainingMsgs;
