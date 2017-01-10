@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
@@ -37,7 +38,7 @@ public class MessageSynchronizer<Msg> {
 	private final AtomicLong lastSentOrDeletedPulseId = new AtomicLong(INITIAL_LAST_SENT_OR_DELETE_PULSEID);
 	private final Queue<Map<String, Msg>> completeQueue;
 	// map[ pulseId -> map[channel -> value] ]
-	private final ConcurrentSkipListMap<Long, Pair<Long, Map<String, Msg>>> sortedMap = new ConcurrentSkipListMap<>();
+	private final ConcurrentSkipListMap<Long, TimedMessages<Msg>> sortedMap = new ConcurrentSkipListMap<>();
 	private final Function<Msg, String> channelNameProvider;
 	private final ToLongFunction<Msg> pulseIdProvider;
 	private final LongUnaryOperator currentTimeProvider;
@@ -98,10 +99,10 @@ public class MessageSynchronizer<Msg> {
 					// ITopic.
 					final Map<String, Msg> pulseIdMap = this.sortedMap.computeIfAbsent(
 							pulseId,
-							(k) -> Pair.of(
+							(k) -> new TimedMessages<>(
 									currentTime,
-									new ConcurrentHashMap<>(this.channelConfigs.size(), 0.75f, 1)))
-							.getRight();
+									channelConfigs.size()))
+							.getMessagesMap();
 					pulseIdMap.put(channelName, msg);
 
 					if (lastPulseId == INITIAL_LAST_SENT_OR_DELETE_PULSEID
@@ -112,7 +113,7 @@ public class MessageSynchronizer<Msg> {
 						// important that they
 						// cleanup
 						this.updateLastSentOrDeletedPulseId(pulseId - 1);
-						Entry<Long, Pair<Long, Map<String, Msg>>> entry = this.sortedMap.firstEntry();
+						Entry<Long, TimedMessages<Msg>> entry = this.sortedMap.firstEntry();
 						while (entry != null && entry.getKey() < pulseId) {
 							LOGGER.info("Drop message of pulse '{}' from channel '{}' as there is a later complete start.",
 									entry.getKey(), channelName);
@@ -139,7 +140,7 @@ public class MessageSynchronizer<Msg> {
 	}
 
 	private void checkForCompleteMessages(long currentTime) {
-		Entry<Long, Pair<Long, Map<String, Msg>>> entry;
+		Entry<Long, TimedMessages<Msg>> entry;
 
 		// Size eviction: Handle all messages that exceed the messages to keep
 		if (maxNumberOfMessagesToKeep < Integer.MAX_VALUE) {
@@ -163,8 +164,8 @@ public class MessageSynchronizer<Msg> {
 		// timeout
 		if (messageSendTimeoutMillis < Long.MAX_VALUE) {
 			entry = this.sortedMap.firstEntry();
-			final Entry<Long, Pair<Long, Map<String, Msg>>> lastEntry = this.sortedMap.lastEntry();
-			while (entry != null && lastEntry != null && lastEntry.getValue().getLeft().longValue() - entry.getValue().getLeft().longValue() >= messageSendTimeoutMillis) {
+			final Entry<Long, TimedMessages<Msg>> lastEntry = this.sortedMap.lastEntry();
+			while (entry != null && lastEntry != null && lastEntry.getValue().getSubmitTime() - entry.getValue().getSubmitTime() >= messageSendTimeoutMillis) {
 				if (handleIncompleteMessages(entry)) {
 					entry = this.sortedMap.firstEntry();
 					// lastEntry = this.sortedMap.lastEntry();
@@ -177,18 +178,18 @@ public class MessageSynchronizer<Msg> {
 
 		// handle all complete messages
 		entry = this.sortedMap.firstEntry();
-		while (entry != null && entry.getValue().getRight().size() >= this.getNumberOfExpectedChannels(entry.getKey())) {
+		while (entry != null && entry.getValue().getMessagesMap().size() >= this.getNumberOfExpectedChannels(entry.getKey())) {
 			// make sure there is no pulse missing (i.e. there should be a pulse
 			// before the currently handled one but we have not yet received a
 			// message for this pulse
 			final Long pulseId = entry.getKey();
 			if (!this.isPulseIdMissing(pulseId)) {
-				final Pair<Long, Map<String, Msg>> messages = this.sortedMap.remove(pulseId);
+				final TimedMessages<Msg> messages = this.sortedMap.remove(pulseId);
 				// in case there was another Thread that was also checking this
 				// pulse and was faster
 				if (messages != null) {
 					LOGGER.debug("Send complete pulse '{}'.", pulseId);
-					this.handleCompleteMessages(entry.getKey(), entry.getValue().getRight());
+					this.handleCompleteMessages(entry.getKey(), entry.getValue().getMessagesMap());
 				}
 				entry = this.sortedMap.firstEntry();
 			} else {
@@ -199,25 +200,25 @@ public class MessageSynchronizer<Msg> {
 		}
 	}
 
-	private boolean handleIncompleteMessages(final Entry<Long, Pair<Long, Map<String, Msg>>> entry) {
+	private boolean handleIncompleteMessages(final Entry<Long, TimedMessages<Msg>> entry) {
 		// Remove oldest pulse ID - i.e. first
-		final Pair<Long, Map<String, Msg>> messages = this.sortedMap.remove(entry.getKey());
+		final TimedMessages<Msg> messages = this.sortedMap.remove(entry.getKey());
 
 		if (messages != null) {
 			final long numberOfChannels = this.getNumberOfExpectedChannels(entry.getKey());
 			// check if message is complete
-			if (entry.getValue().getRight().size() >= numberOfChannels) {
+			if (entry.getValue().getMessagesMap().size() >= numberOfChannels) {
 				// we send complete messages by definition
 				LOGGER.debug("Send complete pulse '{}' due to size eviction.", entry.getKey());
-				this.handleCompleteMessages(entry.getKey(), entry.getValue().getRight());
+				this.handleCompleteMessages(entry.getKey(), entry.getValue().getMessagesMap());
 
 			} else if (this.sendIncompleteMessages) {
 				// the user also wants incomplete messages
 				LOGGER.debug("Send incomplete pulse '{}' due to size eviction.", entry.getKey());
-				this.handleCompleteMessages(entry.getKey(), entry.getValue().getRight());
+				this.handleCompleteMessages(entry.getKey(), entry.getValue().getMessagesMap());
 			} else {
 				LOGGER.info("Drop messages for pulse '{}' due to size eviction. Requested number of channels '{}' but got only '{}'.",
-						entry.getKey(), numberOfChannels, entry.getValue().getRight().size());
+						entry.getKey(), numberOfChannels, entry.getValue().getMessagesMap().size());
 				this.updateLastSentOrDeletedPulseId(entry.getKey());
 			}
 			// keep going
@@ -310,8 +311,8 @@ public class MessageSynchronizer<Msg> {
 	 */
 	public List<Msg> retrieveBufferedMessages() {
 		List<Msg> remainingMsgs = new LinkedList<>();
-		for (Pair<Long, Map<String, Msg>> pair : sortedMap.values()) {
-			remainingMsgs.addAll(pair.getRight().values());
+		for (TimedMessages<Msg> messages : sortedMap.values()) {
+			remainingMsgs.addAll(messages.getMessagesMap().values());
 		}
 
 		return remainingMsgs;
@@ -325,5 +326,23 @@ public class MessageSynchronizer<Msg> {
 	 */
 	public int getBufferSize() {
 		return sortedMap.size();
+	}
+
+	private static class TimedMessages<Msg> {
+		private long submitTime;
+		private ConcurrentMap<String, Msg> messagesMap;
+
+		public TimedMessages(long submitTime, int nrOfChannels) {
+			this.submitTime = submitTime;
+			messagesMap = new ConcurrentHashMap<>(nrOfChannels, 0.75f, 1);
+		}
+
+		public long getSubmitTime() {
+			return submitTime;
+		}
+
+		public Map<String, Msg> getMessagesMap() {
+			return messagesMap;
+		}
 	}
 }
