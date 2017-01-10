@@ -75,6 +75,8 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 			if (ZMQ.SUB == receiverConfig.getSocketType()) {
 				socket.subscribe("".getBytes());
 			}
+			
+			LOGGER.info("Receiver '{}' connected", this.receiverConfig.getAddress());
 		}
 	}
 
