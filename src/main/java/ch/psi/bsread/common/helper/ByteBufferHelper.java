@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.function.IntFunction;
 
 import net.jpountz.lz4.LZ4BlockInputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
@@ -65,7 +66,7 @@ public class ByteBufferHelper {
       }
    }
 
-   private static void writeByteBuffer(ByteBuffer buffer, OutputStream os) throws IOException {
+   public static void writeByteBuffer(ByteBuffer buffer, OutputStream os) throws IOException {
       if (buffer.hasArray()) {
          os.write(buffer.array(), buffer.arrayOffset() + buffer.position(), buffer.remaining());
       } else {
@@ -74,6 +75,13 @@ public class ByteBufferHelper {
          buffer.duplicate().order(buffer.order()).get(bytes, 0, buffer.remaining());
          os.write(bytes, 0, buffer.remaining());
       }
+   }
+   
+   public static byte[] toArray(ByteBuffer buffer, IntFunction<byte[]> allocator) {
+      byte[] bytes = allocator.apply(buffer.remaining());     
+      // bulk methods are way faster than reading/writing single bytes
+      buffer.duplicate().order(buffer.order()).get(bytes, 0, buffer.remaining());
+      return bytes;
    }
 
    public static ByteBuffer read(InputStream is) throws IOException {
