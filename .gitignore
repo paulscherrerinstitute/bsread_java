@@ -1,7 +1,6 @@
 ch.psi.bsread.iml
 .idea
 .gradle
-.settings
 .classpath
 .project
 bin
