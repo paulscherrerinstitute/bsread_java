@@ -9,9 +9,13 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -71,7 +75,7 @@ public class ByteBufferHelperTest {
       }
       assertFalse(ByteBufferHelper.isPositionSet(identifier, 63));
    }
-   
+
    @Test
    public void testByteEncoding_Short() throws Exception {
       short identifier = 0;
@@ -116,7 +120,7 @@ public class ByteBufferHelperTest {
       }
       assertFalse(ByteBufferHelper.isPositionSet(identifier, 63));
    }
-   
+
    @Test
    public void testByteEncoding_Int() throws Exception {
       int identifier = 0;
@@ -161,7 +165,7 @@ public class ByteBufferHelperTest {
       }
       assertFalse(ByteBufferHelper.isPositionSet(identifier, 63));
    }
-   
+
    @Test
    public void testByteEncoding_Long() throws Exception {
       long identifier = 0;
@@ -204,7 +208,7 @@ public class ByteBufferHelperTest {
       int intVal = Integer.MAX_VALUE / 3;
       buf.asIntBuffer().put(intVal);
 
-      ByteBuffer copy = copy(buf);
+      ByteBuffer copy = copy1(buf);
       assertEquals(buf.isDirect(), copy.isDirect());
       assertEquals(buf.order(), copy.order());
       assertEquals(buf.position(), copy.position());
@@ -215,7 +219,7 @@ public class ByteBufferHelperTest {
       intVal = Integer.MAX_VALUE / 5;
       buf.asIntBuffer().put(intVal);
 
-      copy = copy(buf);
+      copy = copy1(buf);
       assertEquals(buf.isDirect(), copy.isDirect());
       assertEquals(buf.order(), copy.order());
       assertEquals(buf.position(), copy.position());
@@ -226,7 +230,7 @@ public class ByteBufferHelperTest {
       intVal = Integer.MAX_VALUE / 9;
       buf.asIntBuffer().put(intVal);
 
-      copy = copy(buf);
+      copy = copy1(buf);
       assertEquals(buf.isDirect(), copy.isDirect());
       assertEquals(buf.order(), copy.order());
       assertEquals(buf.position(), copy.position());
@@ -237,7 +241,7 @@ public class ByteBufferHelperTest {
       intVal = Integer.MAX_VALUE / 2;
       buf.asIntBuffer().put(intVal);
 
-      copy = copy(buf);
+      copy = copy1(buf);
       assertEquals(buf.isDirect(), copy.isDirect());
       assertEquals(buf.order(), copy.order());
       assertEquals(buf.position(), copy.position());
@@ -248,7 +252,7 @@ public class ByteBufferHelperTest {
       intVal = Integer.MAX_VALUE / 2;
       buf.asIntBuffer().put(intVal);
 
-      copy = copy(buf);
+      copy = copy1(buf);
       assertEquals(true, copy.isDirect());
       assertEquals(buf.order(), copy.order());
       assertEquals(buf.position(), copy.position());
@@ -263,7 +267,81 @@ public class ByteBufferHelperTest {
       }
       buf = ByteBuffer.allocateDirect(size * Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
       buf.asIntBuffer().put(intVals);
-      copy = copy(buf);
+      copy = copy1(buf);
+      assertEquals(buf.isDirect(), copy.isDirect());
+      assertEquals(buf.order(), copy.order());
+      assertEquals(buf.position(), copy.position());
+      assertEquals(buf.limit(), copy.limit());
+      copy.asIntBuffer().get(intValsCopy);
+      assertArrayEquals(intVals, intValsCopy);
+   }
+
+   @Test
+   public void testByteBufferSerialization_2() throws Exception {
+      ByteBuffer buf = ByteBuffer.allocate(Integer.BYTES).order(ByteOrder.BIG_ENDIAN);
+      int intVal = Integer.MAX_VALUE / 3;
+      buf.asIntBuffer().put(intVal);
+
+      ByteBuffer copy = copy2(buf);
+      assertEquals(buf.isDirect(), copy.isDirect());
+      assertEquals(buf.order(), copy.order());
+      assertEquals(buf.position(), copy.position());
+      assertEquals(buf.limit(), copy.limit());
+      assertEquals(intVal, copy.asIntBuffer().get());
+
+      buf = ByteBuffer.allocate(Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+      intVal = Integer.MAX_VALUE / 5;
+      buf.asIntBuffer().put(intVal);
+
+      copy = copy2(buf);
+      assertEquals(buf.isDirect(), copy.isDirect());
+      assertEquals(buf.order(), copy.order());
+      assertEquals(buf.position(), copy.position());
+      assertEquals(buf.limit(), copy.limit());
+      assertEquals(intVal, copy.asIntBuffer().get());
+
+      buf = ByteBuffer.allocateDirect(Integer.BYTES).order(ByteOrder.BIG_ENDIAN);
+      intVal = Integer.MAX_VALUE / 9;
+      buf.asIntBuffer().put(intVal);
+
+      copy = copy2(buf);
+      assertEquals(buf.isDirect(), copy.isDirect());
+      assertEquals(buf.order(), copy.order());
+      assertEquals(buf.position(), copy.position());
+      assertEquals(buf.limit(), copy.limit());
+      assertEquals(intVal, copy.asIntBuffer().get());
+
+      buf = ByteBuffer.allocateDirect(Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+      intVal = Integer.MAX_VALUE / 2;
+      buf.asIntBuffer().put(intVal);
+
+      copy = copy2(buf);
+      assertEquals(buf.isDirect(), copy.isDirect());
+      assertEquals(buf.order(), copy.order());
+      assertEquals(buf.position(), copy.position());
+      assertEquals(buf.limit(), copy.limit());
+      assertEquals(intVal, copy.asIntBuffer().get());
+
+      buf = ByteBuffer.allocateDirect(Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+      intVal = Integer.MAX_VALUE / 2;
+      buf.asIntBuffer().put(intVal);
+
+      copy = copy2(buf);
+      assertEquals(true, copy.isDirect());
+      assertEquals(buf.order(), copy.order());
+      assertEquals(buf.position(), copy.position());
+      assertEquals(buf.limit(), copy.limit());
+      assertEquals(intVal, copy.asIntBuffer().get());
+
+      int size = 8 * 2048 / Integer.BYTES + 1024;
+      int[] intVals = new int[size];
+      int[] intValsCopy = new int[size];
+      for (int i = 0; i < size; ++i) {
+         intVals[i] = i;
+      }
+      buf = ByteBuffer.allocateDirect(size * Integer.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+      buf.asIntBuffer().put(intVals);
+      copy = copy2(buf);
       assertEquals(buf.isDirect(), copy.isDirect());
       assertEquals(buf.order(), copy.order());
       assertEquals(buf.position(), copy.position());
@@ -373,16 +451,29 @@ public class ByteBufferHelperTest {
       assertEquals(intVal, ByteBuffer.wrap(copy).asIntBuffer().get());
    }
 
-   ByteBuffer copy(ByteBuffer buffer) throws IOException {
+   ByteBuffer copy1(ByteBuffer buffer) throws IOException {
       ByteArrayOutputStream bos = new ByteArrayOutputStream();
       ObjectOutputStream out = new ObjectOutputStream(bos);
-      ByteBufferHelper.write(buffer, out);
+      ByteBufferHelper.write(buffer, (OutputStream) out);
       out.flush();
 
       // De-serialization of object
       ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
       ObjectInputStream in = new ObjectInputStream(bis);
 
-      return ByteBufferHelper.read(in);
+      return ByteBufferHelper.read((InputStream) in);
+   }
+
+   ByteBuffer copy2(ByteBuffer buffer) throws IOException {
+      ByteArrayOutputStream bos = new ByteArrayOutputStream();
+      ObjectOutputStream out = new ObjectOutputStream(bos);
+      ByteBufferHelper.write(buffer, (DataOutput) out);
+      out.flush();
+
+      // De-serialization of object
+      ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
+      ObjectInputStream in = new ObjectInputStream(bis);
+
+      return ByteBufferHelper.read((DataInput) in);
    }
 }

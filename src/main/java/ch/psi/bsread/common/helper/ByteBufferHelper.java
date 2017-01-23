@@ -1,5 +1,7 @@
 package ch.psi.bsread.common.helper;
 
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -66,6 +68,33 @@ public class ByteBufferHelper {
       }
    }
 
+   public static void write(ByteBuffer buffer, DataOutput os) throws IOException {
+      if (buffer == null) {
+         byte identifier = 0;
+         identifier = ByteBufferHelper.setPosition(identifier, NULL_POSITION);
+         // Important: writes one byte
+         os.write(identifier);
+      } else {
+         byte identifier = 0;
+         if (buffer.isDirect()) {
+            identifier = ByteBufferHelper.setPosition(identifier, DIRECT_POSITION);
+         }
+         if (ByteOrder.LITTLE_ENDIAN.equals(buffer.order())) {
+            identifier = ByteBufferHelper.setPosition(identifier, ORDER_POSITION);
+         }
+         // Important: writes one byte
+         os.write(identifier);
+
+         // write size
+         ByteBuffer sizeBuf = ByteBufferAllocator.DEFAULT_ALLOCATOR.allocate(Integer.BYTES);
+         sizeBuf.order(buffer.order());
+         sizeBuf.putInt(0, buffer.remaining());
+         os.write(sizeBuf.array());
+
+         writeByteBuffer(buffer, os);
+      }
+   }
+
    public static void writeByteBuffer(ByteBuffer buffer, OutputStream os) throws IOException {
       if (buffer.hasArray()) {
          os.write(buffer.array(), buffer.arrayOffset() + buffer.position(), buffer.remaining());
@@ -76,9 +105,20 @@ public class ByteBufferHelper {
          os.write(bytes, 0, buffer.remaining());
       }
    }
-   
+
+   public static void writeByteBuffer(ByteBuffer buffer, DataOutput os) throws IOException {
+      if (buffer.hasArray()) {
+         os.write(buffer.array(), buffer.arrayOffset() + buffer.position(), buffer.remaining());
+      } else {
+         byte[] bytes = TMP_SERIALIZATION_ALLOCATOR.apply(buffer.remaining());
+         // bulk methods are way faster than reading/writing single bytes
+         buffer.duplicate().order(buffer.order()).get(bytes, 0, buffer.remaining());
+         os.write(bytes, 0, buffer.remaining());
+      }
+   }
+
    public static byte[] toArray(ByteBuffer buffer, IntFunction<byte[]> allocator) {
-      byte[] bytes = allocator.apply(buffer.remaining());     
+      byte[] bytes = allocator.apply(buffer.remaining());
       // bulk methods are way faster than reading/writing single bytes
       buffer.duplicate().order(buffer.order()).get(bytes, 0, buffer.remaining());
       return bytes;
@@ -103,18 +143,33 @@ public class ByteBufferHelper {
       if (ByteBufferHelper.isPositionSet(identifier, COMPRESS_POSITION)) {
          LZ4BlockInputStream lzis = new LZ4BlockInputStream(is);
 
-         return readByteBuffer(identifier, lzis, size);
+         return readByteBuffer(identifier, lzis, size, byteOrder);
       } else {
-         return readByteBuffer(identifier, is, size);
+         return readByteBuffer(identifier, is, size, byteOrder);
       }
    }
 
-   private static ByteBuffer readByteBuffer(byte identifier, InputStream is, int size) throws IOException {
-      boolean isDirect = ByteBufferHelper.isPositionSet(identifier, DIRECT_POSITION);
+   public static ByteBuffer read(DataInput is) throws IOException {
+      byte identifier = is.readByte();
+      if (identifier == -1 || ByteBufferHelper.isPositionSet(identifier, NULL_POSITION)) {
+         return null;
+      }
 
       ByteOrder byteOrder =
             ByteBufferHelper.isPositionSet(identifier, ORDER_POSITION) ? ByteOrder.LITTLE_ENDIAN
                   : ByteOrder.BIG_ENDIAN;
+
+      int size = is.readInt();
+      if (ByteOrder.LITTLE_ENDIAN.equals(byteOrder)) {
+         size = Integer.reverseBytes(size);
+      }
+
+      return readByteBuffer(identifier, is, size, byteOrder);
+   }
+
+   private static ByteBuffer readByteBuffer(byte identifier, InputStream is, int size, ByteOrder byteOrder)
+         throws IOException {
+      boolean isDirect = ByteBufferHelper.isPositionSet(identifier, DIRECT_POSITION);
 
       ByteBuffer buffer;
       if (isDirect) {
@@ -142,6 +197,37 @@ public class ByteBufferHelper {
       if (!buffer.hasArray()) {
          // bulk methods are way faster than reading/writing single bytes
          buffer.put(valBytes, 0, off);
+         // make ready for read
+         buffer.flip();
+      }
+
+      return buffer;
+   }
+
+   private static ByteBuffer readByteBuffer(byte identifier, DataInput is, int size, ByteOrder byteOrder)
+         throws IOException {
+      boolean isDirect = ByteBufferHelper.isPositionSet(identifier, DIRECT_POSITION);
+
+      ByteBuffer buffer;
+      if (isDirect) {
+         buffer = ByteBufferAllocator.DEFAULT_ALLOCATOR.allocateDirect(size);
+      } else {
+         buffer = ByteBufferAllocator.DEFAULT_ALLOCATOR.allocateHeap(size);
+      }
+      buffer.order(byteOrder);
+
+      byte[] valBytes;
+      if (!buffer.hasArray()) {
+         valBytes = TMP_SERIALIZATION_ALLOCATOR.apply(size);
+      } else {
+         valBytes = buffer.array();
+      }
+
+      is.readFully(valBytes, 0, size);
+
+      if (!buffer.hasArray()) {
+         // bulk methods are way faster than reading/writing single bytes
+         buffer.put(valBytes, 0, size);
          // make ready for read
          buffer.flip();
       }
