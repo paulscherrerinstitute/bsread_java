@@ -7,8 +7,8 @@ version = '3.2.14'
 
 repositories {
     mavenCentral()
-    maven { url "http://artifacts.psi.ch/artifactory/libs-releases-local" }
-    maven { url "http://artifacts.psi.ch/artifactory/libs-snapshots-local" }
+    maven { url "https://artifacts.psi.ch/artifactory/libs-releases-local" }
+    maven { url "https://artifacts.psi.ch/artifactory/libs-snapshots-local" }
 }
 
 dependencies {
@@ -45,7 +45,7 @@ apply plugin: 'maven'
 uploadArchives {
     repositories {
         mavenDeployer {
-            repository(url: "http://artifacts.psi.ch/artifactory/libs-snapshots-local"){
+            repository(url: "https://artifacts.psi.ch/artifactory/libs-snapshots-local"){
             	authentication(userName: "upload", password: "{DESede}eWKHxAtQ2Dc=")
             }
             pom.groupId = 'ch.psi'
