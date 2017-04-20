@@ -24,142 +24,140 @@ import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Value;
 
 /**
- * A MessageExtractor that allows to use DirectBuffers to store data blobs that
- * are bigger than a predefined threshold. This helps to overcome
- * OutOfMemoryError when Messages are buffered since the JAVA heap space will
- * not be the limiting factor.
+ * A MessageExtractor that allows to use DirectBuffers to store data blobs that are bigger than a
+ * predefined threshold. This helps to overcome OutOfMemoryError when Messages are buffered since
+ * the JAVA heap space will not be the limiting factor.
  */
 public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V> {
-	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMessageExtractor.class.getName());
+   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMessageExtractor.class.getName());
 
-	private DataHeader dataHeader;
-	private ValueConverter valueConverter;
-	private ReceiverConfig<V> receiverConfig;
+   private DataHeader dataHeader;
+   private ValueConverter valueConverter;
+   private ReceiverConfig<V> receiverConfig;
 
-	public AbstractMessageExtractor(ValueConverter valueConverter) {
-		this.valueConverter = valueConverter;
-	}
+   public AbstractMessageExtractor(ValueConverter valueConverter) {
+      this.valueConverter = valueConverter;
+   }
 
-	// protected Value<V> getValue(ChannelConfig channelConfig) {
-	// return new ValueImpl<V>((V) null, new Timestamp());
-	// }
+   // protected Value<V> getValue(ChannelConfig channelConfig) {
+   // return new ValueImpl<V>((V) null, new Timestamp());
+   // }
 
-	@Override
-	public Message<V> extractMessage(Socket socket, MainHeader mainHeader, Set<String> requestedChannels) {
-		Message<V> message = new Message<V>();
-		message.setMainHeader(mainHeader);
-		message.setDataHeader(dataHeader);
-		Map<String, Value<V>> values = message.getValues();
+   @Override
+   public Message<V> extractMessage(Socket socket, MainHeader mainHeader, Set<String> requestedChannels) {
+      Message<V> message = new Message<V>();
+      message.setMainHeader(mainHeader);
+      message.setDataHeader(dataHeader);
+      Map<String, Value<V>> values = message.getValues();
 
-		int i = 0;
-		final Iterator<ChannelConfig> configIter = dataHeader.getChannels().iterator();
-		while (configIter.hasNext() && socket.hasReceiveMore()) {
-			final ChannelConfig currentConfig = configIter.next();
+      final Iterator<ChannelConfig> configIter = dataHeader.getChannels().iterator();
+      while (configIter.hasNext() && socket.hasReceiveMore()) {
+         final ChannelConfig currentConfig = configIter.next();
 
-			if (requestedChannels == null || requestedChannels.contains(currentConfig.getName())) {
-				final ByteOrder byteOrder = currentConfig.getByteOrder();
+         if (requestedChannels == null || requestedChannels.contains(currentConfig.getName())) {
+            final ByteOrder byteOrder = currentConfig.getByteOrder();
 
-				// # read data blob #
-				// ##################
-				if (!socket.hasReceiveMore()) {
-					final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
-					LOGGER.error(errorMessage);
-					throw new RuntimeException(errorMessage);
-				}
+            // # read data blob #
+            // ##################
+            if (!socket.hasReceiveMore()) {
+               final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
+               LOGGER.error(errorMessage);
+               throw new RuntimeException(errorMessage);
+            }
 
-				final Msg valueMsg = receiveMsg(socket);
-				ByteBuffer receivedValueBytes = valueMsg.buf().order(byteOrder);
+            final Msg valueMsg = receiveMsg(socket);
+            ByteBuffer receivedValueBytes = valueMsg.buf().order(byteOrder);
 
-				// # read timestamp blob #
-				// #######################
-				if (!socket.hasReceiveMore()) {
-					final String errorMessage =
-							String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
-					LOGGER.error(errorMessage);
-					throw new RuntimeException(errorMessage);
-				}
-				final Msg timeMsg = receiveMsg(socket);
-				ByteBuffer timestampBytes = timeMsg.buf().order(byteOrder);
+            // # read timestamp blob #
+            // #######################
+            if (!socket.hasReceiveMore()) {
+               final String errorMessage =
+                     String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
+               LOGGER.error(errorMessage);
+               throw new RuntimeException(errorMessage);
+            }
+            final Msg timeMsg = receiveMsg(socket);
+            ByteBuffer timestampBytes = timeMsg.buf().order(byteOrder);
 
-				// Create value object
-				if (receivedValueBytes != null && receivedValueBytes.remaining() > 0) {
-					// c-implementation uses a unsigned long (Json::UInt64,
-					// uint64_t) for time -> decided to ignore this here
-					final Timestamp iocTimestamp = new Timestamp(
-							timestampBytes.getLong(timestampBytes.position()),
-							timestampBytes.getLong(timestampBytes.position() + Long.BYTES));
+            // Create value object
+            if (receivedValueBytes != null && receivedValueBytes.remaining() > 0) {
+               // c-implementation uses a unsigned long (Json::UInt64,
+               // uint64_t) for time -> decided to ignore this here
+               final Timestamp iocTimestamp = new Timestamp(
+                     timestampBytes.getLong(timestampBytes.position()),
+                     timestampBytes.getLong(timestampBytes.position() + Long.BYTES));
 
-					final Value<V> value = valueConverter.getMessageValue(mainHeader, dataHeader, currentConfig, receivedValueBytes, iocTimestamp);
-					values.put(currentConfig.getName(), value);
-					// try{ -> ???
-					// CompletableFuture<V> futureValue =
-					// CompletableFuture.supplyAsync(
-					// () -> valueConverter.getValue(receivedValueBytes,
-					// currentConfig, mainHeader, iocTimestamp),
-					// receiverConfig.getValueConversionService());
-					// value.setFutureValue(futureValue);
-				}
-			} else {
-				// # read data blob #
-				// ##################
-				if (!socket.hasReceiveMore()) {
-					final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
-					LOGGER.error(errorMessage);
-					throw new RuntimeException(errorMessage);
-				}
-				receiveMsg(socket);
+               final Value<V> value = valueConverter.getMessageValue(mainHeader, dataHeader, currentConfig,
+                     receivedValueBytes, iocTimestamp);
+               values.put(currentConfig.getName(), value);
+               // try{ -> ???
+               // CompletableFuture<V> futureValue =
+               // CompletableFuture.supplyAsync(
+               // () -> valueConverter.getValue(receivedValueBytes,
+               // currentConfig, mainHeader, iocTimestamp),
+               // receiverConfig.getValueConversionService());
+               // value.setFutureValue(futureValue);
+            }
+         } else {
+            // # read data blob #
+            // ##################
+            if (!socket.hasReceiveMore()) {
+               final String errorMessage = String.format("There is no data for channel '%s'.", currentConfig.getName());
+               LOGGER.error(errorMessage);
+               throw new RuntimeException(errorMessage);
+            }
+            receiveMsg(socket);
 
-				// # read timestamp blob #
-				// #######################
-				if (!socket.hasReceiveMore()) {
-					final String errorMessage =
-							String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
-					LOGGER.error(errorMessage);
-					throw new RuntimeException(errorMessage);
-				}
-				receiveMsg(socket);
-			}
+            // # read timestamp blob #
+            // #######################
+            if (!socket.hasReceiveMore()) {
+               final String errorMessage =
+                     String.format("There is no timestamp for channel '%s'.", currentConfig.getName());
+               LOGGER.error(errorMessage);
+               throw new RuntimeException(errorMessage);
+            }
+            receiveMsg(socket);
+         }
+      }
 
-			++i;
-		}
+      // // ensure async conversion is completed
+      // for (Entry<String, Value<V>> entry : values.entrySet()) {
+      // entry.getValue().getValue();
+      // }
 
-		// // ensure async conversion is completed
-		// for (Entry<String, Value<V>> entry : values.entrySet()) {
-		// entry.getValue().getValue();
-		// }
+      // // Sanity check of value list
+      // if (requestedChannels != null && i != requestedChannels.size() || requestedChannels == null
+      // && i != dataHeader.getChannels().size()) {
+      // LOGGER.warn("Number of received values does not match number of channels.");
+      // }
 
-		// Sanity check of value list
-		if (requestedChannels != null && i != requestedChannels.size() || requestedChannels == null && i != dataHeader.getChannels().size()) {
-			LOGGER.warn("Number of received values does not match number of channels.");
-		}
+      return message;
+   }
 
-		return message;
-	}
+   @Override
+   public void accept(DataHeader dataHeader) {
+      this.dataHeader = dataHeader;
+   }
 
-	@Override
-	public void accept(DataHeader dataHeader) {
-		this.dataHeader = dataHeader;
-	}
+   protected Msg receiveMsg(Socket socket) {
+      Msg msg = socket.base().recv(0);
 
-	protected Msg receiveMsg(Socket socket) {
-		Msg msg = socket.base().recv(0);
+      if (msg == null) {
+         mayRaise(socket);
+      }
 
-		if (msg == null) {
-			mayRaise(socket);
-		}
+      return msg;
+   }
 
-		return msg;
-	}
+   private void mayRaise(Socket socket) {
+      int errno = socket.base().errno();
+      if (errno != 0 && errno != zmq.ZError.EAGAIN) {
+         throw new ZMQException(errno);
+      }
+   }
 
-	private void mayRaise(Socket socket) {
-		int errno = socket.base().errno();
-		if (errno != 0 && errno != zmq.ZError.EAGAIN) {
-			throw new ZMQException(errno);
-		}
-	}
-
-	@Override
-	public void setReceiverConfig(ReceiverConfig<V> receiverConfig) {
-		this.receiverConfig = receiverConfig;
-	}
+   @Override
+   public void setReceiverConfig(ReceiverConfig<V> receiverConfig) {
+      this.receiverConfig = receiverConfig;
+   }
 }
