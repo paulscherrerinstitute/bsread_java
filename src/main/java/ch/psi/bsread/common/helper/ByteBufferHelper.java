@@ -473,6 +473,16 @@ public class ByteBufferHelper {
    }
 
    /**
+    * Resets the buffers position and limit to its full capacity.
+    * 
+    * @param buffer The ByteBuffer
+    */
+   public static void resetBuffer(ByteBuffer buffer) {
+      buffer.position(0);
+      buffer.limit(buffer.capacity());
+   }
+
+   /**
     * Generates a string from a ByteBuffer.
     * 
     * @param buffer The ByteBuffer
