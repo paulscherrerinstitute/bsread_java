@@ -20,6 +20,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
+import java.util.function.ToLongFunction;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -28,10 +30,26 @@ import org.junit.Test;
 import ch.psi.bsread.configuration.Channel;
 import ch.psi.bsread.message.Timestamp;
 
-public class MessageSynchronizerTest {
+public abstract class MessageSynchronizerImplTest {
    private static final long INIT_SLEEP = 0;
    private static final long AWAIT_TIMEOUT = 10;
    private static final long SYNC_SLEEP = 2;
+
+   protected abstract AbstractMessageSynchronizer<TestEvent> createMessageSynchronizer(
+         long messageSendTimeoutMillis,
+         boolean sendIncompleteMessages,
+         boolean sendFirstComplete,
+         Collection<? extends SyncChannel> channels,
+         Function<TestEvent, String> channelNameProvider,
+         ToLongFunction<TestEvent> pulseIdProvider);
+
+   protected abstract AbstractMessageSynchronizer<TestEvent> createMessageSynchronizer(
+         int maxNumberOfMessagesToKeep,
+         boolean sendIncompleteMessages,
+         boolean sendFirstComplete,
+         Collection<? extends SyncChannel> channels,
+         Function<TestEvent, String> channelNameProvider,
+         ToLongFunction<TestEvent> pulseIdProvider);
 
    @Test
    public void testMessageSynchronizer_Multi() throws Exception {
@@ -55,8 +73,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_100Hz() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(3, false, false, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(3, false, false, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -226,8 +244,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_100Hz_Time() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(3, false, false, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(3, false, false, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -397,8 +415,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_100Hz_SendFirstComplete() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(3, false, true, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(3, false, true, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -565,8 +583,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_10Hz() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(3, false, false,
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(3, false, false,
                   Arrays.asList(new Channel("A", 10), new Channel("B", 10)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
@@ -743,8 +761,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_10Hz_SendFirstComplete() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(3, false, true, Arrays.asList(new Channel("A", 10), new Channel("B", 10)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(3, false, true, Arrays.asList(new Channel("A", 10), new Channel("B", 10)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -915,8 +933,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_100_10Hz() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(4, false, false, Arrays.asList(new Channel("A", 1), new Channel("B", 10)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(4, false, false, Arrays.asList(new Channel("A", 1), new Channel("B", 10)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -1188,8 +1206,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_100_10Hz_SendFirstComplete() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(4, false, true, Arrays.asList(new Channel("A", 1), new Channel("B", 10)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(4, false, true, Arrays.asList(new Channel("A", 1), new Channel("B", 10)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -1457,8 +1475,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_PulseIdStart() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(3, false, false, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(3, false, false, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -1504,8 +1522,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_PulseIdStart_SendFirstComplete() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(3, false, true, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(3, false, true, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -1564,8 +1582,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_100Hz_Incomplete() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(3, true, false, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(3, true, false, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -1757,8 +1775,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_100Hz_Incomplete_Time() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(3, true, false, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(3, true, false, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -1950,8 +1968,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_100Hz_Incomplete_SendFirstComplete() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(3, true, true, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(3, true, true, Arrays.asList(new Channel("A", 1), new Channel("B", 1)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -2139,8 +2157,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_100_10Hz_Incomplete() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(4, true, false, Arrays.asList(new Channel("A", 1), new Channel("B", 10)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(4, true, false, Arrays.asList(new Channel("A", 1), new Channel("B", 10)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -2424,8 +2442,8 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testMessageSynchronizer_100_10Hz_Incomplete_SendFirstComplete() throws Exception {
-      MessageSynchronizer<TestEvent> mBuffer =
-            new MessageSynchronizer<>(4, true, true, Arrays.asList(new Channel("A", 1), new Channel("B", 10)),
+      AbstractMessageSynchronizer<TestEvent> mBuffer =
+            createMessageSynchronizer(4, true, true, Arrays.asList(new Channel("A", 1), new Channel("B", 10)),
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue = new MessageSynchronizerBlockingQueue<>(5, mBuffer);
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
@@ -2742,7 +2760,7 @@ public class MessageSynchronizerTest {
 
       Set<Long> forget = new HashSet<>(nrToForget);
       if (nrToForget > 0) {
-         bufferSize = nrOfEvents / 2;
+         bufferSize = nrOfEvents / 4;
          for (int i = 0; i < nrToForget; ++i) {
             forget.add(Long.valueOf(5 + i * 5));
          }
@@ -2752,8 +2770,8 @@ public class MessageSynchronizerTest {
       for (int i = 0; i < nrOfChannels; ++i) {
          channels.add(new Channel(channelBase + i, modulo));
       }
-      MessageSynchronizer<TestEvent> buffer =
-            new MessageSynchronizer<>(bufferSize, false, false, channels,
+      AbstractMessageSynchronizer<TestEvent> buffer =
+            createMessageSynchronizer(bufferSize, false, false, channels,
                   (event) -> event.getChannel(), (event) -> event.getPulseId());
       MessageSynchronizerBlockingQueue<TestEvent> completeQueue =
             new MessageSynchronizerBlockingQueue<>(nrOfEvents + 1, buffer);
@@ -2884,7 +2902,7 @@ public class MessageSynchronizerTest {
 
       Set<Long> forget = new HashSet<>(nrToForget);
       if (nrToForget > 0) {
-         sendMessageTimeout = nrOfEvents / 2;
+         sendMessageTimeout = nrOfEvents / 4;
          for (int i = 0; i < nrToForget; ++i) {
             forget.add(Long.valueOf(5 + i * 5));
          }
@@ -2894,8 +2912,8 @@ public class MessageSynchronizerTest {
       for (int i = 0; i < nrOfChannels; ++i) {
          channels.add(new Channel(getChannelName(channelBase, i, nrOfChannels), modulo));
       }
-      MessageSynchronizer<TestEvent> buffer =
-            new MessageSynchronizer<>(
+      AbstractMessageSynchronizer<TestEvent> buffer =
+            createMessageSynchronizer(
                   sendMessageTimeout,
                   false,
                   false,
@@ -3013,7 +3031,7 @@ public class MessageSynchronizerTest {
 
       Set<Long> forget = new HashSet<>(nrToForget);
       if (nrToForget > 0) {
-         sendMessageTimeout = nrOfEvents / 2;
+         sendMessageTimeout = nrOfEvents / 4;
          for (int i = 0; i < nrToForget; ++i) {
             forget.add(Long.valueOf(5 + i * 5));
          }
@@ -3023,8 +3041,8 @@ public class MessageSynchronizerTest {
       for (int i = 0; i < nrOfChannels; ++i) {
          channels.add(new Channel(getChannelName(channelBase, i, nrOfChannels), modulo));
       }
-      MessageSynchronizer<TestEvent> buffer =
-            new MessageSynchronizer<>(
+      AbstractMessageSynchronizer<TestEvent> buffer =
+            createMessageSynchronizer(
                   sendMessageTimeout,
                   false,
                   false,
@@ -3120,313 +3138,313 @@ public class MessageSynchronizerTest {
 
    @Test
    public void testIsPulseIdMissing_01() throws Exception {
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 1, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 1, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 1, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 1, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 1, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 1, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 1, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 1, (long) 0))));
 
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 2, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 3, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 4, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 5, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 3, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 4, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 5, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
 
-      assertFalse(MessageSynchronizer.isPulseIdMissing(6, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(7, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(6, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(6, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(7, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(6, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
 
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 2, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 3, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 4, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 5, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 3, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 4, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 5, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
 
-      assertFalse(MessageSynchronizer.isPulseIdMissing(6, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(7, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(6, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(6, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(7, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(6, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
 
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 1, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 4, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 5, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 6, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 7, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 8, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 9, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 1, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 4, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 5, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 6, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 7, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 8, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 9, (long) 0))));
 
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 1, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 4, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 5, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 6, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 7, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 8, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 9, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 1, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 4, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 5, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 6, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 7, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 8, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 9, (long) 0))));
 
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 1, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 4, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 5, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 6, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 7, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 8, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 9, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 1, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 4, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 5, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 6, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 7, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 8, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 9, (long) 0))));
 
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 1, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 2, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 3, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 4, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 5, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 6, (long) 0))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 7, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 8, (long) 0))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 9, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 1, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 2, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 3, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 4, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 5, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 6, (long) 0))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 7, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 8, (long) 0))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 9, (long) 0))));
    }
 
    @Test
    public void testIsPulseIdMissing_02() throws Exception {
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 1, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 1, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 1, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 1, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 1, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 1, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 1, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 1, (long) 1))));
 
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 4, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 2, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 4, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 3, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 4, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 5, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 3, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 4, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 5, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
 
-      assertFalse(MessageSynchronizer.isPulseIdMissing(6, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(7, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(6, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(6, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(7, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(6, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
 
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 2, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 3, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 4, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 5, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 3, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 4, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 5, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
 
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 6, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 7, Arrays.asList(Pair.of((long) 3, (long) 2))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 8, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 0, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 1, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 2, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 3, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 4, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 5, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 6, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 1, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(1, 2, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 3, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 4, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 5, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 7, Arrays.asList(Pair.of((long) 3, (long) 2))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 8, Arrays.asList(Pair.of((long) 3, (long) 2))));
 
-      assertFalse(MessageSynchronizer.isPulseIdMissing(6, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(7, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(6, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(8, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(7, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(6, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(6, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 6, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(7, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(6, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(8, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(7, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(6, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
 
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 1, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 4, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 5, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 6, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 7, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 8, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 9, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 1, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 4, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 5, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 6, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 7, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 8, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 8, Arrays.asList(Pair.of((long) 9, (long) 1))));
 
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 1, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 4, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 5, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 6, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 7, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 8, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 9, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 1, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 4, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 5, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 6, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 7, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 8, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 7, Arrays.asList(Pair.of((long) 9, (long) 1))));
 
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 1, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 4, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 5, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 6, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 7, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 8, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 9, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 1, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 4, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 5, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 6, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 7, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 8, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 7, Arrays.asList(Pair.of((long) 9, (long) 1))));
 
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 1, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 2, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 4, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 5, (long) 1))));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 6, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 7, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 8, (long) 1))));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 9, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 1, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 2, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 3, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 4, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 5, (long) 1))));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 6, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 7, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 8, (long) 1))));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(3, 8, Arrays.asList(Pair.of((long) 9, (long) 1))));
    }
 
    @Test
    public void testIsPulseIdMissing_03() throws Exception {
       Collection<Pair<Long, Long>> config = Arrays.asList(Pair.of((long) 1, (long) 0), Pair.of((long) 1, (long) 0));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 0, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 1, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 2, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 5, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 6, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 7, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 0, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 1, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 2, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 5, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 6, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 7, config));
 
       config = Arrays.asList(Pair.of((long) 1, (long) 0), Pair.of((long) 2, (long) 0));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 0, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 1, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 2, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 3, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 4, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 5, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 5, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 6, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 7, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 8, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 9, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(6, 6, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 6, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(4, 6, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 6, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 6, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 5, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 5, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 5, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 5, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 5, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 0, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 1, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 2, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 3, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 4, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 5, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 5, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 6, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 7, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 8, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 9, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(6, 6, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 6, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(4, 6, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 6, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 6, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 5, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 5, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 5, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 5, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 5, config));
 
       config = Arrays.asList(Pair.of((long) 2, (long) 0), Pair.of((long) 4, (long) 0));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 0, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 1, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 2, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 3, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 4, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 5, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 5, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 6, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 7, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 8, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 9, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(6, 6, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 6, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 6, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 6, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 6, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 5, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 5, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 5, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 5, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 5, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(2, 4, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 0, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 1, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 2, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 3, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 4, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 5, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 5, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 6, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 7, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 8, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 9, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(6, 6, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 6, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 6, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 6, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 6, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 5, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 5, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 5, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 5, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 5, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(2, 4, config));
 
       config = Arrays.asList(Pair.of((long) 2, (long) 0), Pair.of((long) 3, (long) 0));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 0, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 1, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(0, 2, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 3, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 4, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(0, 5, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 5, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 6, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 7, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 8, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(5, 9, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(6, 6, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 6, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 6, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 6, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 6, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(5, 5, config));
-      assertFalse(MessageSynchronizer.isPulseIdMissing(4, 5, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(3, 5, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 5, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(1, 5, config));
-      assertTrue(MessageSynchronizer.isPulseIdMissing(2, 4, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 0, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 1, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(0, 2, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 3, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 4, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(0, 5, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 5, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 6, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 7, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 8, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(5, 9, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(6, 6, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 6, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 6, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 6, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 6, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(5, 5, config));
+      assertFalse(MessageSynchronizerImpl.isPulseIdMissing(4, 5, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(3, 5, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 5, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(1, 5, config));
+      assertTrue(MessageSynchronizerImpl.isPulseIdMissing(2, 4, config));
    }
 
    private TestEvent newMessage(long pulseId, Timestamp globalTime, String channel) {
@@ -3440,11 +3458,11 @@ public class MessageSynchronizerTest {
       private final int startPulseId;
       private final int endPulseId;
       private final CountDownLatch waitForStart;
-      private final MessageSynchronizer<TestEvent> buffer;
+      private final AbstractMessageSynchronizer<TestEvent> buffer;
       private final Set<Long> forget;
 
       public LoadCallable(String channel, Timestamp globalTime, int startPulseId, int nrOfEvents, int interval,
-            CountDownLatch waitForStart, MessageSynchronizer<TestEvent> buffer, Set<Long> forget) {
+            CountDownLatch waitForStart, AbstractMessageSynchronizer<TestEvent> buffer, Set<Long> forget) {
          this.channel = channel;
          this.globalTime = globalTime;
          this.modulo = interval;

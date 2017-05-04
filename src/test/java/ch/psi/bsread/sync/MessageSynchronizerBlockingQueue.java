@@ -1,6 +1,7 @@
 package ch.psi.bsread.sync;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
@@ -13,11 +14,11 @@ import java.util.concurrent.TimeUnit;
 
 public class MessageSynchronizerBlockingQueue<Msg> implements BlockingQueue<Map<String, Msg>>, Closeable {
    private final BlockingQueue<Map<String, Msg>> queue;
-   private final MessageSynchronizer<Msg> messageSync;
+   private final AbstractMessageSynchronizer<Msg> messageSync;
    private final ExecutorService executor;
    private CountDownLatch latch = new CountDownLatch(1);
 
-   public MessageSynchronizerBlockingQueue(int capacity, MessageSynchronizer<Msg> messageSync) {
+   public MessageSynchronizerBlockingQueue(int capacity, AbstractMessageSynchronizer<Msg> messageSync) {
       this.queue = new ArrayBlockingQueue<>(capacity);
       this.messageSync = messageSync;
       this.executor = Executors.newSingleThreadExecutor();
@@ -55,7 +56,11 @@ public class MessageSynchronizerBlockingQueue<Msg> implements BlockingQueue<Map<
 
    @Override
    public void close() {
-      messageSync.close();
+      try {
+         messageSync.close();
+      } catch (IOException e) {
+         e.printStackTrace();
+      }
       executor.shutdown();
    }
 
