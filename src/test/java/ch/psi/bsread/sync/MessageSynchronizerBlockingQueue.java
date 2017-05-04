@@ -15,7 +15,7 @@ public class MessageSynchronizerBlockingQueue<Msg> implements BlockingQueue<Map<
    private final BlockingQueue<Map<String, Msg>> queue;
    private final MessageSynchronizer<Msg> messageSync;
    private final ExecutorService executor;
-   private CountDownLatch latch = new CountDownLatch(0);
+   private CountDownLatch latch = new CountDownLatch(1);
 
    public MessageSynchronizerBlockingQueue(int capacity, MessageSynchronizer<Msg> messageSync) {
       this.queue = new ArrayBlockingQueue<>(capacity);
@@ -24,6 +24,8 @@ public class MessageSynchronizerBlockingQueue<Msg> implements BlockingQueue<Map<
 
       this.executor.execute(() -> {
          Map<String, Msg> msgMap;
+         latch.countDown();
+
          while ((msgMap = this.messageSync.nextMessage()) != null) {
             this.queue.add(msgMap);
             latch.countDown();
@@ -180,5 +182,10 @@ public class MessageSynchronizerBlockingQueue<Msg> implements BlockingQueue<Map<
    @Override
    public int drainTo(Collection<? super Map<String, Msg>> c, int maxElements) {
       return this.queue.drainTo(c, maxElements);
+   }
+
+   @Override
+   public String toString() {
+      return this.queue.toString();
    }
 }

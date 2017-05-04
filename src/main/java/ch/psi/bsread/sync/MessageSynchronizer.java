@@ -203,6 +203,7 @@ public class MessageSynchronizer<Msg> implements Closeable {
 
    private void unparkAll() {
       if (isUnparking.compareAndSet(false, true)) {
+
          Iterator<Entry<Long, Thread>> iter = consumers.entrySet().iterator();
          while (iter.hasNext()) {
             LockSupport.unpark(iter.next().getValue());
@@ -227,10 +228,10 @@ public class MessageSynchronizer<Msg> implements Closeable {
       while (isRunning.get() && msgMap == null) {
          entry = this.sortedMap.firstEntry();
          final long currentTime = System.currentTimeMillis();
-         boolean needToRecheck = false;
+         boolean reCheck = false;
 
          if (entry != null) {
-            final Long pulseId = entry.getKey();
+            final long pulseId = entry.getKey();
             final int nrOfExpectedChannels = this.getNumberOfExpectedChannels(entry.getKey());
 
             // check time and size eviction
@@ -241,7 +242,8 @@ public class MessageSynchronizer<Msg> implements Closeable {
                // potentially incomplete message
                //
                this.updateLastSentOrDeletedPulseId(pulseId);
-               // Remove current pulse-id (might be accessed by several consumers -> one will win)
+               // Remove current pulse-id (might be accessed by several consumers -> one will
+               // win)
                final TimedMessages<Msg> messages = this.sortedMap.remove(entry.getKey());
                // in case there was another consumer Thread that was also checking this
                // pulse and was faster
@@ -263,7 +265,7 @@ public class MessageSynchronizer<Msg> implements Closeable {
                            "Drop messages for pulse '{}' due to eviction. Requested number of channels '{}' but got only '{}'.",
                            entry.getKey(), nrOfExpectedChannels, entry.getValue().getMessagesMap().size());
                      // there might be more messages available ready for send
-                     needToRecheck = true;
+                     reCheck = true;
                   }
                } else {
                   LOGGER.debug("Another consumer thread is handling message of pulse '{}'. Let it do the work.",
@@ -273,50 +275,64 @@ public class MessageSynchronizer<Msg> implements Closeable {
                // potentially complete message
                //
                if (!this.isPulseIdMissing(pulseId)) {
-                  // Remove current pulse-id (might be accessed by several consumers -> one will
-                  // win)
-                  this.updateLastSentOrDeletedPulseId(pulseId);
-                  final TimedMessages<Msg> messages = this.sortedMap.remove(pulseId);
-                  // in case there was another consumer Thread that was also checking this
-                  // pulse and was faster
-                  if (messages != null) {
-                     this.checkPulseIds.headMap(pulseId, true).clear();
-                     this.sortedMap.headMap(pulseId, true).clear();
+                  // in start phase, it can happen that a later pulse is complete before the very
+                  // first was added
+                  if (pulseId == this.sortedMap.firstKey()) {
+                     // Remove current pulse-id (might be accessed by several consumers -> one will
+                     // win)
+                     this.updateLastSentOrDeletedPulseId(pulseId);
+                     final TimedMessages<Msg> messages = this.sortedMap.remove(pulseId);
+                     // in case there was another consumer Thread that was also checking this
+                     // pulse and was faster
+                     if (messages != null) {
+                        this.checkPulseIds.headMap(pulseId, true).clear();
+                        this.sortedMap.headMap(pulseId, true).clear();
 
-                     LOGGER.debug("Send complete pulse '{}'.", pulseId);
-                     msgMap = entry.getValue().getMessagesMap();
+                        LOGGER.debug("Send complete pulse '{}'.", pulseId);
+                        msgMap = entry.getValue().getMessagesMap();
+                     } else {
+                        LOGGER.debug("Another consumer thread is handling message of pulse '{}'. Let it do the work.",
+                              pulseId);
+                     }
                   } else {
-                     LOGGER.debug("Another consumer thread is handling message of pulse '{}'. Let it do the work.",
-                           pulseId);
+                     reCheck = true;
                   }
                }
             }
          }
 
          // there was no message available
-         if (isRunning.get() && msgMap == null && !isUnparking.get() && checkPulseIds.isEmpty() && !needToRecheck) {
-            long parkNanos = -1;
-            if (messageSendTimeoutMillis < Long.MAX_VALUE) {
-               entry = this.sortedMap.firstEntry();
-               if (entry != null) {
-                  // in millis
-                  parkNanos = entry.getValue().getSubmitTime() + messageSendTimeoutMillis - currentTime;
-               } else {
-                  // in millis
-                  parkNanos = messageSendTimeoutMillis;
-               }
-               parkNanos = TimeUnit.MILLISECONDS.toNanos(parkNanos);
-            }
-
+         if (isRunning.get() && msgMap == null && !isUnparking.get() && checkPulseIds.isEmpty() && !reCheck) {
+            // need to add Thread before isUnparking "barrier" to ensure it gets unparked
             final Thread thread = Thread.currentThread();
             consumers.put(thread.getId(), thread);
-            // make sure consumer wakes up periodically to check for timed-out messages (in case no
-            // new messages arrive)
-            if (parkNanos >= 0) {
-               LockSupport.parkNanos(parkNanos);
-            } else {
-               LockSupport.park();
+
+            // double check (might save some puts into consumer and parks)
+            if (isRunning.get() && msgMap == null && !isUnparking.get() && checkPulseIds.isEmpty() && !reCheck) {
+
+               long parkNanos = -1;
+               if (messageSendTimeoutMillis < Long.MAX_VALUE) {
+                  entry = this.sortedMap.firstEntry();
+                  if (entry != null) {
+                     // in millis
+                     parkNanos = entry.getValue().getSubmitTime() + messageSendTimeoutMillis - currentTime;
+                  } else {
+                     // in millis
+                     parkNanos = messageSendTimeoutMillis;
+                  }
+                  // in nanos
+                  parkNanos = TimeUnit.MILLISECONDS.toNanos(parkNanos);
+               }
+
+               // make sure consumer wakes up periodically to check for timed-out messages (in case
+               // no new messages arrive)
+               if (parkNanos >= 0) {
+                  LockSupport.parkNanos(parkNanos);
+               } else {
+                  LockSupport.park();
+               }
             }
+
             consumers.remove(thread.getId());
          }
       }

@@ -8,7 +8,7 @@ public class StandardPulseIdProvider implements PulseIdProvider {
    private final long inc;
 
    public StandardPulseIdProvider() {
-      this(-1);
+      this(0);
    }
 
    public StandardPulseIdProvider(long startPulseId) {
@@ -16,7 +16,7 @@ public class StandardPulseIdProvider implements PulseIdProvider {
    }
 
    public StandardPulseIdProvider(long startPulseId, long inc) {
-      this.pulseId = startPulseId;
+      this.pulseId = startPulseId - 1;
       this.inc = inc;
    }
 

@@ -27,4 +27,9 @@ public class TestEvent {
    public long getGlobalNs() {
       return ns;
    }
+
+   @Override
+   public String toString() {
+      return "" + pulseId;
+   }
 }
