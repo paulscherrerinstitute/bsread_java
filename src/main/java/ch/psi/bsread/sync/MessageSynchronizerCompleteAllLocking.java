@@ -21,8 +21,8 @@ import org.slf4j.LoggerFactory;
  * MessageBuffer based on a max. allowed size. Accordingly, the time limit messages are kept is
  * given by the frequency and the buffer size (assuming there are constantly messages arriving)
  */
-public class MessageSynchronizerLocking<Msg> extends AbstractMessageSynchronizer<Msg> {
-   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSynchronizerLocking.class.getName());
+public class MessageSynchronizerCompleteAllLocking<Msg> extends AbstractMessageSynchronizer<Msg> {
+   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSynchronizerCompleteAllLocking.class.getName());
 
    private final int maxNumberOfMessagesToKeep;
    private final long messageSendTimeoutMillis;
@@ -39,7 +39,7 @@ public class MessageSynchronizerLocking<Msg> extends AbstractMessageSynchronizer
    private final ToLongFunction<Msg> pulseIdProvider;
    private final boolean sendFirstComplete;
 
-   public MessageSynchronizerLocking(
+   public MessageSynchronizerCompleteAllLocking(
          int maxNumberOfMessagesToKeep,
          boolean sendIncompleteMessages,
          boolean sendFirstComplete,
@@ -55,7 +55,7 @@ public class MessageSynchronizerLocking<Msg> extends AbstractMessageSynchronizer
             pulseIdProvider);
    }
 
-   public MessageSynchronizerLocking(
+   public MessageSynchronizerCompleteAllLocking(
          long messageSendTimeoutMillis,
          boolean sendIncompleteMessages,
          boolean sendFirstComplete,
@@ -71,7 +71,7 @@ public class MessageSynchronizerLocking<Msg> extends AbstractMessageSynchronizer
             pulseIdProvider);
    }
 
-   public MessageSynchronizerLocking(
+   public MessageSynchronizerCompleteAllLocking(
          int maxNumberOfMessagesToKeep,
          long messageSendTimeoutMillis,
          boolean sendIncompleteMessages,

@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 
-public class MessageSynchronizerTestLockFree extends MessageSynchronizerTest {
+public class MessageSynchronizerCompleteAllTestLockFree extends MessageSynchronizerCompleteAllTest {
 
    @Override
    protected AbstractMessageSynchronizer<TestEvent> createMessageSynchronizer(
@@ -14,7 +14,7 @@ public class MessageSynchronizerTestLockFree extends MessageSynchronizerTest {
          Collection<? extends SyncChannel> channels,
          Function<TestEvent, String> channelNameProvider,
          ToLongFunction<TestEvent> pulseIdProvider) {
-      return new MessageSynchronizerLockFree<>(
+      return new MessageSynchronizerCompleteAllLockFree<>(
             messageSendTimeoutMillis,
             sendIncompleteMessages,
             sendFirstComplete,
@@ -31,7 +31,7 @@ public class MessageSynchronizerTestLockFree extends MessageSynchronizerTest {
          Collection<? extends SyncChannel> channels,
          Function<TestEvent, String> channelNameProvider,
          ToLongFunction<TestEvent> pulseIdProvider) {
-      return new MessageSynchronizerLockFree<>(
+      return new MessageSynchronizerCompleteAllLockFree<>(
             maxNumberOfMessagesToKeep,
             sendIncompleteMessages,
             sendFirstComplete,

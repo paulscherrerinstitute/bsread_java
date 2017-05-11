@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 
-public class MessageSynchronizerBestEffortTestLockFree extends MessageSynchronizerBestEffortTest {
+public class MessageSynchronizerCompleteAllTestLocking extends MessageSynchronizerCompleteAllTest {
 
    @Override
    protected AbstractMessageSynchronizer<TestEvent> createMessageSynchronizer(
@@ -14,7 +14,7 @@ public class MessageSynchronizerBestEffortTestLockFree extends MessageSynchroniz
          Collection<? extends SyncChannel> channels,
          Function<TestEvent, String> channelNameProvider,
          ToLongFunction<TestEvent> pulseIdProvider) {
-      return new MessageSynchronizerBestEffortLockFree<>(
+      return new MessageSynchronizerCompleteAllLocking<>(
             messageSendTimeoutMillis,
             sendIncompleteMessages,
             sendFirstComplete,
@@ -31,7 +31,7 @@ public class MessageSynchronizerBestEffortTestLockFree extends MessageSynchroniz
          Collection<? extends SyncChannel> channels,
          Function<TestEvent, String> channelNameProvider,
          ToLongFunction<TestEvent> pulseIdProvider) {
-      return new MessageSynchronizerBestEffortLockFree<>(
+      return new MessageSynchronizerCompleteAllLocking<>(
             maxNumberOfMessagesToKeep,
             sendIncompleteMessages,
             sendFirstComplete,
@@ -40,8 +40,8 @@ public class MessageSynchronizerBestEffortTestLockFree extends MessageSynchroniz
             pulseIdProvider);
    }
 
-   // @Test
-   // public void testSpecific() throws Exception {
-   // testMessageSynchronizer_LoadTestTime_50_100Hz_ForgetChannel();
-   // }
+//   @Test
+//   public void testSpecific() throws Exception {
+//      testMessageSynchronizer_LoadTestTime_3_100Hz_Forget();
+//   }
 }

@@ -12,8 +12,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MessageSynchronizerBestEffortLockFree<Msg> extends AbstractMessageSynchronizerLockFree<Msg> {
-   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSynchronizerBestEffortLockFree.class.getName());
+public class MessageSynchronizerCompleteLatestLockFree<Msg> extends AbstractMessageSynchronizerLockFree<Msg> {
+   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSynchronizerCompleteLatestLockFree.class.getName());
 
    private final int maxNumberOfMessagesToKeep;
    private final boolean sendIncompleteMessages;
@@ -23,7 +23,7 @@ public class MessageSynchronizerBestEffortLockFree<Msg> extends AbstractMessageS
    private final Function<Msg, String> channelNameProvider;
    private final ToLongFunction<Msg> pulseIdProvider;
 
-   public MessageSynchronizerBestEffortLockFree(
+   public MessageSynchronizerCompleteLatestLockFree(
          int maxNumberOfMessagesToKeep,
          boolean sendIncompleteMessages,
          boolean sendFirstComplete,
@@ -39,7 +39,7 @@ public class MessageSynchronizerBestEffortLockFree<Msg> extends AbstractMessageS
             pulseIdProvider);
    }
 
-   public MessageSynchronizerBestEffortLockFree(
+   public MessageSynchronizerCompleteLatestLockFree(
          long messageSendTimeoutMillis,
          boolean sendIncompleteMessages,
          boolean sendFirstComplete,
@@ -55,7 +55,7 @@ public class MessageSynchronizerBestEffortLockFree<Msg> extends AbstractMessageS
             pulseIdProvider);
    }
 
-   public MessageSynchronizerBestEffortLockFree(
+   public MessageSynchronizerCompleteLatestLockFree(
          int maxNumberOfMessagesToKeep,
          long messageSendTimeoutMillis,
          boolean sendIncompleteMessages,
