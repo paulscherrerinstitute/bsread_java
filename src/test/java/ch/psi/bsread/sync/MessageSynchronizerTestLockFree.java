@@ -4,7 +4,7 @@ import java.util.Collection;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 
-public class MessageSynchronizerTestLockFree extends MessageSynchronizerImplTest {
+public class MessageSynchronizerTestLockFree extends MessageSynchronizerTest {
 
    @Override
    protected AbstractMessageSynchronizer<TestEvent> createMessageSynchronizer(

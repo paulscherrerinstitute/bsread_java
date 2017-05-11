@@ -3,6 +3,8 @@ package ch.psi.bsread.sync;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NavigableMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 
@@ -10,18 +12,18 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MessageSynchronizerLockFree<Msg> extends AbstractMessageSynchronizerLockFree<Msg> {
-   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSynchronizerLockFree.class.getName());
-   private static final long INITIAL_LAST_SENT_OR_DELETE_PULSEID = Long.MIN_VALUE;
+public class MessageSynchronizerBestEffortLockFree<Msg> extends AbstractMessageSynchronizerLockFree<Msg> {
+   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSynchronizerBestEffortLockFree.class.getName());
 
    private final int maxNumberOfMessagesToKeep;
    private final boolean sendIncompleteMessages;
 
+   private final NavigableMap<Long, Boolean> wakeupPulseIds = new ConcurrentSkipListMap<>();
+
    private final Function<Msg, String> channelNameProvider;
    private final ToLongFunction<Msg> pulseIdProvider;
-   private final boolean sendFirstComplete;
 
-   public MessageSynchronizerLockFree(
+   public MessageSynchronizerBestEffortLockFree(
          int maxNumberOfMessagesToKeep,
          boolean sendIncompleteMessages,
          boolean sendFirstComplete,
@@ -37,7 +39,7 @@ public class MessageSynchronizerLockFree<Msg> extends AbstractMessageSynchronize
             pulseIdProvider);
    }
 
-   public MessageSynchronizerLockFree(
+   public MessageSynchronizerBestEffortLockFree(
          long messageSendTimeoutMillis,
          boolean sendIncompleteMessages,
          boolean sendFirstComplete,
@@ -53,7 +55,7 @@ public class MessageSynchronizerLockFree<Msg> extends AbstractMessageSynchronize
             pulseIdProvider);
    }
 
-   public MessageSynchronizerLockFree(
+   public MessageSynchronizerBestEffortLockFree(
          int maxNumberOfMessagesToKeep,
          long messageSendTimeoutMillis,
          boolean sendIncompleteMessages,
@@ -66,7 +68,9 @@ public class MessageSynchronizerLockFree<Msg> extends AbstractMessageSynchronize
       this.sendIncompleteMessages = sendIncompleteMessages;
       this.channelNameProvider = channelNameProvider;
       this.pulseIdProvider = pulseIdProvider;
-      this.sendFirstComplete = sendFirstComplete;
+
+      // ignore
+      // this.sendFirstComplete = sendFirstComplete;
    }
 
    @Override
@@ -95,22 +99,6 @@ public class MessageSynchronizerLockFree<Msg> extends AbstractMessageSynchronize
                               channelConfigs.size()))
                         .getMessagesMap();
                   pulseIdMap.put(channelName, msg);
-
-                  if (lastPulseId == INITIAL_LAST_SENT_OR_DELETE_PULSEID
-                        && sendFirstComplete
-                        && (pulseIdMap.size() >= this.getNumberOfExpectedChannels(pulseId))
-                        || (pulseId <= this.lastSentOrDeletedPulseId.get())) {
-                     // several threads might enter this code block but it is
-                     // important that they cleanup
-                     this.updateLastSentOrDeletedPulseId(pulseId - 1);
-                     Entry<Long, TimedMessages<Msg>> entry = this.sortedMap.firstEntry();
-                     while (entry != null && entry.getKey() < pulseId) {
-                        LOGGER.info("Drop message of pulse '{}' from channel '{}' as there is a later complete start.",
-                              entry.getKey(), channelName);
-                        this.sortedMap.remove(entry.getKey());
-                        entry = this.sortedMap.firstEntry();
-                     }
-                  }
                } else {
                   LOGGER.debug(
                         "Drop message of pulse '{}' from channel '{}' that does not match modulo '{}' and offset '{}'",
@@ -126,22 +114,31 @@ public class MessageSynchronizerLockFree<Msg> extends AbstractMessageSynchronize
                   pulseId, channelName, lastPulseId);
          }
 
-         this.checkForCompleteMessages(currentTime);
+         this.checkForCompleteMessages(pulseId, currentTime);
       } else {
          LOGGER.warn("'{}' stopped running.", this.getClass());
       }
    }
 
-   private void checkForCompleteMessages(final long currentTime) {
+   private void checkForCompleteMessages(final long currentPulseId, final long currentTime) {
       Entry<Long, TimedMessages<Msg>> entry = this.sortedMap.firstEntry();
+      TimedMessages<Msg> msg = this.sortedMap.get(currentPulseId);
+      if (entry != null && currentPulseId == entry.getKey()) {
+         // no need to check this
+         entry = null;
+      }
+
+      if (msg != null
+            && msg.availableChannels() >= this.getNumberOfExpectedChannels(currentPulseId)) {
+         onComplete(currentPulseId);
+      }
 
       // Time eviction: Handle all messages that are older than specified
       // timeout
       if (messageSendTimeoutMillis < Long.MAX_VALUE) {
          if (entry != null && currentTime - entry.getValue().getSubmitTime() >= messageSendTimeoutMillis) {
-            onComplete(entry.getKey());
-            // no need to check further as consumer will take over
-            return;
+            onWakup(entry.getKey());
+            entry = null;
          }
       }
 
@@ -151,29 +148,27 @@ public class MessageSynchronizerLockFree<Msg> extends AbstractMessageSynchronize
          // counter (see ConcurrentLongHistogram for a possibility to get around map.compute() does
          // not guarantee atomic execution of creator function)
          if (entry != null && this.sortedMap.size() > this.maxNumberOfMessagesToKeep) {
-            onComplete(entry.getKey());
-            // no need to check further as consumer will take over
-            return;
+            onWakup(entry.getKey());
+            entry = null;
          }
       }
 
       // handle all complete messages
       if (entry != null
             && entry.getValue().availableChannels() >= this.getNumberOfExpectedChannels(entry.getKey())) {
-         // make sure there is no pulse missing (i.e. there should be a pulse
-         // before the currently handled one but we have not yet received a
-         // message for this pulse
-         final Long pulseId = entry.getKey();
-         if (!this.isPulseIdMissing(pulseId)) {
-            onComplete(pulseId);
-            // no need to check further as consumer will take over
-            return;
-         }
+         onWakup(entry.getKey());
+         entry = null;
       }
    }
 
-   private void onComplete(final Long pulseId) {
+   protected void onComplete(final Long pulseId) {
       if (completePulseIds.putIfAbsent(pulseId, Boolean.TRUE) == null) {
+         onWakup(pulseId);
+      }
+   }
+
+   private void onWakup(final Long pulseId) {
+      if (wakeupPulseIds.putIfAbsent(pulseId, Boolean.TRUE) == null) {
          // give all consumers a chance
          unparkAll();
       }
@@ -183,11 +178,18 @@ public class MessageSynchronizerLockFree<Msg> extends AbstractMessageSynchronize
    public Map<String, Msg> nextMessage() {
       Map<String, Msg> msgMap = null;
       Entry<Long, TimedMessages<Msg>> entry;
+      Entry<Long, Boolean> completePulseId;
 
       while (isRunning.get() && msgMap == null) {
-         entry = this.sortedMap.firstEntry();
+         if (!sendIncompleteMessages) {
+            completePulseId = completePulseIds.firstEntry();
+            if (completePulseId != null) {
+               clearHead(sortedMap, completePulseId.getKey(), false);
+            }
+         }
          final long currentTime = System.currentTimeMillis();
          boolean reCheck = false;
+         entry = this.sortedMap.firstEntry();
 
          if (entry != null) {
             final long pulseId = entry.getKey();
@@ -206,7 +208,9 @@ public class MessageSynchronizerLockFree<Msg> extends AbstractMessageSynchronize
                final TimedMessages<Msg> messages = this.sortedMap.remove(entry.getKey());
                // in case there was another consumer Thread that was also checking this
                // pulse and was faster
+
                if (messages != null) {
+                  clearHead(wakeupPulseIds, pulseId, true);
                   clearHead(completePulseIds, pulseId, true);
                   clearHead(sortedMap, pulseId, true);
 
@@ -220,7 +224,7 @@ public class MessageSynchronizerLockFree<Msg> extends AbstractMessageSynchronize
                      LOGGER.debug("Send incomplete pulse '{}' due to eviction.", entry.getKey());
                      msgMap = entry.getValue().getMessagesMap();
                   } else {
-                     LOGGER.info(
+                     LOGGER.debug(
                            "Drop messages for pulse '{}' due to eviction. Requested number of channels '{}' but got only '{}'.",
                            entry.getKey(), nrOfExpectedChannels, entry.getValue().getMessagesMap().size());
                      // there might be more messages available ready for send
@@ -231,33 +235,41 @@ public class MessageSynchronizerLockFree<Msg> extends AbstractMessageSynchronize
                   // do the work.",
                   // pulseId);
                }
-            } else if (entry.getValue().availableChannels() >= nrOfExpectedChannels) {
+            } else if ((completePulseId = completePulseIds.firstEntry()) != null) {
                // potentially complete message
                //
-               if (!this.isPulseIdMissing(pulseId)) {
-                  // in start phase, it can happen that a later pulse is complete before the very
-                  // first was added
-                  if (pulseId == this.sortedMap.firstKey()) {
-                     // Remove current pulse-id (might be accessed by several consumers -> one will
-                     // win)
-                     this.updateLastSentOrDeletedPulseId(pulseId);
-                     final TimedMessages<Msg> messages = this.sortedMap.remove(pulseId);
-                     // in case there was another consumer Thread that was also checking this
-                     // pulse and was faster
-                     if (messages != null) {
-                        clearHead(completePulseIds, pulseId, true);
-                        clearHead(sortedMap, pulseId, true);
+               // Remove current pulse-id (might be accessed by several consumers -> one will
+               // win)
+               if (pulseId <= completePulseId.getKey()) {
+                  this.updateLastSentOrDeletedPulseId(pulseId);
+                  final TimedMessages<Msg> messages = this.sortedMap.remove(pulseId);
+                  // in case there was another consumer Thread that was also checking this
+                  // pulse and was faster
+                  if (messages != null) {
+                     clearHead(wakeupPulseIds, pulseId, true);
+                     clearHead(completePulseIds, pulseId, true);
+                     clearHead(sortedMap, pulseId, true);
 
+                     if (entry.getValue().availableChannels() >= nrOfExpectedChannels) {
                         // LOGGER.debug("Send complete pulse '{}'.", pulseId);
                         msgMap = entry.getValue().getMessagesMap();
+                     } else if (sendIncompleteMessages) {
+                        // the user also wants incomplete messages
+                        LOGGER.debug("Send incomplete pulse '{}'.", entry.getKey());
+                        msgMap = entry.getValue().getMessagesMap();
                      } else {
-                        // LOGGER.debug("Another consumer thread is handling message of pulse '{}'.
-                        // Let it do the work.",
-                        // pulseId);
+                        LOGGER.debug(
+                              "Drop messages for pulse '{}'. Requested number of channels '{}' but got only '{}'.",
+                              entry.getKey(), nrOfExpectedChannels, entry.getValue().getMessagesMap().size());
+                        reCheck = true;
                      }
                   } else {
-                     reCheck = true;
+                     // LOGGER.debug("Another consumer thread is handling message of pulse '{}'. Let
+                     // it do the work.",
+                     // pulseId);
                   }
+               } else {
+                  reCheck = true;
                }
             }
          }

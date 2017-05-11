@@ -30,7 +30,7 @@ import org.junit.Test;
 import ch.psi.bsread.configuration.Channel;
 import ch.psi.bsread.message.Timestamp;
 
-public abstract class MessageSynchronizerImplTest {
+public abstract class MessageSynchronizerTest {
    private static final long INIT_SLEEP = 0;
    private static final long AWAIT_TIMEOUT = 10;
    private static final long SYNC_SLEEP = 2;

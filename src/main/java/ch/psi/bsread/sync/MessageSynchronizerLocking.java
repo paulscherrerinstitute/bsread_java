@@ -206,7 +206,7 @@ public class MessageSynchronizerLocking<Msg> extends AbstractMessageSynchronizer
                // in case there was another Thread that was also checking this
                // pulse and was faster
                if (messages != null) {
-                  LOGGER.debug("Send complete pulse '{}'.", entry.getKey());
+                  // LOGGER.debug("Send complete pulse '{}'.", entry.getKey());
                   if (!this.queue.offer(messages.getMessagesMap())) {
                      LOGGER.warn(
                            "Had to drop messages for pulse '{}' because capacity constrained queue seems to be full.",
@@ -271,7 +271,8 @@ public class MessageSynchronizerLocking<Msg> extends AbstractMessageSynchronizer
             // keep going
             return true;
          } else {
-            LOGGER.debug("Another thread is handling message of pulse '{}'. Let it do the work.", entry.getKey());
+            // LOGGER.debug("Another consumer thread is handling message of pulse '{}'. Let it do
+            // the work.", entry.getKey());
             // stop here
             return false;
          }
