@@ -32,9 +32,13 @@ public class CommonExecutors {
 
 	public static ExecutorService newFixedThreadPool(int nThreads, int queueSize, String poolName,
 			boolean monitoring) {
-		final ThreadFactory threadFactory =
+		ThreadFactory threadFactory =
 				new BasicThreadFactory.Builder().namingPattern(poolName + "-%d").build();
 
+		if(monitoring){
+		   threadFactory = new ExceptionCatchingThreadFactory(threadFactory);
+		}
+		
 		BlockingQueue<Runnable> workQueue;
 		if (queueSize > 0) {
 			workQueue = new LinkedBlockingQueue<>(queueSize);
@@ -111,5 +115,21 @@ public class CommonExecutors {
 					" rejected from " +
 					e.toString());
 		}
+	}
+	
+	private static class ExceptionCatchingThreadFactory implements ThreadFactory {
+	    private final ThreadFactory delegate;
+
+	    private ExceptionCatchingThreadFactory(ThreadFactory delegate) {
+	        this.delegate = delegate;
+	    }
+
+	    public Thread newThread(final Runnable r) {
+	        Thread t = delegate.newThread(r);
+	        t.setUncaughtExceptionHandler((trd, ex) -> {
+	                ex.printStackTrace();  //replace with your handling logic.
+	        });
+	        return t;
+	    }
 	}
 }
