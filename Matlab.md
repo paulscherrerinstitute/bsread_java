@@ -18,7 +18,7 @@ _Note:_ On information regarding how to build the Matlab jar please consult [Rea
 
 # Usage
 
-After including the jar in the Matlab classpath (see above) you are able to receive data as follows: 
+After including the jar in the Matlab classpath (see above) you are able to receive data as follows:
 
 Receiving one message and printing the pulse id:
 
@@ -43,7 +43,7 @@ end
 receiver.close()
 ```
 
-After creating the BasicReceiver object and connecting to a stream (in the examples above a stream that comes from *localhost* port *9999*) you are able to receive messages via the *receive()* function. Consecutive calls to *receive()* will provide the messages for the consecutive pulse_id. 
+After creating the BasicReceiver object and connecting to a stream (in the examples above a stream that comes from *localhost* port *9999*) you are able to receive messages via the *receive()* function. Consecutive calls to *receive()* will provide the messages for the consecutive pulse_id.
 
 A message received contains a MainHeader containing the pulse id and global timestamp, a DataHeader describing the data channels within the stream and the actual Values of the channels for the pulse.
 
