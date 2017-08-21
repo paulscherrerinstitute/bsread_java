@@ -25,30 +25,39 @@ The most simple receiver looks something like this:
 
 ```java
    public static void main(String[] args) {
+      IReceiver<Object> receiver = new BasicReceiver();
+      // ReceiverConfig config = ReceiverConfig<Object>("tcp://localhost:9000");
+      // config.setSocketType(ZMQ.SUB);
+      // IReceiver<Object> receiver = new BasicReceiver<Object>(config);
 
-       ReceiverConfig<Object> config = new ReceiverConfig<>();
-       config.setAddress("tcp://localhost:9999");
-       config.setSocketType(ZMQ.SUB);
+      // Terminate program with ctrl+c
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> receiver.close()));
 
-       IReceiver<Object> receiver = new BasicReceiver(config);
+      // Its also possible to register callbacks for certain message parts.
+      // These callbacks are triggered within the receive() function
+      // (within the same thread) it is guaranteed that the sequence is
+      // ordered main header, data header, values
+      //
+      // receiver.addDataHeaderHandler(header -> System.out.println(header));
+      // receiver.addMainHeaderHandler(header -> System.out.println(header) );
+      // receiver.addValueHandler(data -> System.out.println(data));
 
-       // Terminate program with ctrl+c
-       Runtime.getRuntime().addShutdownHook(new Thread(() -> receiver.close()));
-
-       receiver.connect();
-
-       try {
-           Message<Object> message;
-           // Due to https://github.com/zeromq/jeromq/issues/116 you must not use Thread.interrupt() to stop the receiving thread!
-
-           long lastPulseId = 0L;
-           while ((message = receiver.receive()) != null) {
-               System.out.println(message.getMainHeader());
-           }
-
-       } finally {
-           receiver.close();
-       }
+      try {
+         receiver.connect();
+         
+         Message<Object> message;
+         // Due to https://github.com/zeromq/jeromq/issues/116 you must not use Thread.interrupt()
+         // to stop the receiving thread!
+         while ((message = receiver.receive()) != null) {
+            System.out.println(message.getMainHeader());
+            // System.out.println(message.getDataHeader());
+            // System.out.println(message.getValues());
+         }
+      } finally {
+         // make sure allocated resources get cleaned up (multiple calls to receiver.close() are
+         // side effect free - see shutdown hook)
+         receiver.close();
+      }
    }
 ```
 
