@@ -120,7 +120,9 @@ public class ConnectionCounterMonitor implements Monitor {
          }
       }
 
-      executor.shutdown();
+      if (executor != null) {
+         executor.shutdown();
+      }
    }
 
    public int getConnectionCount() {
