@@ -20,7 +20,7 @@ import ch.psi.bsread.monitors.Monitor;
 
 public class SenderConfig {
 	public static final String DEFAULT_SENDING_ADDRESS = "tcp://*:9999";
-	public static final int DEFAULT_HIGH_WATER_MARK = 100;
+	public static final int DEFAULT_HIGH_WATER_MARK = 1000;
 	public static final long DEFAULT_LINGER = ReceiverConfig.DEFAULT_LINGER;
 
 	private Context context;
