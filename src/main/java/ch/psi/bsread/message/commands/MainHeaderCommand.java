@@ -142,9 +142,8 @@ public class MainHeaderCommand extends MainHeader implements Command {
 				// If there is more than 1 trailing message something is wrong!
 				int messagesDrained = receiver.drain();
 				if (messagesDrained > 1) {
-					String message2 = String.format("'%s' had more than 1 trailing submessages to the message than expected", receiverConfig.getAddress());
-					LOGGER.error(message2);
-					throw new RuntimeException(message2);
+					LOGGER.warn("'{}' had more than 1 trailing submessages to the message than expected", receiverConfig.getAddress());
+					// throw new RuntimeException(message2);
 				}
 			}
 			// notify hooks with complete values
