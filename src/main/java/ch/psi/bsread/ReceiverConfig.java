@@ -127,7 +127,6 @@ public class ReceiverConfig<V> {
 
 	public void setMessageExtractor(MessageExtractor<V> messageExtractor) {
 		this.messageExtractor = messageExtractor;
-		messageExtractor.setReceiverConfig(this);
 	}
 
 	public MsgAllocator getMsgAllocator() {

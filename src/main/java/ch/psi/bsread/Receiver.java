@@ -176,7 +176,7 @@ public class Receiver<V> implements ConfigIReceiver<V> {
                   }
                }
             } catch (JsonParseException | JsonMappingException e) {
-               LOGGER.info("Could not parse MainHeader of '{}'.", receiverConfig.getAddress(), e);
+               LOGGER.info("Could not parse MainHeader of '{}' due to '{}'.", receiverConfig.getAddress(), e.getMessage());
                // drain the socket
                drain();
             } catch (IOException e) {

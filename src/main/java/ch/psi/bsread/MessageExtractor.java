@@ -14,6 +14,8 @@ public interface MessageExtractor<V> extends Consumer<DataHeader> {
 	/**
 	 * Extracts the value bytes of a channel.
 	 * 
+	 * @param receiver
+     *            The Receiver 
 	 * @param socket
 	 *            The Socket to extract the Message
 	 * @param mainHeader
@@ -22,13 +24,5 @@ public interface MessageExtractor<V> extends Consumer<DataHeader> {
 	 *            The requested channels of the stream (based on the filter)
 	 * @return Message The extracted Message
 	 */
-	Message<V> extractMessage(Socket socket, MainHeader mainHeader, Set<String> requestedChannels);
-
-	/**
-	 * Sets the ReceiverConfig.
-	 * 
-	 * @param config
-	 *            The ReceiverConfig
-	 */
-	public void setReceiverConfig(ReceiverConfig<V> config);
+	Message<V> extractMessage(ConfigIReceiver<V> receiver, Socket socket, MainHeader mainHeader, Set<String> requestedChannels);
 }

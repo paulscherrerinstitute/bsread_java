@@ -13,8 +13,8 @@ import org.zeromq.ZMQException;
 
 import zmq.Msg;
 
+import ch.psi.bsread.ConfigIReceiver;
 import ch.psi.bsread.MessageExtractor;
-import ch.psi.bsread.ReceiverConfig;
 import ch.psi.bsread.converter.ValueConverter;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
@@ -33,7 +33,6 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
 
    private DataHeader dataHeader;
    private ValueConverter valueConverter;
-   private ReceiverConfig<V> receiverConfig;
 
    public AbstractMessageExtractor(ValueConverter valueConverter) {
       this.valueConverter = valueConverter;
@@ -44,7 +43,8 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
    // }
 
    @Override
-   public Message<V> extractMessage(Socket socket, MainHeader mainHeader, Set<String> requestedChannels) {
+   public Message<V> extractMessage(ConfigIReceiver<V> receiver, Socket socket, MainHeader mainHeader,
+         Set<String> requestedChannels) {
       Message<V> message = new Message<V>();
       message.setMainHeader(mainHeader);
       message.setDataHeader(dataHeader);
@@ -125,11 +125,19 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
       // entry.getValue().getValue();
       // }
 
-      // // Sanity check of value list
-      // if (requestedChannels != null && i != requestedChannels.size() || requestedChannels == null
-      // && i != dataHeader.getChannels().size()) {
-      // LOGGER.warn("Number of received values does not match number of channels.");
-      // }
+      if (configIter.hasNext()) {
+         LOGGER.warn("Received less values '{}' than specified in DataHeader '{}'. Message will be ignored.",
+               values.size(), dataHeader.getChannels().size());
+         // set message to null -> will be ignored
+         message = null;
+      } else if (socket.hasReceiveMore()) {
+         final int messagesDrained = receiver.drain();
+
+         LOGGER.warn("Received more values '{}' than specified in DataHeader '{}'. Message will be ignored.",
+               values.size() + (messagesDrained / 2.0), dataHeader.getChannels().size());
+         // set message to null -> will be ignored
+         message = null;
+      }
 
       return message;
    }
@@ -154,10 +162,5 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
       if (errno != 0 && errno != zmq.ZError.EAGAIN) {
          throw new ZMQException(errno);
       }
-   }
-
-   @Override
-   public void setReceiverConfig(ReceiverConfig<V> receiverConfig) {
-      this.receiverConfig = receiverConfig;
    }
 }
