@@ -1,6 +1,5 @@
 package ch.psi.bsread.monitors;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -11,16 +10,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ.Socket;
 
-import zmq.Msg;
-import zmq.ZError;
-import zmq.ZMQ;
-import zmq.ZMQ.Event;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-
 import ch.psi.bsread.ReceiverConfig;
 import ch.psi.bsread.common.concurrent.executor.CommonExecutors;
 import ch.psi.bsread.message.commands.StopCommand;
+
+import zmq.ZError;
+import zmq.ZMQ;
+import zmq.ZMQ.Event;
 
 // builds on https://github.com/zeromq/jeromq/blob/master/src/test/java/zmq/TestMonitor.java
 public class ConnectionCounterMonitor implements Monitor {
@@ -41,7 +37,7 @@ public class ConnectionCounterMonitor implements Monitor {
          String address = "inproc://" + monitorConfig.getMonitorItentifier();
          Socket monitorSock = null;
          try {
-            monitorConfig.getSocket().monitor(address,
+            monitorConfig.getSocket().base().monitor(address,
                   ZMQ.ZMQ_EVENT_ACCEPTED | ZMQ.ZMQ_EVENT_DISCONNECTED | ZMQ.ZMQ_EVENT_CLOSED);
             monitorSock = monitorConfig.getContext().socket(ZMQ.ZMQ_PAIR);
             monitorSock.setRcvHWM(ReceiverConfig.DEFAULT_HIGH_WATER_MARK);
@@ -53,7 +49,7 @@ public class ConnectionCounterMonitor implements Monitor {
             while (isRunning) {
 
                final Event event = Event.read(monitorSock.base());
-               if (event == null || monitorConfig.getSocket().errno() == ZError.ETERM) {
+               if (event == null || monitorConfig.getSocket().base().errno() == ZError.ETERM) {
                   // stop loop
                   break;
                }
@@ -99,25 +95,8 @@ public class ConnectionCounterMonitor implements Monitor {
 
    @Override
    public synchronized void stop() {
-      if (monitorConfig != null && monitorConfig.isSendStopMessage()) {
-         try {
-            String stopCommandStr = monitorConfig.getObjectMapper().writeValueAsString(new StopCommand());
-            byte[] stopCommandByte = stopCommandStr.getBytes(StandardCharsets.UTF_8);
-            Msg msg = new Msg(stopCommandByte);
-
-            int nrOfStopMsgs = 1;
-            if (monitorConfig.getSocketType() == ZMQ.ZMQ_PUSH) {
-               nrOfStopMsgs = connectionCounter.get();
-            }
-
-            for (int i = 0; i < nrOfStopMsgs; ++i) {
-               // Receivers can react on it or not (see
-               // ReceiverConfig.keepListeningOnStop)
-               monitorConfig.getSocket().send(msg, ZMQ.ZMQ_NOBLOCK);
-            }
-         } catch (JsonProcessingException e) {
-            LOGGER.warn("Could not send stop command.", e);
-         }
+      if (this.monitorConfig != null) {
+         sendStopMessage(this.monitorConfig.getSocket(), this);
       }
 
       if (executor != null) {
@@ -142,6 +121,28 @@ public class ConnectionCounterMonitor implements Monitor {
       int currentCounter = connectionCounter.get();
       for (IntConsumer handler : handlers) {
          handler.accept(currentCounter);
+      }
+   }
+
+   public static void sendStopMessage(final Socket socket, final ConnectionCounterMonitor monitor) {
+      try {
+         final MonitorConfig monitorConfig = monitor.monitorConfig;
+         if (monitorConfig != null && monitorConfig.isSendStopMessage()) {
+            final byte[] stopBytes = StopCommand.getAsBytes(monitorConfig.getObjectMapper());
+            int nrOfStopMsgs = 1;
+            if (monitorConfig.getSocketType() == ZMQ.ZMQ_PUSH) {
+               nrOfStopMsgs = monitor.getConnectionCount();
+            }
+
+            final int blockingFlag = monitorConfig.isBlockingSend() ? 0 : org.zeromq.ZMQ.NOBLOCK;
+            for (int i = 0; i < nrOfStopMsgs; ++i) {
+               // Receivers can react on it or not (see
+               // ReceiverConfig.keepListeningOnStop)
+               socket.send(stopBytes, blockingFlag);
+            }
+         }
+      } catch (Exception e) {
+         LOGGER.warn("Could not send stop command.", e);
       }
    }
 }

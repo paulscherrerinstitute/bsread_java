@@ -4,16 +4,15 @@ package ch.psi.bsread.monitors;
 // https://github.com/zeromq/jeromq/issues/61
 public interface Monitor {
 
-	/**
-	 * Starts monitoring
-	 * 
-	 * @param monitorConfig
-	 *            Configuration info for the Monitor
-	 */
-	void start(MonitorConfig monitorConfig);
+   /**
+    * Starts monitoring
+    * 
+    * @param monitorConfig Configuration info for the Monitor
+    */
+   void start(final MonitorConfig monitorConfig);
 
-	/**
-	 * Stops monitoring
-	 */
-	void stop();
+   /**
+    * Stops monitoring
+    */
+   void stop();
 }

@@ -19,148 +19,165 @@ import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.monitors.Monitor;
 
 public class SenderConfig {
-	public static final String DEFAULT_SENDING_ADDRESS = "tcp://*:9999";
-	public static final int DEFAULT_HIGH_WATER_MARK = 1000;
-	public static final long DEFAULT_LINGER = ReceiverConfig.DEFAULT_LINGER;
+   public static final String DEFAULT_SENDING_ADDRESS = "tcp://*:9999";
+   public static final int DEFAULT_HIGH_WATER_MARK = 1000;
+   public static final long DEFAULT_LINGER = ReceiverConfig.DEFAULT_LINGER;
 
-	private Context context;
-	private final Compression dataHeaderCompression;
-	private final IntFunction<ByteBuffer> valueAllocator;
-	private final IntFunction<ByteBuffer> compressedValueAllocator;
-	// only for testing purposes
-	private Supplier<MainHeader> mainHeaderSupplier;
+   private Context context;
+   private final Compression dataHeaderCompression;
+   private final IntFunction<ByteBuffer> valueAllocator;
+   private final IntFunction<ByteBuffer> compressedValueAllocator;
+   // only for testing purposes
+   private Supplier<MainHeader> mainHeaderSupplier;
 
-	private final PulseIdProvider pulseIdProvider;
-	private final TimeProvider globalTimeProvider;
-	private final ByteConverter byteConverter;
+   private final PulseIdProvider pulseIdProvider;
+   private final TimeProvider globalTimeProvider;
+   private final ByteConverter byteConverter;
 
-	private ObjectMapper objectMapper;
-	private int socketType = ZMQ.PUSH;
-	private String address = DEFAULT_SENDING_ADDRESS;
-	private int highWaterMark = DEFAULT_HIGH_WATER_MARK;
-	private long linger = DEFAULT_LINGER;
-	private Monitor monitor;
+   private ObjectMapper objectMapper;
+   private int socketType = ZMQ.PUSH;
+   private String address = DEFAULT_SENDING_ADDRESS;
+   private int highWaterMark = DEFAULT_HIGH_WATER_MARK;
+   private long linger = DEFAULT_LINGER;
+   private Monitor monitor;
+   private boolean blockingSend = false;
 
-	public SenderConfig() {
-		this(DEFAULT_SENDING_ADDRESS);
-	}
+   public SenderConfig() {
+      this(DEFAULT_SENDING_ADDRESS);
+   }
 
-	public SenderConfig(String address) {
-		this(address, new StandardPulseIdProvider(), new StandardTimeProvider(), new MatlabByteConverter());
-	}
+   public SenderConfig(String address) {
+      this(address, new StandardPulseIdProvider(), new StandardTimeProvider(), new MatlabByteConverter());
+   }
 
-	public SenderConfig(String address, PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter) {
-		this(address, pulseIdProvider, globalTimeProvider, byteConverter, Compression.none);
-	}
+   public SenderConfig(String address, PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider,
+         ByteConverter byteConverter) {
+      this(address, pulseIdProvider, globalTimeProvider, byteConverter, Compression.none);
+   }
 
-	public SenderConfig(String address, PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter,
-			Compression dataHeaderCompression) {
-		this(address, pulseIdProvider, globalTimeProvider, byteConverter, dataHeaderCompression, ByteBufferAllocator.DEFAULT_ALLOCATOR, ByteBufferAllocator.DEFAULT_ALLOCATOR);
-	}
+   public SenderConfig(String address, PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider,
+         ByteConverter byteConverter,
+         Compression dataHeaderCompression) {
+      this(address, pulseIdProvider, globalTimeProvider, byteConverter, dataHeaderCompression,
+            ByteBufferAllocator.DEFAULT_ALLOCATOR, ByteBufferAllocator.DEFAULT_ALLOCATOR);
+   }
 
-	public SenderConfig(String address, PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider, ByteConverter byteConverter,
-			Compression dataHeaderCompression, IntFunction<ByteBuffer> valueAllocator,
-			IntFunction<ByteBuffer> compressedValueAllocator) {
-		this.address = address;
-		this.pulseIdProvider = pulseIdProvider;
-		this.globalTimeProvider = globalTimeProvider;
-		this.byteConverter = byteConverter;
-		this.dataHeaderCompression = dataHeaderCompression;
-		this.valueAllocator = valueAllocator;
-		this.compressedValueAllocator = compressedValueAllocator;
+   public SenderConfig(String address, PulseIdProvider pulseIdProvider, TimeProvider globalTimeProvider,
+         ByteConverter byteConverter,
+         Compression dataHeaderCompression, IntFunction<ByteBuffer> valueAllocator,
+         IntFunction<ByteBuffer> compressedValueAllocator) {
+      this.address = address;
+      this.pulseIdProvider = pulseIdProvider;
+      this.globalTimeProvider = globalTimeProvider;
+      this.byteConverter = byteConverter;
+      this.dataHeaderCompression = dataHeaderCompression;
+      this.valueAllocator = valueAllocator;
+      this.compressedValueAllocator = compressedValueAllocator;
 
-		this.setObjectMapper(new ObjectMapper());
-	}
-	
-	public Context getContext() {
-		if (this.context != null) {
-			return context;
-		} else {
-			return ReceiverConfig.DEFERRED_CONTEXT.get();
-		}
-	}
+      this.setObjectMapper(new ObjectMapper());
+   }
 
-	public void setContext(Context context) {
-		this.context = context;
-	}
+   public Context getContext() {
+      if (this.context != null) {
+         return context;
+      } else {
+         return ReceiverConfig.DEFERRED_CONTEXT.get();
+      }
+   }
 
-	public int getHighWaterMark() {
-		return highWaterMark;
-	}
-	
-	public void setHighWaterMark(int highWaterMark) {
-		this.highWaterMark = highWaterMark;
-	}
-	
-	public long getLinger() {
-		return linger;
-	}
+   public void setContext(Context context) {
+      this.context = context;
+   }
 
-	public void setLinger(long linger) {
-		this.linger = linger;
-	}
+   public int getHighWaterMark() {
+      return highWaterMark;
+   }
 
-	public String getAddress() {
-		return address;
-	}
+   public void setHighWaterMark(int highWaterMark) {
+      this.highWaterMark = highWaterMark;
+   }
 
-	public void setAddress(String address) {
-		this.address = address;
-	}
+   public long getLinger() {
+      return linger;
+   }
 
-	public Compression getDataHeaderCompression() {
-		return dataHeaderCompression;
-	}
+   public void setLinger(long linger) {
+      this.linger = linger;
+   }
 
-	public IntFunction<ByteBuffer> getValueAllocator() {
-		return valueAllocator;
-	}
+   public String getAddress() {
+      return address;
+   }
 
-	public IntFunction<ByteBuffer> getCompressedValueAllocator() {
-		return compressedValueAllocator;
-	}
+   public void setAddress(String address) {
+      this.address = address;
+   }
 
-	public PulseIdProvider getPulseIdProvider() {
-		return pulseIdProvider;
-	}
+   public Compression getDataHeaderCompression() {
+      return dataHeaderCompression;
+   }
 
-	public TimeProvider getGlobalTimeProvider() {
-		return globalTimeProvider;
-	}
+   public IntFunction<ByteBuffer> getValueAllocator() {
+      return valueAllocator;
+   }
 
-	public ByteConverter getByteConverter() {
-		return byteConverter;
-	}
+   public IntFunction<ByteBuffer> getCompressedValueAllocator() {
+      return compressedValueAllocator;
+   }
 
-	public ObjectMapper getObjectMapper() {
-		return objectMapper;
-	}
+   public PulseIdProvider getPulseIdProvider() {
+      return pulseIdProvider;
+   }
 
-	public void setObjectMapper(ObjectMapper objectMapper) {
-		this.objectMapper = objectMapper;
-	}
+   public TimeProvider getGlobalTimeProvider() {
+      return globalTimeProvider;
+   }
 
-	public int getSocketType() {
-		return socketType;
-	}
+   public ByteConverter getByteConverter() {
+      return byteConverter;
+   }
 
-	public void setSocketType(int socketType) {
-		this.socketType = socketType;
-	}
+   public ObjectMapper getObjectMapper() {
+      return objectMapper;
+   }
 
-	public Monitor getMonitor() {
-		return monitor;
-	}
+   public void setObjectMapper(ObjectMapper objectMapper) {
+      this.objectMapper = objectMapper;
+   }
 
-	public void setMonitor(Monitor monitor) {
-		this.monitor = monitor;
-	}
+   public int getSocketType() {
+      return socketType;
+   }
 
-	public void setMainHeaderSupplier(Supplier<MainHeader> mainHeaderSupplier) {
-		this.mainHeaderSupplier = mainHeaderSupplier;
-	}
+   public void setSocketType(int socketType) {
+      this.socketType = socketType;
+   }
 
-	public Supplier<MainHeader> getMainHeaderSupplier() {
-		return mainHeaderSupplier;
-	}
+   public Monitor getMonitor() {
+      return monitor;
+   }
+
+   public void setMonitor(Monitor monitor) {
+      this.monitor = monitor;
+   }
+
+   public void setMainHeaderSupplier(Supplier<MainHeader> mainHeaderSupplier) {
+      this.mainHeaderSupplier = mainHeaderSupplier;
+   }
+
+   public Supplier<MainHeader> getMainHeaderSupplier() {
+      return mainHeaderSupplier;
+   }
+
+   public boolean isBlockingSend() {
+      return blockingSend;
+   }
+
+   public void setBlockingSend(boolean blockingSend) {
+      this.blockingSend = blockingSend;
+   }
+
+   public int getBlockingFlag() {
+      return blockingSend ? 0 : org.zeromq.ZMQ.NOBLOCK;
+   }
 }

@@ -3,29 +3,30 @@ package ch.psi.bsread.monitors;
 import java.util.UUID;
 
 import org.zeromq.ZMQ.Context;
+import org.zeromq.ZMQ.Socket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import zmq.SocketBase;
-
-public class MonitorConfig {
+public class MonitorConfig {  
    private Context context;
-   private SocketBase socket;
+   private Socket socket;
    private String monitorItentifier;
    private ObjectMapper objectMapper;
    private int socketType;
    private boolean sendStopMessage;
+   private boolean blockingSend;
 
-   public MonitorConfig(Context context, SocketBase socket, ObjectMapper objectMapper, int socketType) {
-      this(context, socket, objectMapper, socketType, true, UUID.randomUUID().toString());
+   public MonitorConfig(Context context, Socket socket, ObjectMapper objectMapper, int socketType, boolean blockingSend) {
+      this(context, socket, objectMapper, socketType, blockingSend, true, UUID.randomUUID().toString());
    }
 
-   public MonitorConfig(Context context, SocketBase socket, ObjectMapper objectMapper, int socketType,
-         boolean sendStopMessage, String monitorItentifier) {
+   public MonitorConfig(Context context, Socket socket, ObjectMapper objectMapper, int socketType,
+         boolean blockingSend, boolean sendStopMessage, String monitorItentifier) {
       this.context = context;
       this.socket = socket;
       this.objectMapper = objectMapper;
       this.socketType = socketType;
+      this.blockingSend = blockingSend;
       this.sendStopMessage = sendStopMessage;
       this.monitorItentifier = monitorItentifier;
    }
@@ -38,11 +39,11 @@ public class MonitorConfig {
       this.context = context;
    }
 
-   public SocketBase getSocket() {
+   public Socket getSocket() {
       return socket;
    }
 
-   public void setSocket(SocketBase socket) {
+   public void setSocket(Socket socket) {
       this.socket = socket;
    }
 
@@ -68,6 +69,14 @@ public class MonitorConfig {
 
    public void setSocketType(int socketType) {
       this.socketType = socketType;
+   }
+   
+   public boolean isBlockingSend() {
+      return blockingSend;
+   }
+
+   public void setBlockingSend(boolean blockingSend) {
+      this.blockingSend = blockingSend;
    }
    
    public boolean isSendStopMessage() {
