@@ -1,6 +1,7 @@
 package ch.psi.bsread.sync;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -20,6 +21,11 @@ public abstract class AbstractMessageSynchronizer<Msg> implements MessageSynchro
       for (SyncChannel channel : channels) {
          this.channelConfigs.put(channel.getName(), Pair.of((long) channel.getModulo(), (long) channel.getOffset()));
       }
+   }
+
+   @Override
+   public Collection<String> getChannels() {
+      return Collections.unmodifiableCollection(channelConfigs.keySet());
    }
 
    protected boolean isPulseIdMissing(long nextGroupPulseId) {

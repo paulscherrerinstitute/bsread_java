@@ -101,8 +101,8 @@ public class MessageSynchronizerCompleteLatestLockFree<Msg> extends AbstractMess
                   pulseIdMap.put(channelName, msg);
                } else {
                   LOGGER.debug(
-                        "Drop message of pulse '{}' from channel '{}' that does not match modulo '{}' and offset '{}'",
-                        pulseId, channelName, channelConfig.getLeft(), channelConfig.getRight());
+                        "Drop message of pulse '{}' from channel '{}' that does not match modulo/offset '{}'",
+                        pulseId, channelName, channelConfig);
                }
             } else {
                LOGGER.info("Received message from channel '{}' but that channel is not part of the configuration.",
