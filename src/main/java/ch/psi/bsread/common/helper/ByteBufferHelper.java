@@ -118,6 +118,14 @@ public class ByteBufferHelper {
    }
 
    public static byte[] toArray(ByteBuffer buffer, IntFunction<byte[]> allocator) {
+      if (buffer.hasArray() && buffer.arrayOffset() == 0 && buffer.remaining() == buffer.array().length) {
+         return buffer.array();
+      } else {
+         return toArrayCopy(buffer, allocator);
+      }
+   }
+
+   public static byte[] toArrayCopy(ByteBuffer buffer, IntFunction<byte[]> allocator) {
       byte[] bytes = allocator.apply(buffer.remaining());
       // bulk methods are way faster than reading/writing single bytes
       buffer.duplicate().order(buffer.order()).get(bytes, 0, buffer.remaining());

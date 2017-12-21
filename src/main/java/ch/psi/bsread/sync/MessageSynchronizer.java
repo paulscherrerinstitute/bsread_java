@@ -10,5 +10,5 @@ public interface MessageSynchronizer<Msg> extends Closeable {
 
    Map<String, Msg> nextMessage();
    
-   Collection<String> getChannels();
+   Collection<SyncChannel> getChannels();
 }

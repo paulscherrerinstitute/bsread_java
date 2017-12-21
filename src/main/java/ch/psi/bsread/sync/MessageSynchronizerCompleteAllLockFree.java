@@ -6,7 +6,6 @@ import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +78,7 @@ public class MessageSynchronizerCompleteAllLockFree<Msg> extends AbstractMessage
          final long currentTime = System.currentTimeMillis();
 
          if (pulseId > lastPulseId) {
-            final Pair<Long, Long> channelConfig = this.channelConfigs.get(channelName);
+            final SyncChannel channelConfig = this.channelConfigs.get(channelName);
             if (channelConfig != null) {
                // check if message is in the requested period
                if (this.isRequestedPulseId(pulseId, channelConfig)) {

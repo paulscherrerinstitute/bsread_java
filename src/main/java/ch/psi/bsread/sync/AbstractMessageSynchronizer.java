@@ -6,26 +6,25 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.commons.lang3.tuple.Pair;
-
 public abstract class AbstractMessageSynchronizer<Msg> implements MessageSynchronizer<Msg> {
    protected static final long INITIAL_LAST_SENT_OR_DELETE_PULSEID = Long.MIN_VALUE;
 
    protected final AtomicLong smallestEverReceivedPulseId = new AtomicLong(Long.MAX_VALUE);
    protected final AtomicLong lastSentOrDeletedPulseId = new AtomicLong(INITIAL_LAST_SENT_OR_DELETE_PULSEID);
 
-   protected final Map<String, Pair<Long, Long>> channelConfigs;
+   protected final Map<String, SyncChannel> channelConfigs;
 
    public AbstractMessageSynchronizer(Collection<? extends SyncChannel> channels) {
       this.channelConfigs = new HashMap<>(channels.size());
       for (SyncChannel channel : channels) {
-         this.channelConfigs.put(channel.getName(), Pair.of((long) channel.getModulo(), (long) channel.getOffset()));
+         // this.channelConfigs.put(channel.getName(), new SyncChannelImpl(channel));
+         this.channelConfigs.put(channel.getName(), channel);
       }
    }
 
    @Override
-   public Collection<String> getChannels() {
-      return Collections.unmodifiableCollection(channelConfigs.keySet());
+   public Collection<SyncChannel> getChannels() {
+      return Collections.unmodifiableCollection(channelConfigs.values());
    }
 
    protected boolean isPulseIdMissing(long nextGroupPulseId) {
@@ -36,12 +35,12 @@ public abstract class AbstractMessageSynchronizer<Msg> implements MessageSynchro
 
    // make this thing testable from outside
    public static boolean isPulseIdMissing(long lastPulseId, long nextGroupPulseId,
-         Collection<Pair<Long, Long>> channelConfigs) {
+         Collection<SyncChannel> channelConfigs) {
       // optimization for 100Hz case
       if (nextGroupPulseId - lastPulseId > 1) {
-         for (Pair<Long, Long> channelConfig : channelConfigs) {
-            final long modulo = channelConfig.getLeft();
-            final long offset = channelConfig.getRight();
+         for (SyncChannel channelConfig : channelConfigs) {
+            final long modulo = channelConfig.getModulo();
+            final long offset = channelConfig.getOffset();
 
             if (nextGroupPulseId - lastPulseId > modulo) {
                return true;
@@ -81,7 +80,7 @@ public abstract class AbstractMessageSynchronizer<Msg> implements MessageSynchro
    protected int getNumberOfExpectedChannels(long pulseId) {
       int nrOfChannels = 0;
 
-      for (Pair<Long, Long> channelConfig : channelConfigs.values()) {
+      for (SyncChannel channelConfig : channelConfigs.values()) {
          if (this.isRequestedPulseId(pulseId, channelConfig)) {
             ++nrOfChannels;
          }
@@ -89,8 +88,8 @@ public abstract class AbstractMessageSynchronizer<Msg> implements MessageSynchro
       return nrOfChannels;
    }
 
-   protected boolean isRequestedPulseId(long pulseId, Pair<Long, Long> channelConfig) {
-      return (pulseId - channelConfig.getRight()) % channelConfig.getLeft() == 0;
+   protected boolean isRequestedPulseId(long pulseId, SyncChannel channelConfig) {
+      return (pulseId - channelConfig.getOffset()) % channelConfig.getModulo() == 0;
    }
 
    /**
