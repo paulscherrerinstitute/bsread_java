@@ -12,8 +12,6 @@ import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.zeromq.ZMQ;
-
 import org.zeromq.ZMQ.Socket;
 import org.zeromq.ZMQException;
 
@@ -72,11 +70,8 @@ public class Receiver<V> implements ConfigIReceiver<V> {
          if (receiverConfig.getMsgAllocator() != null) {
             socket.base().setSocketOpt(zmq.ZMQ.ZMQ_MSG_ALLOCATOR, receiverConfig.getMsgAllocator());
          }
-         socket.connect(receiverConfig.getAddress());
 
-         if (ZMQ.SUB == receiverConfig.getSocketType()) {
-            socket.subscribe("".getBytes());
-         }
+         Utils.connect(socket, receiverConfig.getAddress(), receiverConfig.getSocketType());
 
          LOGGER.info("Receiver '{}' connected", this.receiverConfig.getAddress());
       }
@@ -176,7 +171,8 @@ public class Receiver<V> implements ConfigIReceiver<V> {
                   }
                }
             } catch (JsonParseException | JsonMappingException e) {
-               LOGGER.info("Could not parse MainHeader of '{}' due to '{}'.", receiverConfig.getAddress(), e.getMessage());
+               LOGGER.info("Could not parse MainHeader of '{}' due to '{}'.", receiverConfig.getAddress(),
+                     e.getMessage());
                // drain the socket
                drain();
             } catch (IOException e) {

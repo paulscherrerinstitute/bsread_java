@@ -57,7 +57,7 @@ public class CompressionTest {
 	public void testDataHeaderCompressionOneChannel10Hz() throws InterruptedException {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -92,7 +92,7 @@ public class CompressionTest {
 		try {
 			receiver.connect();
 			// We schedule faster as we want to have the testcase execute faster
-			sender.bind();
+			sender.connect();
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 			
 			// Receive data
@@ -151,7 +151,7 @@ public class CompressionTest {
 	public void testDataCompressionOneChannel10Hz() throws InterruptedException {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -185,7 +185,7 @@ public class CompressionTest {
 
 		try {
 			receiver.connect();
-			sender.bind();
+			sender.connect();
 			// We schedule faster as we want to have the testcase execute faster
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 			
@@ -254,7 +254,7 @@ public class CompressionTest {
 	protected void testDataHeaderCompressionTwoChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) throws InterruptedException {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -301,7 +301,7 @@ public class CompressionTest {
 
 		try {
 			receiver.connect();
-			sender.bind();
+			sender.connect();
 			// We schedule faster as we want to have the testcase execute faster
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 			
@@ -403,7 +403,7 @@ public class CompressionTest {
 	protected void testDataCompressionTwoChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) throws InterruptedException {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -449,7 +449,7 @@ public class CompressionTest {
 
 		try {
 			receiver.connect();
-			sender.bind();
+			sender.connect();
 			// We schedule faster as we want to have the testcase execute faster
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 			
@@ -579,7 +579,7 @@ public class CompressionTest {
 	protected void testDataCompressionTwoArrayChannel100HzAnd10Hz(ByteOrder byteOrder, Compression compression) throws InterruptedException {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -625,7 +625,7 @@ public class CompressionTest {
 
 		try {
 			receiver.connect();
-			sender.bind();
+			sender.connect();
 			// We schedule faster as we want to have the testcase execute faster
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 			

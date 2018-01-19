@@ -18,211 +18,210 @@ import ch.psi.bsread.configuration.Channel;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 
 public class ReceiverConfig<V> {
-	public static final String DEFAULT_RECEIVING_ADDRESS = "tcp://localhost:9999";
-	public static final int DEFAULT_HIGH_WATER_MARK = 100;
-	// drop pending messages immediately when socket is closed
-	public static final long DEFAULT_LINGER = 0;
-	public static final int DEFAULT_IDLE_CONNECTION_TIMEOUT = Integer.MAX_VALUE;
-	public static final int DEFAULT_RECEIVE_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(1);
+   public static final String DEFAULT_ADDRESS = "tcp://localhost:9999";
+   public static final int DEFAULT_HIGH_WATER_MARK = 100;
+   // drop pending messages immediately when socket is closed
+   public static final long DEFAULT_LINGER = 0;
+   public static final int DEFAULT_IDLE_CONNECTION_TIMEOUT = Integer.MAX_VALUE;
+   public static final int DEFAULT_RECEIVE_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(1);
 
-	// share context due to "too many open files" issue
-	// (http://stackoverflow.com/questions/25380162/jeromq-maximum-socket-opened-issue/25478590#25478590)
-	// TODO: use Runtime.getRuntime().availableProcessors() ?
-	public static final Deferred<Context> DEFERRED_CONTEXT = new Deferred<>(() -> ZMQ.context(1));
+   // share context due to "too many open files" issue
+   // (http://stackoverflow.com/questions/25380162/jeromq-maximum-socket-opened-issue/25478590#25478590)
+   // TODO: use Runtime.getRuntime().availableProcessors() ?
+   public static final Deferred<Context> DEFERRED_CONTEXT = new Deferred<>(() -> ZMQ.context(1));
 
-	private Context context;
-	private boolean keepListeningOnStop;
-	private boolean parallelHandlerProcessing;
-	private int highWaterMark = DEFAULT_HIGH_WATER_MARK;
-	private long linger = DEFAULT_LINGER;
-	private MessageExtractor<V> messageExtractor;
-	private ObjectMapper objectMapper;
-	private final MsgAllocator msgAllocator;
-	private int socketType = ZMQ.PULL;
-	private String address = DEFAULT_RECEIVING_ADDRESS;
-	private int receiveTimeout = DEFAULT_RECEIVE_TIMEOUT;
-	private int idleConnectionTimeout = ReceiverConfig.DEFAULT_IDLE_CONNECTION_TIMEOUT;
-	private IdleConnectionTimeoutBehavior idleConnectionTimeoutBehavior = IdleConnectionTimeoutBehavior.RECONNECT;
-	private Collection<Channel> requestedChannels;
+   private Context context;
+   private boolean keepListeningOnStop;
+   private boolean parallelHandlerProcessing;
+   private int highWaterMark = DEFAULT_HIGH_WATER_MARK;
+   private long linger = DEFAULT_LINGER;
+   private MessageExtractor<V> messageExtractor;
+   private ObjectMapper objectMapper;
+   private final MsgAllocator msgAllocator;
+   private int socketType = ZMQ.PULL;
+   private String address = DEFAULT_ADDRESS;
+   private int receiveTimeout = DEFAULT_RECEIVE_TIMEOUT;
+   private int idleConnectionTimeout = ReceiverConfig.DEFAULT_IDLE_CONNECTION_TIMEOUT;
+   private IdleConnectionTimeoutBehavior idleConnectionTimeoutBehavior = IdleConnectionTimeoutBehavior.RECONNECT;
+   private Collection<Channel> requestedChannels;
 
-	public ReceiverConfig() {
-		this(DEFAULT_RECEIVING_ADDRESS);
-	}
+   public ReceiverConfig() {
+      this(DEFAULT_ADDRESS);
+   }
 
-	public ReceiverConfig(MessageExtractor<V> messageExtractor) {
-		this(DEFAULT_RECEIVING_ADDRESS, messageExtractor);
-	}
+   public ReceiverConfig(MessageExtractor<V> messageExtractor) {
+      this(DEFAULT_ADDRESS, messageExtractor);
+   }
 
-	public ReceiverConfig(String address) {
-		this(address, new StandardMessageExtractor<V>());
-	}
+   public ReceiverConfig(String address) {
+      this(address, new StandardMessageExtractor<V>());
+   }
 
-	public ReceiverConfig(String address, MessageExtractor<V> messageExtractor) {
-		this(address, true, false, messageExtractor);
-	}
+   public ReceiverConfig(String address, MessageExtractor<V> messageExtractor) {
+      this(address, true, false, messageExtractor);
+   }
 
-	public ReceiverConfig(String address, boolean keepListeningOnStop, boolean parallelHandlerProcessing,
-			MessageExtractor<V> messageExtractor) {
-		this(address, keepListeningOnStop, parallelHandlerProcessing, messageExtractor, null);
-	}
+   public ReceiverConfig(String address, boolean keepListeningOnStop, boolean parallelHandlerProcessing,
+         MessageExtractor<V> messageExtractor) {
+      this(address, keepListeningOnStop, parallelHandlerProcessing, messageExtractor, null);
+   }
 
-	public ReceiverConfig(String address, boolean keepListeningOnStop, boolean parallelHandlerProcessing,
-			MessageExtractor<V> messageExtractor, MsgAllocator msgAllocator) {
-		this.address = address;
-		this.keepListeningOnStop = keepListeningOnStop;
-		this.parallelHandlerProcessing = parallelHandlerProcessing;
-		this.msgAllocator = msgAllocator;
+   public ReceiverConfig(String address, boolean keepListeningOnStop, boolean parallelHandlerProcessing,
+         MessageExtractor<V> messageExtractor, MsgAllocator msgAllocator) {
+      this.address = address;
+      this.keepListeningOnStop = keepListeningOnStop;
+      this.parallelHandlerProcessing = parallelHandlerProcessing;
+      this.msgAllocator = msgAllocator;
 
-		this.setMessageExtractor(messageExtractor);
-		this.setObjectMapper(new ObjectMapper());
-	}
+      this.setMessageExtractor(messageExtractor);
+      this.setObjectMapper(new ObjectMapper());
+   }
 
-	public Context getContext() {
-		if (this.context != null) {
-			return context;
-		} else {
-			return ReceiverConfig.DEFERRED_CONTEXT.get();
-		}
-	}
+   public Context getContext() {
+      if (this.context != null) {
+         return context;
+      } else {
+         return ReceiverConfig.DEFERRED_CONTEXT.get();
+      }
+   }
 
-	public void setContext(Context context) {
-		this.context = context;
-	}
+   public void setContext(Context context) {
+      this.context = context;
+   }
 
-	public boolean isKeepListeningOnStop() {
-		return keepListeningOnStop;
-	}
+   public boolean isKeepListeningOnStop() {
+      return keepListeningOnStop;
+   }
 
-	public void setKeepListeningOnStop(boolean keepListeningOnStop) {
-		this.keepListeningOnStop = keepListeningOnStop;
-	}
+   public void setKeepListeningOnStop(boolean keepListeningOnStop) {
+      this.keepListeningOnStop = keepListeningOnStop;
+   }
 
-	public boolean isParallelHandlerProcessing() {
-		return parallelHandlerProcessing;
-	}
+   public boolean isParallelHandlerProcessing() {
+      return parallelHandlerProcessing;
+   }
 
-	public void setParallelHandlerProcessing(boolean parallelHandlerProcessing) {
-		this.parallelHandlerProcessing = parallelHandlerProcessing;
-	}
+   public void setParallelHandlerProcessing(boolean parallelHandlerProcessing) {
+      this.parallelHandlerProcessing = parallelHandlerProcessing;
+   }
 
-	public int getHighWaterMark() {
-		return highWaterMark;
-	}
+   public int getHighWaterMark() {
+      return highWaterMark;
+   }
 
-	public void setHighWaterMark(int highWaterMark) {
-		this.highWaterMark = highWaterMark;
-	}
+   public void setHighWaterMark(int highWaterMark) {
+      this.highWaterMark = highWaterMark;
+   }
 
-	public long getLinger() {
-		return linger;
-	}
+   public long getLinger() {
+      return linger;
+   }
 
-	public void setLinger(long linger) {
-		this.linger = linger;
-	}
+   public void setLinger(long linger) {
+      this.linger = linger;
+   }
 
-	public MessageExtractor<V> getMessageExtractor() {
-		return messageExtractor;
-	}
+   public MessageExtractor<V> getMessageExtractor() {
+      return messageExtractor;
+   }
 
-	public void setMessageExtractor(MessageExtractor<V> messageExtractor) {
-		this.messageExtractor = messageExtractor;
-	}
+   public void setMessageExtractor(MessageExtractor<V> messageExtractor) {
+      this.messageExtractor = messageExtractor;
+   }
 
-	public MsgAllocator getMsgAllocator() {
-		return msgAllocator;
-	}
+   public MsgAllocator getMsgAllocator() {
+      return msgAllocator;
+   }
 
-	public ObjectMapper getObjectMapper() {
-		return objectMapper;
-	}
+   public ObjectMapper getObjectMapper() {
+      return objectMapper;
+   }
 
-	public void setObjectMapper(ObjectMapper objectMapper) {
-		this.objectMapper = objectMapper;
+   public void setObjectMapper(ObjectMapper objectMapper) {
+      this.objectMapper = objectMapper;
 
-		addObjectMapperMixin(objectMapper);
-	}
+      addObjectMapperMixin(objectMapper);
+   }
 
-	public int getSocketType() {
-		return socketType;
-	}
+   public int getSocketType() {
+      return socketType;
+   }
 
-	public void setSocketType(int socketType) {
-		this.socketType = socketType;
-	}
+   public void setSocketType(int socketType) {
+      this.socketType = socketType;
+   }
 
-	public void setAddress(String address) {
-		this.address = address;
-	}
+   public void setAddress(String address) {
+      this.address = address;
+   }
 
-	public String getAddress() {
-		return address;
-	}
+   public String getAddress() {
+      return address;
+   }
 
-	/**
-	 * Setter for the receive timeout in millis (use -1 for blocking receive -
-	 * this is not recommended). In case no message is received within this time
-	 * limit, a reconnect will be triggered.
-	 * 
-	 * @param receiveTimeout
-	 *            The receive timeout
-	 */
-	public void setReceiveTimeout(int receiveTimeout) {
-		this.receiveTimeout = receiveTimeout;
-	}
+   /**
+    * Setter for the receive timeout in millis (use -1 for blocking receive - this is not
+    * recommended). In case no message is received within this time limit, a reconnect will be
+    * triggered.
+    * 
+    * @param receiveTimeout The receive timeout
+    */
+   public void setReceiveTimeout(int receiveTimeout) {
+      this.receiveTimeout = receiveTimeout;
+   }
 
-	/**
-	 * Getter for the receive timeout in millis.
-	 * 
-	 * @return int The receive timeout
-	 */
-	public int getReceiveTimeout() {
-		return receiveTimeout;
-	}
+   /**
+    * Getter for the receive timeout in millis.
+    * 
+    * @return int The receive timeout
+    */
+   public int getReceiveTimeout() {
+      return receiveTimeout;
+   }
 
-	/**
-	 * Getter for the idle connection timeout in millis.
-	 * 
-	 * @return int The idle connection timeout
-	 */
-	public int getIdleConnectionTimeout() {
-		return idleConnectionTimeout;
-	}
+   /**
+    * Getter for the idle connection timeout in millis.
+    * 
+    * @return int The idle connection timeout
+    */
+   public int getIdleConnectionTimeout() {
+      return idleConnectionTimeout;
+   }
 
-	public void setIdleConnectionTimeout(int idleConnectionTimeout) {
-		this.idleConnectionTimeout = idleConnectionTimeout;
-	}
+   public void setIdleConnectionTimeout(int idleConnectionTimeout) {
+      this.idleConnectionTimeout = idleConnectionTimeout;
+   }
 
-	public void setIdleConnectionTimeoutBehavior(IdleConnectionTimeoutBehavior idleConnectionTimeoutBehavior) {
-		this.idleConnectionTimeoutBehavior = idleConnectionTimeoutBehavior;
-	}
+   public void setIdleConnectionTimeoutBehavior(IdleConnectionTimeoutBehavior idleConnectionTimeoutBehavior) {
+      this.idleConnectionTimeoutBehavior = idleConnectionTimeoutBehavior;
+   }
 
-	public IdleConnectionTimeoutBehavior getIdleConnectionTimeoutBehavior() {
-		return idleConnectionTimeoutBehavior;
-	}
+   public IdleConnectionTimeoutBehavior getIdleConnectionTimeoutBehavior() {
+      return idleConnectionTimeoutBehavior;
+   }
 
-	public Collection<Channel> getRequestedChannels() {
-		return this.requestedChannels;
-	}
+   public Collection<Channel> getRequestedChannels() {
+      return this.requestedChannels;
+   }
 
-	public void setRequestedChannels(Collection<Channel> requestedChannels) {
-		this.requestedChannels = requestedChannels;
-	}
+   public void setRequestedChannels(Collection<Channel> requestedChannels) {
+      this.requestedChannels = requestedChannels;
+   }
 
-	public void addRequestedChannel(Channel requestedChannel) {
-		if (this.requestedChannels == null) {
-			this.requestedChannels = new ArrayList<>();
-		}
-		this.requestedChannels.add(requestedChannel);
-	}
+   public void addRequestedChannel(Channel requestedChannel) {
+      if (this.requestedChannels == null) {
+         this.requestedChannels = new ArrayList<>();
+      }
+      this.requestedChannels.add(requestedChannel);
+   }
 
-	public static void addObjectMapperMixin(ObjectMapper objectMapper) {
-		objectMapper.addMixIn(Command.class, PolymorphicCommandMixIn.class);
-	}
+   public static void addObjectMapperMixin(ObjectMapper objectMapper) {
+      objectMapper.addMixIn(Command.class, PolymorphicCommandMixIn.class);
+   }
 
-	public enum IdleConnectionTimeoutBehavior {
-		RECONNECT, KEEP_RUNNING,
-		/* Returns null */
-		STOP;
-	}
+   public enum IdleConnectionTimeoutBehavior {
+      RECONNECT, KEEP_RUNNING,
+      /* Returns null */
+      STOP;
+   }
 }

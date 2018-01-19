@@ -36,7 +36,7 @@ public class IdleConnectionTimeoutTest {
    public void testSenderReceiverTimeout_Reconnect() {
       ScheduledSender sender = new ScheduledSender(
             new SenderConfig(
-                  SenderConfig.DEFAULT_SENDING_ADDRESS,
+                  SenderConfig.DEFAULT_ADDRESS,
                   new StandardPulseIdProvider(),
                   new TimeProvider() {
 
@@ -72,7 +72,7 @@ public class IdleConnectionTimeoutTest {
       Message<ByteBuffer> message = null;
       DataHeader lastDataHeader = null;
       try {
-         sender.bind();
+         sender.connect();
          receiver.connect();
 
          sender.send();
@@ -152,7 +152,7 @@ public class IdleConnectionTimeoutTest {
    public void testSenderReceiverTimeout_Return() {
       Sender sender = new Sender(
             new SenderConfig(
-                  SenderConfig.DEFAULT_SENDING_ADDRESS,
+                  SenderConfig.DEFAULT_ADDRESS,
                   new StandardPulseIdProvider(),
                   new TimeProvider() {
 
@@ -187,7 +187,7 @@ public class IdleConnectionTimeoutTest {
       // Send/Receive data
       Message<ByteBuffer> message = null;
       try {
-         sender.bind();
+         sender.connect();
          receiver.connect();
 
          sender.send();

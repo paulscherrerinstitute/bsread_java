@@ -42,7 +42,7 @@ public class ReceiverTest_3 {
 	protected Receiver<ByteBuffer> getReceiver() {
 		ReceiverConfig<ByteBuffer> config =
 				new ReceiverConfig<>(
-						ReceiverConfig.DEFAULT_RECEIVING_ADDRESS,
+						ReceiverConfig.DEFAULT_ADDRESS,
 						true,
 						false,
 						new StandardMessageExtractor<ByteBuffer>(),
@@ -57,7 +57,7 @@ public class ReceiverTest_3 {
 	public void testSenderOneChannel10Hz() {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -91,7 +91,7 @@ public class ReceiverTest_3 {
 		try {
 			receiver.connect();
 			// We schedule faster as we want to have the testcase execute faster
-			sender.bind();
+			sender.connect();
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
 			// Receive data
@@ -152,7 +152,7 @@ public class ReceiverTest_3 {
 	public void testSenderOneChannel01Hz() {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -186,7 +186,7 @@ public class ReceiverTest_3 {
 		try {
 			receiver.connect();
 			// We schedule faster as we want to have the testcase execute faster
-			sender.bind();
+			sender.connect();
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
 			// Receive data
@@ -247,7 +247,7 @@ public class ReceiverTest_3 {
 	public void testSenderOneChannel10HzOffset() {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -281,7 +281,7 @@ public class ReceiverTest_3 {
 		try {
 			receiver.connect();
 			// We schedule faster as we want to have the testcase execute faster
-			sender.bind();
+			sender.connect();
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
 			// Receive data
@@ -342,7 +342,7 @@ public class ReceiverTest_3 {
 	public void testSenderTwoChannel100HzAnd10Hz() {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -387,7 +387,7 @@ public class ReceiverTest_3 {
 		try {
 			receiver.connect();
 			// We schedule faster as we want to have the testcase execute faster
-			sender.bind();
+			sender.connect();
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
 			// Receive data
@@ -485,7 +485,7 @@ public class ReceiverTest_3 {
 
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -533,7 +533,7 @@ public class ReceiverTest_3 {
 		try {
 			receiver.connect();
 			// We schedule faster as we want to have the testcase execute faster
-			sender.bind();
+			sender.connect();
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
 			// Receive data

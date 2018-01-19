@@ -32,10 +32,10 @@ public class ScheduledSender {
 		this.sender = new Sender(senderConfig);
 	}
 
-	public void bind() {
+	public void connect() {
 		Future<?> future = executor.submit(() -> {
 			try {
-				sender.bind();
+				sender.connect();
 				// it seems that the socket does sometimes not bind in a timely
 				// manner.
 				TimeUnit.MILLISECONDS.sleep(bindCloseTimeoutMillis);

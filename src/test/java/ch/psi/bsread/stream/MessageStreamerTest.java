@@ -44,7 +44,7 @@ public class MessageStreamerTest {
 		String channelName = "ABC";
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -71,10 +71,10 @@ public class MessageStreamerTest {
 
 		AtomicBoolean exited = new AtomicBoolean(false);
 		try (MessageStreamer<Long, Message<Long>> messageStreamer =
-				new MessageStreamer<>(ZMQ.PULL, ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, null, 0, 0,
+				new MessageStreamer<>(ZMQ.PULL, ReceiverConfig.DEFAULT_ADDRESS, null, 0, 0,
 						new MatlabByteConverter(), Function.identity())) {
 
-			sender.bind();
+			sender.connect();
 			TimeUnit.MILLISECONDS.sleep(100);
 			
 			// construct to receive messages
@@ -136,7 +136,7 @@ public class MessageStreamerTest {
 		String channelName = "ABC";
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -163,10 +163,10 @@ public class MessageStreamerTest {
 
 		AtomicBoolean exited = new AtomicBoolean(false);
 		try (MessageStreamer<Long, Message<Long>> messageStreamer =
-				new MessageStreamer<>(ZMQ.PULL, ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, null, 3, 2,
+				new MessageStreamer<>(ZMQ.PULL, ReceiverConfig.DEFAULT_ADDRESS, null, 3, 2,
 						new MatlabByteConverter(), Function.identity())) {
 
-			sender.bind();
+			sender.connect();
 			TimeUnit.MILLISECONDS.sleep(100);
 			// construct to receive messages
 			ValueHandler<StreamSection<Message<Long>>> valueHandler = new ValueHandler<>();
@@ -283,7 +283,7 @@ public class MessageStreamerTest {
 		String channelName = "ABC";
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -315,9 +315,9 @@ public class MessageStreamerTest {
 		CountDownLatch latch = new CountDownLatch(1);
 
 		try (MessageStreamer<Long, Message<Long>> messageStreamer =
-				new MessageStreamer<>(ZMQ.PULL, ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, null, pastElements,
+				new MessageStreamer<>(ZMQ.PULL, ReceiverConfig.DEFAULT_ADDRESS, null, pastElements,
 						futureElements, backpressure, new MatlabByteConverter(), Function.identity())) {
-			sender.bind();
+			sender.connect();
 			TimeUnit.MILLISECONDS.sleep(100);
 
 			// first value based on MessageStreamer config
@@ -410,7 +410,7 @@ public class MessageStreamerTest {
 		String channelName = "ABC";
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -443,9 +443,9 @@ public class MessageStreamerTest {
 		AtomicLong sentValues = new AtomicLong();
 
 		try (MessageStreamer<Long, Message<Long>> messageStreamer =
-				new MessageStreamer<>(ZMQ.PULL, ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, null, pastElements,
+				new MessageStreamer<>(ZMQ.PULL, ReceiverConfig.DEFAULT_ADDRESS, null, pastElements,
 						futureElements, backpressure, new MatlabByteConverter(), Function.identity())) {
-			sender.bind();
+			sender.connect();
 			TimeUnit.MILLISECONDS.sleep(100);
 
 			// StringBuilder output = new StringBuilder();

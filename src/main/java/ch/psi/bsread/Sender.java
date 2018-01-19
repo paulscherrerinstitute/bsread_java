@@ -27,7 +27,7 @@ import ch.psi.bsread.monitors.Monitor;
 import ch.psi.bsread.monitors.MonitorConfig;
 
 public class Sender {
-   private static final Logger LOGGER = LoggerFactory.getLogger(Sender.class.getName());
+   private static final Logger LOGGER = LoggerFactory.getLogger(Sender.class);
 
    private Socket socket;
 
@@ -49,7 +49,7 @@ public class Sender {
             : new MainHeader();
    }
 
-   public void bind() {
+   public void connect() {
       Context context = senderConfig.getContext();
       socket = context.socket(senderConfig.getSocketType());
       socket.setSndHWM(senderConfig.getHighWaterMark());
@@ -65,7 +65,7 @@ public class Sender {
                senderConfig.isBlockingSend()));
       }
 
-      socket.bind(senderConfig.getAddress());
+      Utils.connect(socket, senderConfig.getAddress(), senderConfig.getSocketType());
 
       try {
          // it seems that the socket does sometimes not bind in a timely
@@ -111,7 +111,7 @@ public class Sender {
          mainHeader.setHash(dataHeaderMD5);
          mainHeader.setDataHeaderCompression(senderConfig.getDataHeaderCompression());
          final int blockingFlag = senderConfig.getBlockingFlag();
-         
+
          try {
             if (LOGGER.isDebugEnabled()) {
                LOGGER.debug(

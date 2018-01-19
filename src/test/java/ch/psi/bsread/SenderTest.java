@@ -33,7 +33,7 @@ public class SenderTest {
 
 		BasicReceiver receiver = new BasicReceiver();
 		try {
-			sender.bind();
+			sender.connect();
 
 			receiver.connect();
 

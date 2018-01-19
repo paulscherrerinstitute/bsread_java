@@ -34,7 +34,7 @@ public class BasicReceiverTest {
 		try {
 			receiver.connect();
 			// We schedule faster as we want to have the testcase execute faster
-			sender.bind();
+			sender.connect();
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
 			for (double i = 0; i < 50; i++) {

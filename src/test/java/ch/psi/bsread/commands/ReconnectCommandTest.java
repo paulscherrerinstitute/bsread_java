@@ -126,9 +126,9 @@ public class ReconnectCommandTest {
       receiver.addValueHandler(values -> setValues(values));
 
       try {
-         sender_01.bind();
-         sender_02.bind();
-         sender_03.bind();
+         sender_01.connect();
+         sender_02.connect();
+         sender_03.connect();
          receiver.connect();
          // TimeUnit.MILLISECONDS.sleep(500);
 

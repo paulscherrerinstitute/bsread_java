@@ -23,7 +23,7 @@ public class ReceiverTestFilter {
 	public void testTwoChannelFilter() {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -68,7 +68,7 @@ public class ReceiverTestFilter {
 		try {
 			receiver.connect();
 			// We schedule faster as we want to have the testcase execute faster
-			sender.bind();
+			sender.connect();
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
 			// Receive data
@@ -95,7 +95,7 @@ public class ReceiverTestFilter {
 	public void testTwoChannelFilterOffset() {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -140,7 +140,7 @@ public class ReceiverTestFilter {
 		try {
 			receiver.connect();
 			// We schedule faster as we want to have the testcase execute faster
-			sender.bind();
+			sender.connect();
 			sender.sendAtFixedRate(initialDelay, period, TimeUnit.MILLISECONDS);
 
 			// Receive data

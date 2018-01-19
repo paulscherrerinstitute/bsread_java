@@ -33,7 +33,7 @@ public class ConnectionCounterMonitorTest {
 	@Test
 	public void testReceiver_Push_Pull() throws Exception {
 		SenderConfig senderConfig = new SenderConfig(
-				SenderConfig.DEFAULT_SENDING_ADDRESS,
+				SenderConfig.DEFAULT_ADDRESS,
 				new StandardPulseIdProvider(),
 				new TimeProvider() {
 
@@ -113,7 +113,7 @@ public class ConnectionCounterMonitorTest {
 			assertEquals(0, connectionMonitor.getConnectionCount());
 			assertEquals(0, connectionCounter.get());
 
-			sender.bind();
+			sender.connect();
 			TimeUnit.MILLISECONDS.sleep(waitTime);
 			assertEquals(0, connectionMonitor.getConnectionCount());
 			assertEquals(0, connectionCounter.get());
@@ -193,7 +193,7 @@ public class ConnectionCounterMonitorTest {
 	@Test
 	public void testReceiver_Pub_Sub() throws Exception {
 		SenderConfig senderConfig = new SenderConfig(
-				SenderConfig.DEFAULT_SENDING_ADDRESS,
+				SenderConfig.DEFAULT_ADDRESS,
 				new StandardPulseIdProvider(),
 				new TimeProvider() {
 
@@ -273,7 +273,7 @@ public class ConnectionCounterMonitorTest {
 			assertEquals(0, connectionMonitor.getConnectionCount());
 			assertEquals(0, connectionCounter.get());
 
-			sender.bind();
+			sender.connect();
 			TimeUnit.MILLISECONDS.sleep(waitTime);
 			assertEquals(0, connectionMonitor.getConnectionCount());
 			assertEquals(0, connectionCounter.get());

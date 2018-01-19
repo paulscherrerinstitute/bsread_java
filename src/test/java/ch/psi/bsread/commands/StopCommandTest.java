@@ -51,7 +51,7 @@ public class StopCommandTest {
 	public void testStop_01() throws Exception {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -76,14 +76,14 @@ public class StopCommandTest {
 			}
 		});
 
-		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(new ReceiverConfig<ByteBuffer>(ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, false, true, new StandardMessageExtractor<ByteBuffer>()));
+		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(new ReceiverConfig<ByteBuffer>(ReceiverConfig.DEFAULT_ADDRESS, false, true, new StandardMessageExtractor<ByteBuffer>()));
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
 
 		try {
-			sender.bind();
+			sender.connect();
 			receiver.connect();
 			CountDownLatch latch = new CountDownLatch(1);
 			ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -149,7 +149,7 @@ public class StopCommandTest {
 	public void testStop_02() throws Exception {
 		ScheduledSender sender = new ScheduledSender(
 				new SenderConfig(
-						SenderConfig.DEFAULT_SENDING_ADDRESS,
+						SenderConfig.DEFAULT_ADDRESS,
 						new StandardPulseIdProvider(),
 						new TimeProvider() {
 
@@ -174,14 +174,14 @@ public class StopCommandTest {
 			}
 		});
 
-		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(new ReceiverConfig<ByteBuffer>(ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, true, true, new StandardMessageExtractor<ByteBuffer>()));
+		Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(new ReceiverConfig<ByteBuffer>(ReceiverConfig.DEFAULT_ADDRESS, true, true, new StandardMessageExtractor<ByteBuffer>()));
 		// Optional - register callbacks
 		receiver.addMainHeaderHandler(header -> setMainHeader(header));
 		receiver.addDataHeaderHandler(header -> setDataHeader(header));
 		receiver.addValueHandler(values -> setValues(values));
 
 		try {
-			sender.bind();
+			sender.connect();
 			receiver.connect();
 
 			CountDownLatch latch = new CountDownLatch(1);
@@ -255,7 +255,7 @@ public class StopCommandTest {
 	@Test
 	public void testStop_03_PUSH_PULL() throws Exception {
 		SenderConfig senderConfig = new SenderConfig(
-				SenderConfig.DEFAULT_SENDING_ADDRESS,
+				SenderConfig.DEFAULT_ADDRESS,
 				new StandardPulseIdProvider(),
 				new TimeProvider() {
 
@@ -282,7 +282,7 @@ public class StopCommandTest {
 			}
 		});
 
-		ReceiverConfig<Object> config1 = new ReceiverConfig<Object>(ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+		ReceiverConfig<Object> config1 = new ReceiverConfig<Object>(ReceiverConfig.DEFAULT_ADDRESS, false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
 		config1.setSocketType(ZMQ.PULL);
 		Receiver<Object> receiver1 = new BasicReceiver(config1);
 		AtomicLong mainHeaderCounter1 = new AtomicLong();
@@ -292,7 +292,7 @@ public class StopCommandTest {
 		receiver1.addDataHeaderHandler(header -> dataHeaderCounter1.incrementAndGet());
 		receiver1.addValueHandler(values -> valCounter1.incrementAndGet());
 
-		ReceiverConfig<Object> config2 = new ReceiverConfig<Object>(ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+		ReceiverConfig<Object> config2 = new ReceiverConfig<Object>(ReceiverConfig.DEFAULT_ADDRESS, false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
 		config2.setSocketType(ZMQ.PULL);
 		Receiver<Object> receiver2 = new BasicReceiver(config2);
 		AtomicLong mainHeaderCounter2 = new AtomicLong();
@@ -303,7 +303,7 @@ public class StopCommandTest {
 		receiver2.addValueHandler(values -> valCounter2.incrementAndGet());
 
 		try {
-			sender.bind();
+			sender.connect();
 			receiver1.connect();
 			receiver2.connect();
 
@@ -372,7 +372,7 @@ public class StopCommandTest {
 	@Test
 	public void testStop_03_PUB_SUB() throws Exception {
 		SenderConfig senderConfig = new SenderConfig(
-				SenderConfig.DEFAULT_SENDING_ADDRESS,
+				SenderConfig.DEFAULT_ADDRESS,
 				new StandardPulseIdProvider(),
 				new TimeProvider() {
 
@@ -399,7 +399,7 @@ public class StopCommandTest {
 			}
 		});
 
-		ReceiverConfig<Object> config1 = new ReceiverConfig<Object>(ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+		ReceiverConfig<Object> config1 = new ReceiverConfig<Object>(ReceiverConfig.DEFAULT_ADDRESS, false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
 		config1.setSocketType(ZMQ.SUB);
 		Receiver<Object> receiver1 = new BasicReceiver(config1);
 		AtomicLong mainHeaderCounter1 = new AtomicLong();
@@ -409,7 +409,7 @@ public class StopCommandTest {
 		receiver1.addDataHeaderHandler(header -> dataHeaderCounter1.incrementAndGet());
 		receiver1.addValueHandler(values -> valCounter1.incrementAndGet());
 
-		ReceiverConfig<Object> config2 = new ReceiverConfig<Object>(ReceiverConfig.DEFAULT_RECEIVING_ADDRESS, false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+		ReceiverConfig<Object> config2 = new ReceiverConfig<Object>(ReceiverConfig.DEFAULT_ADDRESS, false, true, new StandardMessageExtractor<Object>(new MatlabByteConverter()));
 		config2.setSocketType(ZMQ.SUB);
 		Receiver<Object> receiver2 = new BasicReceiver(config2);
 		AtomicLong mainHeaderCounter2 = new AtomicLong();
@@ -420,7 +420,7 @@ public class StopCommandTest {
 		receiver2.addValueHandler(values -> valCounter2.incrementAndGet());
 
 		try {
-			sender.bind();
+			sender.connect();
 			receiver1.connect();
 			receiver2.connect();
 
