@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ.Socket;
 
-import ch.psi.bsread.ReceiverConfig;
 import ch.psi.bsread.common.concurrent.executor.CommonExecutors;
 import ch.psi.bsread.message.commands.StopCommand;
 
@@ -38,10 +37,13 @@ public class ConnectionCounterMonitor implements Monitor {
          Socket monitorSock = null;
          try {
             monitorConfig.getSocket().base().monitor(address,
-                  ZMQ.ZMQ_EVENT_ACCEPTED | ZMQ.ZMQ_EVENT_DISCONNECTED | ZMQ.ZMQ_EVENT_CLOSED);
+                  ZMQ.ZMQ_EVENT_ACCEPTED // server bind accepts
+                        | ZMQ.ZMQ_EVENT_CONNECTED // client connects
+                        | ZMQ.ZMQ_EVENT_DISCONNECTED // server/client disconnect
+                        | ZMQ.ZMQ_EVENT_MONITOR_STOPPED);
             monitorSock = monitorConfig.getContext().socket(ZMQ.ZMQ_PAIR);
-            monitorSock.setRcvHWM(ReceiverConfig.DEFAULT_HIGH_WATER_MARK);
-            monitorSock.setLinger(ReceiverConfig.DEFAULT_LINGER);
+            // monitorSock.setRcvHWM(ReceiverConfig.DEFAULT_HIGH_WATER_MARK);
+            // monitorSock.setLinger(ReceiverConfig.DEFAULT_LINGER);
             monitorSock.connect(address);
 
 
@@ -49,6 +51,7 @@ public class ConnectionCounterMonitor implements Monitor {
             while (isRunning) {
 
                final Event event = Event.read(monitorSock.base());
+
                if (event == null || monitorConfig.getSocket().base().errno() == ZError.ETERM) {
                   // stop loop
                   break;
@@ -56,14 +59,23 @@ public class ConnectionCounterMonitor implements Monitor {
 
                switch (event.event) {
                   case zmq.ZMQ.ZMQ_EVENT_ACCEPTED:
+                  case zmq.ZMQ.ZMQ_EVENT_CONNECTED:
+                     // server bind accepts new connections
+                     // client connects
                      connectionCounter.incrementAndGet();
                      updateHandlers();
                      break;
                   case zmq.ZMQ.ZMQ_EVENT_DISCONNECTED:
+                     // server and client disconnect
                      connectionCounter.decrementAndGet();
                      updateHandlers();
                      break;
-                  case ZMQ.ZMQ_EVENT_CLOSED:
+                  // case ZMQ.ZMQ_EVENT_CLOSED:
+                  // connectionCounter.set(0);
+                  // updateHandlers();
+                  // break;
+                  case ZMQ.ZMQ_EVENT_MONITOR_STOPPED:
+                     // stop
                      isRunning = false;
                      break;
                   default:
@@ -94,14 +106,19 @@ public class ConnectionCounterMonitor implements Monitor {
    }
 
    @Override
-   public synchronized void stop() {
+   public synchronized void stop(final long sentMessages) {
       if (this.monitorConfig != null) {
-         sendStopMessage(this.monitorConfig.getSocket(), this);
+         sendStopMessage(this.monitorConfig.getSocket(), this, sentMessages);
       }
 
       if (executor != null) {
          executor.shutdown();
       }
+   }
+
+   @Override
+   public void stop() {
+      stop(StopCommand.SENT_MESSAGES_UNKNOWN);
    }
 
    public int getConnectionCount() {
@@ -124,11 +141,12 @@ public class ConnectionCounterMonitor implements Monitor {
       }
    }
 
-   public static void sendStopMessage(final Socket socket, final ConnectionCounterMonitor monitor) {
+   public static void sendStopMessage(final Socket socket, final ConnectionCounterMonitor monitor,
+         final long sentMessages) {
       try {
          final MonitorConfig monitorConfig = monitor.monitorConfig;
          if (monitorConfig != null && monitorConfig.isSendStopMessage()) {
-            final byte[] stopBytes = StopCommand.getAsBytes(monitorConfig.getObjectMapper());
+            final byte[] stopBytes = StopCommand.getAsBytes(monitorConfig.getObjectMapper(), sentMessages);
             int nrOfStopMsgs = 1;
             if (monitorConfig.getSocketType() == ZMQ.ZMQ_PUSH) {
                nrOfStopMsgs = monitor.getConnectionCount();

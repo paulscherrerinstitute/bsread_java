@@ -36,6 +36,7 @@ public class Sender {
    private MainHeader mainHeader;
    private byte[] dataHeaderBytes;
    private String dataHeaderMD5 = "";
+   private long sentMessages = 0;
 
    private List<DataChannel<?>> channels = new ArrayList<>();
 
@@ -79,7 +80,7 @@ public class Sender {
    public void close() {
       Monitor monitor = senderConfig.getMonitor();
       if (monitor != null) {
-         monitor.stop();
+         monitor.stop(sentMessages);
       }
       if (socket != null) {
          socket.close();
@@ -122,10 +123,10 @@ public class Sender {
             }
 
             // Send header
-            socket.send(senderConfig.getObjectMapper().writeValueAsBytes(mainHeader), ZMQ.NOBLOCK | ZMQ.SNDMORE);
+            socket.send(senderConfig.getObjectMapper().writeValueAsBytes(mainHeader), blockingFlag | ZMQ.SNDMORE);
 
             // Send data header
-            socket.send(dataHeaderBytes, ZMQ.SNDMORE | blockingFlag);
+            socket.send(dataHeaderBytes, blockingFlag | ZMQ.SNDMORE);
 
             // Send data
             int lastSendMore;
@@ -163,6 +164,8 @@ public class Sender {
                   socket.send((byte[]) null, lastSendMore);
                }
             }
+
+            ++sentMessages;
          } catch (JsonProcessingException e) {
             throw new IllegalStateException("Unable to serialize message", e);
          }

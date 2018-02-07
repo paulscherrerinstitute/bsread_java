@@ -147,7 +147,7 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
       this.dataHeader = dataHeader;
    }
 
-   protected Msg receiveMsg(Socket socket) {
+   public static Msg receiveMsg(Socket socket) {
       Msg msg = socket.base().recv(0);
 
       if (msg == null) {
@@ -157,7 +157,7 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
       return msg;
    }
 
-   private void mayRaise(Socket socket) {
+   private static void mayRaise(Socket socket) {
       int errno = socket.base().errno();
       if (errno != 0 && errno != zmq.ZError.EAGAIN) {
          throw new ZMQException(errno);

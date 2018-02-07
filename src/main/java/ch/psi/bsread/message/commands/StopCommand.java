@@ -21,11 +21,19 @@ public class StopCommand implements Command {
    // update AbstractCommand when version increases to support old and new
    // Command
    public static final String DEFAULT_HTYPE = HTYPE_VALUE_NO_VERSION + "-1.0";
+   public static final long SENT_MESSAGES_UNKNOWN = -1;
 
    @JsonInclude
    private String htype = DEFAULT_HTYPE;
 
+   @JsonInclude
+   private long sentMessages = SENT_MESSAGES_UNKNOWN;
+
    public StopCommand() {}
+
+   public StopCommand(final long sentMessages) {
+      this.sentMessages = sentMessages;
+   }
 
    public String getHtype() {
       return htype;
@@ -33,6 +41,14 @@ public class StopCommand implements Command {
 
    public void setHtype(String htype) {
       this.htype = htype;
+   }
+
+   public long getSentMessages() {
+      return sentMessages;
+   }
+
+   public void setSentMessages(long sentMessages) {
+      this.sentMessages = sentMessages;
    }
 
    @Override
@@ -47,8 +63,9 @@ public class StopCommand implements Command {
       }
    }
 
-   public static byte[] getAsBytes(final ObjectMapper objectMapper) throws JsonProcessingException {
-      final String stopCommandStr = objectMapper.writeValueAsString(new StopCommand());
+   public static byte[] getAsBytes(final ObjectMapper objectMapper, final long sentMessages)
+         throws JsonProcessingException {
+      final String stopCommandStr = objectMapper.writeValueAsString(new StopCommand(sentMessages));
       return stopCommandStr.getBytes(StandardCharsets.UTF_8);
    }
 }

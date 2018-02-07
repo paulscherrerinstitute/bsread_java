@@ -21,7 +21,7 @@ import ch.psi.bsread.monitors.Monitor;
 public class SenderConfig {
    public static final String DEFAULT_ADDRESS = "tcp://*:9999";
    public static final int DEFAULT_HIGH_WATER_MARK = 1000;
-   public static final long DEFAULT_LINGER = ReceiverConfig.DEFAULT_LINGER;
+   public static final int DEFAULT_LINGER = ReceiverConfig.DEFAULT_LINGER;
 
    private Context context;
    private final Compression dataHeaderCompression;
@@ -38,7 +38,7 @@ public class SenderConfig {
    private int socketType = ZMQ.PUSH;
    private String address = DEFAULT_ADDRESS;
    private int highWaterMark = DEFAULT_HIGH_WATER_MARK;
-   private long linger = DEFAULT_LINGER;
+   private int linger = DEFAULT_LINGER;
    private Monitor monitor;
    private boolean blockingSend = false;
 
@@ -97,11 +97,11 @@ public class SenderConfig {
       this.highWaterMark = highWaterMark;
    }
 
-   public long getLinger() {
+   public int getLinger() {
       return linger;
    }
 
-   public void setLinger(long linger) {
+   public void setLinger(int linger) {
       this.linger = linger;
    }
 

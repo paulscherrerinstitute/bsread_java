@@ -175,6 +175,31 @@ public class ByteBufferHelper {
       return readByteBuffer(identifier, is, size, byteOrder);
    }
 
+   public static void readByteBuffer(InputStream is, ByteBuffer buffer) throws IOException {
+      int size = buffer.remaining();
+      byte[] valBytes;
+      if (!buffer.hasArray()) {
+         valBytes = TMP_SERIALIZATION_ALLOCATOR.apply(size);
+      } else {
+         valBytes = buffer.array();
+      }
+
+      int len = size;
+      int off = buffer.position();
+      int read;
+      while ((read = is.read(valBytes, off, len)) > 0) {
+         off += read;
+         len -= read;
+      }
+
+      if (!buffer.hasArray()) {
+         // bulk methods are way faster than reading/writing single bytes
+         buffer.put(valBytes, 0, off);
+         // make ready for read
+         buffer.flip();
+      }
+   }
+
    private static ByteBuffer readByteBuffer(byte identifier, InputStream is, int size, ByteOrder byteOrder)
          throws IOException {
       boolean isDirect = ByteBufferHelper.isPositionSet(identifier, DIRECT_POSITION);
