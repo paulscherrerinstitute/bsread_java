@@ -70,8 +70,7 @@ public class CommonExecutors {
    }
 
    public static ExecutorService newCachedThreadPool(int corePoolSize, int maximumPoolSize, int queueSize,
-         String poolName,
-         boolean monitoring) {
+         String poolName, boolean monitoring) {
       ThreadFactory threadFactory =
             new BasicThreadFactory.Builder().namingPattern(poolName + "-%d").build();
 
@@ -80,10 +79,14 @@ public class CommonExecutors {
       }
 
       BlockingQueue<Runnable> workQueue = new SynchronousQueue<Runnable>();
+      // if (maximumPoolSize == Integer.MAX_VALUE) {
+      // workQueue = new SynchronousQueue<Runnable>();
+      // } else {
       // if (queueSize > 0) {
       // workQueue = new LinkedBlockingQueue<>(queueSize);
       // } else {
       // workQueue = new LinkedBlockingQueue<>();
+      // }
       // }
 
       RejectedExecutionHandler rejectedExecutionHandler = DEFAULT_HANDLER;
