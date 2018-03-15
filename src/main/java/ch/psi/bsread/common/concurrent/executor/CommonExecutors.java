@@ -36,7 +36,9 @@ public class CommonExecutors {
    public static ExecutorService newFixedThreadPool(int nThreads, int queueSize, String poolName,
          boolean monitoring) {
       ThreadFactory threadFactory =
-            new BasicThreadFactory.Builder().namingPattern(poolName + "-%d").build();
+            new BasicThreadFactory.Builder()
+            .namingPattern(poolName + "-%d")
+            .build();
 
       if (monitoring) {
          threadFactory = new ExceptionCatchingThreadFactory(threadFactory);
