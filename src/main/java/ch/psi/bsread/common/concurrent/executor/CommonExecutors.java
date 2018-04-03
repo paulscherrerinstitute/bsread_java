@@ -17,7 +17,7 @@ import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 public class CommonExecutors {
    public static final boolean DEFAULT_IS_MONITORING = false;
    public static final int QUEUE_SIZE_UNBOUNDED = -1;
-   public static final int DEFAULT_CORE_POOL_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors());
+   public static final int DEFAULT_CORE_POOL_SIZE = Math.max(4, Runtime.getRuntime().availableProcessors());
    public static final int DEFAULT_MAX_POOL_SIZE = Integer.MAX_VALUE; // 10 * DEFAULT_CORE_POOL_SIZE
    private static final RejectedExecutionHandler DEFAULT_HANDLER = new AbortPolicy();
 
