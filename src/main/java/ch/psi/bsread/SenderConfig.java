@@ -22,6 +22,7 @@ public class SenderConfig {
    public static final String DEFAULT_ADDRESS = "tcp://*:9999";
    public static final int DEFAULT_HIGH_WATER_MARK = 1000;
    public static final int DEFAULT_LINGER = ReceiverConfig.DEFAULT_LINGER;
+   public static final int DEFAULT_SEND_BUFFER_SIZE = ReceiverConfig.DEFAULT_RECEIVE_BUFFER_SIZE;
 
    private Context context;
    private final Compression dataHeaderCompression;
@@ -39,6 +40,7 @@ public class SenderConfig {
    private String address = DEFAULT_ADDRESS;
    private int highWaterMark = DEFAULT_HIGH_WATER_MARK;
    private int linger = DEFAULT_LINGER;
+   private int sendBufferSize = DEFAULT_SEND_BUFFER_SIZE;
    private Monitor monitor;
    private boolean blockingSend = false;
 
@@ -103,6 +105,14 @@ public class SenderConfig {
 
    public void setLinger(int linger) {
       this.linger = linger;
+   }
+   
+   public int getSendBufferSize() {
+      return sendBufferSize;
+   }
+
+   public void setSendBufferSize(int sendBufferSize) {
+      this.sendBufferSize = sendBufferSize;
    }
 
    public String getAddress() {

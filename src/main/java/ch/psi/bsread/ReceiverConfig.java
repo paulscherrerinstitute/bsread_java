@@ -20,6 +20,7 @@ import zmq.MsgAllocator;
 public class ReceiverConfig<V> {
    public static final String DEFAULT_ADDRESS = "tcp://localhost:9999";
    public static final int DEFAULT_HIGH_WATER_MARK = 100;
+   public static final int DEFAULT_RECEIVE_BUFFER_SIZE = 0;
    // drop pending messages immediately when socket is closed
    public static final int DEFAULT_LINGER = 100;
    public static final int DEFAULT_IDLE_CONNECTION_TIMEOUT = Integer.MAX_VALUE;
@@ -35,6 +36,7 @@ public class ReceiverConfig<V> {
    private boolean parallelHandlerProcessing;
    private int highWaterMark = DEFAULT_HIGH_WATER_MARK;
    private int linger = DEFAULT_LINGER;
+   private int receiveBufferSize = DEFAULT_RECEIVE_BUFFER_SIZE;
    private MessageExtractor<V> messageExtractor;
    private ObjectMapper objectMapper;
    private final MsgAllocator msgAllocator;
@@ -119,6 +121,14 @@ public class ReceiverConfig<V> {
 
    public void setLinger(int linger) {
       this.linger = linger;
+   }
+   
+   public int getReceiveBufferSize() {
+      return receiveBufferSize;
+   }
+
+   public void setReceiveBufferSize(int receiveBufferSize) {
+      this.receiveBufferSize = receiveBufferSize;
    }
 
    public MessageExtractor<V> getMessageExtractor() {
