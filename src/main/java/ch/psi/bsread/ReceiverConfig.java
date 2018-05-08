@@ -20,6 +20,7 @@ import zmq.MsgAllocator;
 public class ReceiverConfig<V> {
    public static final String DEFAULT_ADDRESS = "tcp://localhost:9999";
    public static final int DEFAULT_HIGH_WATER_MARK = 100;
+   public static final int CLIENT_HIGH_WATER_MARK = 10000;
    public static final int DEFAULT_RECEIVE_BUFFER_SIZE = 0;
    // drop pending messages immediately when socket is closed
    public static final int DEFAULT_LINGER = 100;
