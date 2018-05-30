@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -24,6 +25,8 @@ import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Value;
+import ch.psi.bsread.monitors.Monitor;
+import ch.psi.bsread.monitors.MonitorConfig;
 
 public class Receiver<V> implements ConfigIReceiver<V> {
    private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
@@ -63,13 +66,25 @@ public class Receiver<V> implements ConfigIReceiver<V> {
          isCleaned.set(false);
          mainLoopExitSync = new CompletableFuture<>();
 
-         socket = this.receiverConfig.getContext().socket(receiverConfig.getSocketType());
+         socket = receiverConfig.getContext().socket(receiverConfig.getSocketType());
          socket.setRcvHWM(receiverConfig.getHighWaterMark());
          socket.setLinger(receiverConfig.getLinger());
          socket.setReceiveBufferSize(receiverConfig.getReceiveBufferSize());
          socket.setReceiveTimeOut((int) receiverConfig.getReceiveTimeout());
          if (receiverConfig.getMsgAllocator() != null) {
             socket.base().setSocketOpt(zmq.ZMQ.ZMQ_MSG_ALLOCATOR, receiverConfig.getMsgAllocator());
+         }
+
+         Monitor monitor = receiverConfig.getMonitor();
+         if (monitor != null) {
+            monitor.start(new MonitorConfig(
+                  receiverConfig.getContext(),
+                  socket,
+                  receiverConfig.getObjectMapper(),
+                  receiverConfig.getSocketType(),
+                  false,
+                  false,
+                  UUID.randomUUID().toString()));
          }
 
          Utils.connect(socket, receiverConfig.getAddress(), receiverConfig.getSocketType());
@@ -108,6 +123,12 @@ public class Receiver<V> implements ConfigIReceiver<V> {
       if (isCleaned.compareAndSet(false, true)) {
          // make sure isRunning is set to false
          isRunning.set(false);
+         
+         Monitor monitor = receiverConfig.getMonitor();
+         if (monitor != null) {
+            monitor.stop();
+         }
+         
          if (socket != null) {
             socket.close();
             socket = null;

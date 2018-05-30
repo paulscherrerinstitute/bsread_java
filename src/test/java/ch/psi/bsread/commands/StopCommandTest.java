@@ -423,6 +423,7 @@ public class StopCommandTest {
 			sender.connect();
 			receiver1.connect();
 			receiver2.connect();
+			TimeUnit.MILLISECONDS.sleep(100);
 
 			ExecutorService executor = Executors.newSingleThreadExecutor();
 			executor.execute(() -> {
@@ -460,7 +461,7 @@ public class StopCommandTest {
 			assertEquals(0, dataHeaderCounter2.getAndSet(0));
 			assertEquals(1, mainHeaderCounter2.getAndSet(0));
 			assertEquals(1, valCounter2.getAndSet(0));
-
+	
 			message = receiver1.receive();
 			assertNull(message);
 			assertEquals(0, dataHeaderCounter1.getAndSet(0));
