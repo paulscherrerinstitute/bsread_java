@@ -18,7 +18,7 @@ public abstract class AbstractMessageSynchronizerLockFree<Msg> extends AbstractM
    protected final AtomicBoolean isRunning = new AtomicBoolean(true);
    private final AtomicBoolean isUnparking = new AtomicBoolean(false);
    protected final NavigableMap<Long, Boolean> completePulseIds = new ConcurrentSkipListMap<>();
-  // ConcurrentLinkedHashMap would be fairer (load distributed more equally)
+   // ConcurrentLinkedHashMap would be fairer (load distributed more equally)
    private final ConcurrentMap<Long, Thread> consumers = new ConcurrentHashMap<>(4, 0.75f, 4);
 
    // map[ pulseId -> map[channel -> value] ]

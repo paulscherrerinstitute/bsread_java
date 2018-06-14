@@ -5,13 +5,19 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class AbstractMessageSynchronizer<Msg> implements MessageSynchronizer<Msg> {
+   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractMessageSynchronizer.class);
    protected static final long INITIAL_LAST_SENT_OR_DELETE_PULSEID = Long.MIN_VALUE;
 
    protected final AtomicLong smallestEverReceivedPulseId = new AtomicLong(Long.MAX_VALUE);
    protected final AtomicLong lastSentOrDeletedPulseId = new AtomicLong(INITIAL_LAST_SENT_OR_DELETE_PULSEID);
 
+   protected final AtomicReference<Runnable> onFirstMessage = new AtomicReference<Runnable>();
    protected final Map<String, SyncChannel> channelConfigs;
 
    public AbstractMessageSynchronizer(Collection<? extends SyncChannel> channels) {
@@ -19,6 +25,22 @@ public abstract class AbstractMessageSynchronizer<Msg> implements MessageSynchro
       for (SyncChannel channel : channels) {
          // this.channelConfigs.put(channel.getName(), new SyncChannelImpl(channel));
          this.channelConfigs.put(channel.getName(), channel);
+      }
+   }
+
+   @Override
+   public void onFirstMessage(final Runnable callback) {
+      onFirstMessage.set(callback);
+   }
+
+   protected void onFirstMessage() {
+      final Runnable callback = onFirstMessage.getAndSet(null);
+      if (callback != null) {
+         try {
+            callback.run();
+         } catch (final Exception e) {
+            LOGGER.warn("Could not run onFirstMessage callback '{}'.", callback, e);
+         }
       }
    }
 

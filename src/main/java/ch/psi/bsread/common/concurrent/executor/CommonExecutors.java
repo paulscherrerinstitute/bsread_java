@@ -26,19 +26,20 @@ public class CommonExecutors {
    }
 
    public static ExecutorService newSingleThreadExecutor(int queueSize, String poolName) {
-      return newFixedThreadPool(1, queueSize, poolName, DEFAULT_IS_MONITORING);
+      return newFixedThreadPool(1, queueSize, poolName, DEFAULT_IS_MONITORING, Thread.NORM_PRIORITY);
    }
 
    public static ExecutorService newFixedThreadPool(int nThreads, String poolName) {
-      return newFixedThreadPool(nThreads, QUEUE_SIZE_UNBOUNDED, poolName, DEFAULT_IS_MONITORING);
+      return newFixedThreadPool(nThreads, QUEUE_SIZE_UNBOUNDED, poolName, DEFAULT_IS_MONITORING, Thread.NORM_PRIORITY);
    }
 
    public static ExecutorService newFixedThreadPool(int nThreads, int queueSize, String poolName,
-         boolean monitoring) {
+         boolean monitoring, int threadPriority) {
       ThreadFactory threadFactory =
             new BasicThreadFactory.Builder()
-            .namingPattern(poolName + "-%d")
-            .build();
+                  .namingPattern(poolName + "-%d")
+                  .priority(threadPriority)
+                  .build();
 
       if (monitoring) {
          threadFactory = new ExceptionCatchingThreadFactory(threadFactory);
@@ -68,13 +69,16 @@ public class CommonExecutors {
    }
 
    public static ExecutorService newCachedThreadPool(int corePoolSize, int maximumPoolSize, String poolName) {
-      return newCachedThreadPool(corePoolSize, maximumPoolSize, QUEUE_SIZE_UNBOUNDED, poolName, DEFAULT_IS_MONITORING);
+      return newCachedThreadPool(corePoolSize, maximumPoolSize, QUEUE_SIZE_UNBOUNDED, poolName, DEFAULT_IS_MONITORING, Thread.NORM_PRIORITY);
    }
 
    public static ExecutorService newCachedThreadPool(int corePoolSize, int maximumPoolSize, int queueSize,
-         String poolName, boolean monitoring) {
+         String poolName, boolean monitoring, int threadPriority) {
       ThreadFactory threadFactory =
-            new BasicThreadFactory.Builder().namingPattern(poolName + "-%d").build();
+            new BasicThreadFactory.Builder()
+                  .namingPattern(poolName + "-%d")
+                  .priority(threadPriority)
+                  .build();
 
       if (monitoring) {
          threadFactory = new ExceptionCatchingThreadFactory(threadFactory);
@@ -116,12 +120,16 @@ public class CommonExecutors {
    }
 
    public static ScheduledExecutorService newScheduledThreadPool(int nThreads, String poolName) {
-      return newScheduledThreadPool(nThreads, poolName, DEFAULT_IS_MONITORING);
+      return newScheduledThreadPool(nThreads, poolName, DEFAULT_IS_MONITORING, Thread.NORM_PRIORITY);
    }
 
-   public static ScheduledExecutorService newScheduledThreadPool(int nThreads, String poolName, boolean monitoring) {
+   public static ScheduledExecutorService newScheduledThreadPool(int nThreads, String poolName, boolean monitoring,
+         int threadPriority) {
       final ThreadFactory threadFactory =
-            new BasicThreadFactory.Builder().namingPattern(poolName + "-%d").build();
+            new BasicThreadFactory.Builder()
+                  .namingPattern(poolName + "-%d")
+                  .priority(threadPriority)
+                  .build();
 
       RejectedExecutionHandler rejectedExecutionHandler = DEFAULT_HANDLER;
 

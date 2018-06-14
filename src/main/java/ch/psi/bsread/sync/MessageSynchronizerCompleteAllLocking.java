@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
  * given by the frequency and the buffer size (assuming there are constantly messages arriving)
  */
 public class MessageSynchronizerCompleteAllLocking<Msg> extends AbstractMessageSynchronizer<Msg> {
-   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSynchronizerCompleteAllLocking.class.getName());
+   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSynchronizerCompleteAllLocking.class);
 
    private final int maxNumberOfMessagesToKeep;
    private final long messageSendTimeoutMillis;
@@ -91,6 +91,8 @@ public class MessageSynchronizerCompleteAllLocking<Msg> extends AbstractMessageS
    @Override
    public void addMessage(Msg msg) {
       if (isRunning.get()) {
+         onFirstMessage();
+         
          final long pulseId = pulseIdProvider.applyAsLong(msg);
          final String channelName = channelNameProvider.apply(msg);
          this.updateSmallestEverReceivedPulseId(pulseId);

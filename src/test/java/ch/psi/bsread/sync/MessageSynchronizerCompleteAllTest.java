@@ -20,6 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 
@@ -79,12 +80,20 @@ public abstract class MessageSynchronizerCompleteAllTest {
       completeQueue.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
       TimeUnit.MILLISECONDS.sleep(INIT_SLEEP);
 
+      final AtomicBoolean firstMessage = new AtomicBoolean(false);
+      final Runnable callback = () -> {
+         firstMessage.set(true);
+      };
+      mBuffer.onFirstMessage(callback);
+
       // Test pattern
       // A(1) A(2) B(2) B(1)
       Timestamp globalTime0 = new Timestamp();
       Timestamp globalTime1 = new Timestamp();
       Timestamp globalTime2 = new Timestamp();
       mBuffer.addMessage(newMessage(1, globalTime1, "A"));
+
+      assertTrue(firstMessage.get());
 
       assertTrue(completeQueue.isEmpty());
       assertEquals(1, mBuffer.getBufferSize());
@@ -3137,236 +3146,441 @@ public abstract class MessageSynchronizerCompleteAllTest {
 
    @Test
    public void testIsPulseIdMissing_01() throws Exception {
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
 
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
 
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(6, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(5, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(2, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(7, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(6, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(5, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(2, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(6, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(5, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(2, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(7, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(6, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(5, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(2, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
 
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
 
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(6, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(5, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(2, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(7, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(6, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(5, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(2, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(6, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(5, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(2, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(7, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(6, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(5, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(2, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
 
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 4, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 5, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 6, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 7, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 8, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 9, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 4, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 5, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 6, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 7, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 8, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 9, (long) 0))));
 
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 4, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 5, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 6, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 7, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 8, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 9, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 4, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 5, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 6, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 7, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 8, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 9, (long) 0))));
 
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 4, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 5, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 6, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 7, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 8, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 9, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 4, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 5, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 6, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 7, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 8, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 9, (long) 0))));
 
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 4, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 5, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 6, (long) 0))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 7, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 8, (long) 0))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 9, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 1, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 2, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 4, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 5, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 6, (long) 0))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 7, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 8, (long) 0))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 9, (long) 0))));
    }
 
    @Test
    public void testIsPulseIdMissing_02() throws Exception {
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
 
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(2, 4, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(2, 4, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
 
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(6, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(5, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(2, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(7, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(6, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(5, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(2, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(6, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(5, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(2, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(7, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(6, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(5, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(2, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
 
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
 
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 0, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 1, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 2, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 3, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 4, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 5, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 1, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 2, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 3, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 4, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 5, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 2))));
 
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(6, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(5, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(2, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(7, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(6, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(5, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(2, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(1, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(8, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(7, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(6, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(5, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(2, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(6, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(5, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(2, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(0, 6, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(7, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(6, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(5, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(2, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(1, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(8, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(7, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(6, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(5, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(2, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
 
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 4, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 5, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 6, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 7, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 8, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 9, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 4, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 5, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 6, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 7, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 8, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 8, Arrays.asList(new SyncChannelImpl((long) 9, (long) 1))));
 
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 4, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 5, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 6, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 7, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 8, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 9, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 4, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 5, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 6, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 7, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 8, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 7, Arrays.asList(new SyncChannelImpl((long) 9, (long) 1))));
 
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 4, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 5, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 6, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 7, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 8, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 9, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 4, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 5, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 6, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 7, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 8, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(4, 7, Arrays.asList(new SyncChannelImpl((long) 9, (long) 1))));
 
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 4, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 5, (long) 1))));
-      assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 6, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 7, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 8, (long) 1))));
-      assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 9, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 1, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 2, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 3, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 4, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 5, (long) 1))));
+      assertTrue(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 6, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 7, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 8, (long) 1))));
+      assertFalse(
+            AbstractMessageSynchronizer.isPulseIdMissing(3, 8, Arrays.asList(new SyncChannelImpl((long) 9, (long) 1))));
    }
 
    @Test
    public void testIsPulseIdMissing_03() throws Exception {
-      Collection<SyncChannel> config = Arrays.asList(new SyncChannelImpl((long) 1, (long) 0), new SyncChannelImpl((long) 1, (long) 0));
+      Collection<SyncChannel> config =
+            Arrays.asList(new SyncChannelImpl((long) 1, (long) 0), new SyncChannelImpl((long) 1, (long) 0));
       assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 0, config));
       assertFalse(AbstractMessageSynchronizer.isPulseIdMissing(0, 1, config));
       assertTrue(AbstractMessageSynchronizer.isPulseIdMissing(0, 2, config));

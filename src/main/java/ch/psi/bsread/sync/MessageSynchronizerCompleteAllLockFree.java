@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MessageSynchronizerCompleteAllLockFree<Msg> extends AbstractMessageSynchronizerLockFree<Msg> {
-   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSynchronizerCompleteAllLockFree.class.getName());
+   private static final Logger LOGGER = LoggerFactory.getLogger(MessageSynchronizerCompleteAllLockFree.class);
    private static final long INITIAL_LAST_SENT_OR_DELETE_PULSEID = Long.MIN_VALUE;
 
    private final int maxNumberOfMessagesToKeep;
@@ -71,6 +71,8 @@ public class MessageSynchronizerCompleteAllLockFree<Msg> extends AbstractMessage
    @Override
    public void addMessage(Msg msg) {
       if (isRunning.get()) {
+         onFirstMessage();
+
          final long pulseId = pulseIdProvider.applyAsLong(msg);
          final String channelName = channelNameProvider.apply(msg);
          this.updateSmallestEverReceivedPulseId(pulseId);
