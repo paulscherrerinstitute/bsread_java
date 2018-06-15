@@ -34,6 +34,11 @@ public class CommonExecutors {
    }
 
    public static ExecutorService newFixedThreadPool(int nThreads, int queueSize, String poolName,
+         boolean monitoring) {
+      return newFixedThreadPool(nThreads, queueSize, poolName, monitoring, Thread.NORM_PRIORITY);
+   }
+
+   public static ExecutorService newFixedThreadPool(int nThreads, int queueSize, String poolName,
          boolean monitoring, int threadPriority) {
       ThreadFactory threadFactory =
             new BasicThreadFactory.Builder()
@@ -69,7 +74,14 @@ public class CommonExecutors {
    }
 
    public static ExecutorService newCachedThreadPool(int corePoolSize, int maximumPoolSize, String poolName) {
-      return newCachedThreadPool(corePoolSize, maximumPoolSize, QUEUE_SIZE_UNBOUNDED, poolName, DEFAULT_IS_MONITORING, Thread.NORM_PRIORITY);
+      return newCachedThreadPool(corePoolSize, maximumPoolSize, QUEUE_SIZE_UNBOUNDED, poolName, DEFAULT_IS_MONITORING,
+            Thread.NORM_PRIORITY);
+   }
+
+   public static ExecutorService newCachedThreadPool(int corePoolSize, int maximumPoolSize, int queueSize,
+         String poolName, boolean monitoring) {
+      return newCachedThreadPool(corePoolSize, maximumPoolSize, queueSize, poolName, monitoring,
+            Thread.NORM_PRIORITY);
    }
 
    public static ExecutorService newCachedThreadPool(int corePoolSize, int maximumPoolSize, int queueSize,
@@ -121,6 +133,10 @@ public class CommonExecutors {
 
    public static ScheduledExecutorService newScheduledThreadPool(int nThreads, String poolName) {
       return newScheduledThreadPool(nThreads, poolName, DEFAULT_IS_MONITORING, Thread.NORM_PRIORITY);
+   }
+
+   public static ScheduledExecutorService newScheduledThreadPool(int nThreads, String poolName, boolean monitoring) {
+      return newScheduledThreadPool(nThreads, poolName, monitoring, Thread.NORM_PRIORITY);
    }
 
    public static ScheduledExecutorService newScheduledThreadPool(int nThreads, String poolName, boolean monitoring,

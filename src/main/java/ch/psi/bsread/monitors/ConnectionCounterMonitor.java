@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.IntConsumer;
 
 import org.slf4j.Logger;
@@ -20,19 +21,26 @@ import zmq.ZMQ.Event;
 // builds on https://github.com/zeromq/jeromq/blob/master/src/test/java/zmq/TestMonitor.java
 public class ConnectionCounterMonitor implements Monitor {
    private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionCounterMonitor.class);
-   private ExecutorService executor;
-   private AtomicInteger connectionCounter = new AtomicInteger();
    private List<IntConsumer> handlers = new ArrayList<>();
+   // keep track of restarts
+   private AtomicLong runIdProvider = new AtomicLong();
+   private final AtomicInteger connectionCounter = new AtomicInteger();
    private MonitorConfig monitorConfig;
 
    public ConnectionCounterMonitor() {}
 
    @Override
    public void start(MonitorConfig monitorConfig) {
+      // keep and use loc refs when Monitor gets reused
+      // e.g. make sure the old Runnable will not accidentally close the executor service
+      final long runId = runIdProvider.incrementAndGet();
+      final ExecutorService executor = CommonExecutors.newSingleThreadExecutor(monitorConfig.getMonitorItentifier());
       this.monitorConfig = monitorConfig;
-      executor = CommonExecutors.newSingleThreadExecutor(monitorConfig.getMonitorItentifier());
+      connectionCounter.set(0);
 
       executor.execute(() -> {
+         updateHandlers(runId, 0);
+
          String address = "inproc://" + monitorConfig.getMonitorItentifier();
          Socket monitorSock = null;
          try {
@@ -45,7 +53,6 @@ public class ConnectionCounterMonitor implements Monitor {
             // monitorSock.setRcvHWM(ReceiverConfig.DEFAULT_HIGH_WATER_MARK);
             // monitorSock.setLinger(ReceiverConfig.DEFAULT_LINGER);
             monitorSock.connect(address);
-
 
             boolean isRunning = true;
             while (isRunning) {
@@ -62,13 +69,11 @@ public class ConnectionCounterMonitor implements Monitor {
                   case zmq.ZMQ.ZMQ_EVENT_CONNECTED:
                      // server bind accepts new connections
                      // client connects
-                     connectionCounter.incrementAndGet();
-                     updateHandlers();
+                     updateHandlers(runId, connectionCounter.incrementAndGet());
                      break;
                   case zmq.ZMQ.ZMQ_EVENT_DISCONNECTED:
                      // server and client disconnect
-                     connectionCounter.decrementAndGet();
-                     updateHandlers();
+                     updateHandlers(runId, connectionCounter.decrementAndGet());
                      break;
                   // case ZMQ.ZMQ_EVENT_CLOSED:
                   // connectionCounter.set(0);
@@ -91,14 +96,13 @@ public class ConnectionCounterMonitor implements Monitor {
             // rest of the remaining code - i.e. closing of the zmq socket
             // Thread.interrupted();
 
+            LOGGER.debug("Stop ConnectionCounter.");
+            
             if (monitorSock != null) {
                monitorSock.close();
             }
 
-            connectionCounter.set(0);
-            updateHandlers();
-            // clear references to ensure they can be gc
-            handlers.clear();
+            updateHandlers(runId, 0);
 
             executor.shutdown();
          }
@@ -108,11 +112,7 @@ public class ConnectionCounterMonitor implements Monitor {
    @Override
    public synchronized void stop(final long sentMessages) {
       if (this.monitorConfig != null) {
-         sendStopMessage(this.monitorConfig.getSocket(), this, sentMessages);
-      }
-
-      if (executor != null) {
-         executor.shutdown();
+         sendStopMessage(this.monitorConfig.getSocket(), this, sentMessages, connectionCounter.get());
       }
    }
 
@@ -121,12 +121,7 @@ public class ConnectionCounterMonitor implements Monitor {
       stop(StopCommand.SENT_MESSAGES_UNKNOWN);
    }
 
-   public int getConnectionCount() {
-      return connectionCounter.get();
-   }
-
    public synchronized void addHandler(IntConsumer handler) {
-      handler.accept(connectionCounter.get());
       handlers.add(handler);
    }
 
@@ -134,22 +129,25 @@ public class ConnectionCounterMonitor implements Monitor {
       handlers.remove(handler);
    }
 
-   private synchronized void updateHandlers() {
-      int currentCounter = connectionCounter.get();
-      for (IntConsumer handler : handlers) {
-         handler.accept(currentCounter);
+   private synchronized void updateHandlers(final long runId, final int connectionCount) {
+      if (runId == runIdProvider.get()) {
+         for (IntConsumer handler : handlers) {
+            handler.accept(connectionCount);
+         }
+      } else {
+         LOGGER.debug("Do not update connection count handlers since there is a new runId.");
       }
    }
 
    public static void sendStopMessage(final Socket socket, final ConnectionCounterMonitor monitor,
-         final long sentMessages) {
+         final long sentMessages, final int connectionCounts) {
       try {
          final MonitorConfig monitorConfig = monitor.monitorConfig;
          if (monitorConfig != null && monitorConfig.isSendStopMessage()) {
             final byte[] stopBytes = StopCommand.getAsBytes(monitorConfig.getObjectMapper(), sentMessages);
             int nrOfStopMsgs = 1;
             if (monitorConfig.getSocketType() == ZMQ.ZMQ_PUSH) {
-               nrOfStopMsgs = monitor.getConnectionCount();
+               nrOfStopMsgs = connectionCounts;
             }
 
             final int blockingFlag = monitorConfig.isBlockingSend() ? 0 : org.zeromq.ZMQ.NOBLOCK;

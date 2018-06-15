@@ -28,7 +28,7 @@ import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Type;
 
 public class ConnectionCounterMonitorTest {
-   private long waitTime = 100;
+   private long waitTime = 500;
 
    @Test
    public void testReceiver_Push_Pull() throws Exception {
@@ -118,22 +118,18 @@ public class ConnectionCounterMonitorTest {
       receiver2.addValueHandler(values -> valCounter2.incrementAndGet());
 
       try {
-         assertEquals(0, connectionMonitor.getConnectionCount());
          assertEquals(0, connectionCounter.get());
 
          sender.connect();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(0, connectionMonitor.getConnectionCount());
          assertEquals(0, connectionCounter.get());
 
          receiver1.connect();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(1, connectionMonitor.getConnectionCount());
          assertEquals(1, connectionCounter.get());
 
          receiver2.connect();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(2, connectionMonitor.getConnectionCount());
          assertEquals(2, connectionCounter.get());
 
          ExecutorService receiverService = Executors.newFixedThreadPool(2);
@@ -171,7 +167,6 @@ public class ConnectionCounterMonitorTest {
          assertEquals(sendCount / 2, loopCounter1.get());
          receiver1.close();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(1, connectionMonitor.getConnectionCount());
          assertEquals(1, connectionCounter.get());
 
          assertEquals(1, dataHeaderCounter2.get());
@@ -180,7 +175,6 @@ public class ConnectionCounterMonitorTest {
          assertEquals(sendCount / 2, loopCounter2.get());
          receiver2.close();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(0, connectionMonitor.getConnectionCount());
          assertEquals(0, connectionCounter.get());
 
          connectionCounter.set(10000);
@@ -271,17 +265,14 @@ public class ConnectionCounterMonitorTest {
       receiver1.addValueHandler(values -> valCounter1.incrementAndGet());
 
       try {
-         assertEquals(0, connectionMonitor.getConnectionCount());
          assertEquals(0, connectionCounter.get());
 
          sender.connect();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(0, connectionMonitor.getConnectionCount());
          assertEquals(0, connectionCounter.get());
 
          receiver1.connect();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(1, connectionMonitor.getConnectionCount());
          assertEquals(1, connectionCounter.get());
 
          ExecutorService receiverService = Executors.newFixedThreadPool(2);
@@ -309,16 +300,145 @@ public class ConnectionCounterMonitorTest {
          assertEquals(sendCount, valCounter1.get());
          assertEquals(sendCount, loopCounter1.get());
 
-         assertEquals(1, connectionMonitor.getConnectionCount());
          assertEquals(1, connectionCounter.get());
          receiver1.close();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(0, connectionMonitor.getConnectionCount());
          assertEquals(0, connectionCounter.get());
 
          connectionCounter.set(10000);
          sender.close();
          // ensure stopped
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+         assertEquals(0, connectionCounter.get());
+
+         receiverService.shutdown();
+
+      } finally {
+         receiver1.close();
+         sender.close();
+      }
+   }
+
+   @Test
+   public void testConnectionCounter_ForReceiver() throws Exception {
+      // see ATEST-907
+      SenderConfig senderConfig = new SenderConfig(
+            SenderConfig.DEFAULT_ADDRESS,
+            new StandardPulseIdProvider(),
+            new TimeProvider() {
+
+               @Override
+               public Timestamp getTime(long pulseId) {
+                  return new Timestamp(pulseId, 0L);
+               }
+            },
+            new MatlabByteConverter());
+      senderConfig.setSocketType(ZMQ.PUSH);
+
+      ScheduledSender sender = new ScheduledSender(senderConfig);
+
+      int size = 2048;
+      Random rand = new Random(0);
+      // Register data sources ...
+      sender.addSource(new DataChannel<double[]>(new ChannelConfig("ABC", Type.Float64, new int[] {size}, 1, 0,
+            ChannelConfig.DEFAULT_ENCODING, Compression.bitshuffle_lz4)) {
+         @Override
+         public double[] getValue(long pulseId) {
+            double[] val = new double[size];
+            for (int i = 0; i < size; ++i) {
+               val[i] = rand.nextDouble();
+            }
+
+            return val;
+         }
+
+         @Override
+         public Timestamp getTime(long pulseId) {
+            return new Timestamp(pulseId, 0L);
+         }
+      });
+      sender.addSource(new DataChannel<double[]>(new ChannelConfig("ABB", Type.Float64, new int[] {size}, 1, 0,
+            ChannelConfig.DEFAULT_ENCODING, Compression.bitshuffle_lz4)) {
+         @Override
+         public double[] getValue(long pulseId) {
+            double[] val = new double[size];
+            for (int i = 0; i < size; ++i) {
+               val[i] = rand.nextDouble();
+            }
+
+            return val;
+         }
+
+         @Override
+         public Timestamp getTime(long pulseId) {
+            return new Timestamp(pulseId, 0L);
+         }
+      });
+
+      ReceiverConfig<Object> config1 =
+            new ReceiverConfig<Object>(
+                  ReceiverConfig.DEFAULT_ADDRESS,
+                  new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+      config1.setSocketType(ZMQ.PULL);
+      ConnectionCounterMonitor connectionMonitor = new ConnectionCounterMonitor();
+      AtomicInteger connectionCounter = new AtomicInteger();
+      connectionMonitor.addHandler((count) -> connectionCounter.set(count));
+      config1.setMonitor(connectionMonitor);
+      final int reconnectTimeoutMS = (int)(5 * waitTime);
+      config1.setIdleConnectionTimeout(reconnectTimeoutMS);
+      Receiver<Object> receiver1 = new BasicReceiver(config1);
+      AtomicLong mainHeaderCounter1 = new AtomicLong();
+      AtomicLong dataHeaderCounter1 = new AtomicLong();
+      AtomicLong valCounter1 = new AtomicLong();
+      AtomicLong loopCounter1 = new AtomicLong();
+      receiver1.addMainHeaderHandler(header -> mainHeaderCounter1.incrementAndGet());
+      receiver1.addDataHeaderHandler(header -> dataHeaderCounter1.incrementAndGet());
+      receiver1.addValueHandler(values -> valCounter1.incrementAndGet());
+
+      try {
+         assertEquals(0, connectionCounter.get());
+
+         receiver1.connect();
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+         assertEquals(0, connectionCounter.get());
+
+         ExecutorService receiverService = Executors.newFixedThreadPool(2);
+         receiverService.execute(() -> {
+            try {
+               while (receiver1.receive() != null) {
+                  loopCounter1.incrementAndGet();
+               }
+            } catch (Throwable t) {
+               System.out.println("Receiver1 executor: " + t.getMessage());
+               t.printStackTrace();
+            }
+         });
+         
+         TimeUnit.SECONDS.sleep(5);
+         
+         sender.connect();
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+         assertEquals(1, connectionCounter.get());
+        
+         // send/receive data
+         int sendCount = 40;
+         for (int i = 0; i < sendCount; ++i) {
+            sender.send();
+            TimeUnit.MILLISECONDS.sleep(1);
+         }
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+
+         assertEquals(1, dataHeaderCounter1.get());
+         assertEquals(sendCount, mainHeaderCounter1.get());
+         assertEquals(sendCount, valCounter1.get());
+         assertEquals(sendCount, loopCounter1.get());
+
+         sender.close();
+         // ensure stopped
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+         assertEquals(0, connectionCounter.get());
+         
+         receiver1.close();
          TimeUnit.MILLISECONDS.sleep(waitTime);
          assertEquals(0, connectionCounter.get());
 
@@ -417,23 +537,18 @@ public class ConnectionCounterMonitorTest {
       receiver2.addValueHandler(values -> valCounter2.incrementAndGet());
 
       try {
-
-         assertEquals(0, connectionMonitor.getConnectionCount());
          assertEquals(0, connectionCounter.get());
 
          sender.connect();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(0, connectionMonitor.getConnectionCount());
          assertEquals(0, connectionCounter.get());
 
          receiver1.connect();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(1, connectionMonitor.getConnectionCount());
          assertEquals(1, connectionCounter.get());
 
          receiver2.connect();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(2, connectionMonitor.getConnectionCount());
          assertEquals(2, connectionCounter.get());
 
          ExecutorService receiverService = Executors.newFixedThreadPool(2);
@@ -471,7 +586,6 @@ public class ConnectionCounterMonitorTest {
          assertEquals(sendCount, loopCounter1.get());
          receiver1.close();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(1, connectionMonitor.getConnectionCount());
          assertEquals(1, connectionCounter.get());
 
          assertEquals(1, dataHeaderCounter2.get());
@@ -480,7 +594,6 @@ public class ConnectionCounterMonitorTest {
          assertEquals(sendCount, loopCounter2.get());
          receiver2.close();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(0, connectionMonitor.getConnectionCount());
          assertEquals(0, connectionCounter.get());
 
          connectionCounter.set(10000);
@@ -571,18 +684,14 @@ public class ConnectionCounterMonitorTest {
       receiver1.addValueHandler(values -> valCounter1.incrementAndGet());
 
       try {
-
-         assertEquals(0, connectionMonitor.getConnectionCount());
          assertEquals(0, connectionCounter.get());
 
          sender.connect();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(0, connectionMonitor.getConnectionCount());
          assertEquals(0, connectionCounter.get());
 
          receiver1.connect();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(1, connectionMonitor.getConnectionCount());
          assertEquals(1, connectionCounter.get());
 
          ExecutorService receiverService = Executors.newFixedThreadPool(2);
@@ -609,12 +718,10 @@ public class ConnectionCounterMonitorTest {
          assertEquals(sendCount, mainHeaderCounter1.get());
          assertEquals(sendCount, valCounter1.get());
          assertEquals(sendCount, loopCounter1.get());
-         
-         assertEquals(1, connectionMonitor.getConnectionCount());
+
          assertEquals(1, connectionCounter.get());
          receiver1.close();
          TimeUnit.MILLISECONDS.sleep(waitTime);
-         assertEquals(0, connectionMonitor.getConnectionCount());
          assertEquals(0, connectionCounter.get());
 
          connectionCounter.set(10000);
