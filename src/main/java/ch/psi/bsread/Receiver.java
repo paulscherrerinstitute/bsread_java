@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,10 +26,11 @@ import ch.psi.bsread.message.DataHeader;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Value;
+import ch.psi.bsread.monitors.ConnectionCounterMonitor;
 import ch.psi.bsread.monitors.Monitor;
 import ch.psi.bsread.monitors.MonitorConfig;
 
-public class Receiver<V> implements ConfigIReceiver<V> {
+public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
    private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
 
    private AtomicBoolean isRunning = new AtomicBoolean();
@@ -77,6 +79,12 @@ public class Receiver<V> implements ConfigIReceiver<V> {
 
          Monitor monitor = receiverConfig.getMonitor();
          if (monitor != null) {
+            if (monitor instanceof ConnectionCounterMonitor) {
+               // in case user is interested in connection counts
+               // we need to make sure a new state is used after reconnect
+               ((ConnectionCounterMonitor) monitor).addHandler(this);
+            }
+
             monitor.start(new MonitorConfig(
                   receiverConfig.getContext(),
                   socket,
@@ -123,12 +131,12 @@ public class Receiver<V> implements ConfigIReceiver<V> {
       if (isCleaned.compareAndSet(false, true)) {
          // make sure isRunning is set to false
          isRunning.set(false);
-         
+
          Monitor monitor = receiverConfig.getMonitor();
          if (monitor != null) {
             monitor.stop();
          }
-         
+
          if (socket != null) {
             socket.close();
             socket = null;
@@ -234,6 +242,14 @@ public class Receiver<V> implements ConfigIReceiver<V> {
          count++;
       }
       return count;
+   }
+
+   @Override
+   public void accept(final int connectionCount) {
+      if (connectionCount <= 0) {
+         // ensures new state after reconnect
+         receiverState = new ReceiverState();
+      }
    }
 
    @Override

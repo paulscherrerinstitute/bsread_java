@@ -1,7 +1,7 @@
 package ch.psi.bsread.monitors;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -21,7 +21,7 @@ import zmq.ZMQ.Event;
 // builds on https://github.com/zeromq/jeromq/blob/master/src/test/java/zmq/TestMonitor.java
 public class ConnectionCounterMonitor implements Monitor {
    private static final Logger LOGGER = LoggerFactory.getLogger(ConnectionCounterMonitor.class);
-   private List<IntConsumer> handlers = new ArrayList<>();
+   private Set<IntConsumer> handlers = new LinkedHashSet<>();
    // keep track of restarts
    private AtomicLong runIdProvider = new AtomicLong();
    private final AtomicInteger connectionCounter = new AtomicInteger();
@@ -37,10 +37,10 @@ public class ConnectionCounterMonitor implements Monitor {
       final ExecutorService executor = CommonExecutors.newSingleThreadExecutor(monitorConfig.getMonitorItentifier());
       this.monitorConfig = monitorConfig;
       connectionCounter.set(0);
+      // make sure first update happens in thread that setups the connection
+      updateHandlers(runId, 0);
 
       executor.execute(() -> {
-         updateHandlers(runId, 0);
-
          String address = "inproc://" + monitorConfig.getMonitorItentifier();
          Socket monitorSock = null;
          try {

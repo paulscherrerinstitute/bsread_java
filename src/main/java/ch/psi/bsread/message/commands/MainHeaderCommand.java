@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -81,7 +82,9 @@ public class MainHeaderCommand extends MainHeader implements Command {
          if (receiverConfig.isParallelHandlerProcessing()) {
             receiver.getMainHeaderHandlers().parallelStream().forEach(handler -> handler.accept(this));
          } else {
-            receiver.getMainHeaderHandlers().forEach(handler -> handler.accept(this));
+            for (final Consumer<MainHeader> handler : receiver.getMainHeaderHandlers()) {
+               handler.accept(this);
+            }
          }
 
          // Receive data header
@@ -109,7 +112,9 @@ public class MainHeaderCommand extends MainHeader implements Command {
                   if (receiverConfig.isParallelHandlerProcessing()) {
                      receiver.getDataHeaderHandlers().parallelStream().forEach(handler -> handler.accept(dataHeader));
                   } else {
-                     receiver.getDataHeaderHandlers().forEach(handler -> handler.accept(dataHeader));
+                     for (final Consumer<DataHeader> handler : receiver.getDataHeaderHandlers()) {
+                        handler.accept(dataHeader);
+                     }
                   }
                } catch (JsonParseException | JsonMappingException e) {
                   String message = String.format("Could not parse DataHeader of '%s'.", receiverConfig.getAddress());
@@ -145,7 +150,9 @@ public class MainHeaderCommand extends MainHeader implements Command {
                if (receiverConfig.isParallelHandlerProcessing()) {
                   receiver.getValueHandlers().parallelStream().forEach(handler -> handler.accept(values));
                } else {
-                  receiver.getValueHandlers().forEach(handler -> handler.accept(values));
+                  for (final Consumer<Map<String, Value<V>>> handler : receiver.getValueHandlers()) {
+                     handler.accept(values);
+                  }
                }
             }
          }
