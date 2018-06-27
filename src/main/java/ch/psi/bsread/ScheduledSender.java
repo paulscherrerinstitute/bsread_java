@@ -19,7 +19,7 @@ public class ScheduledSender {
    private static final Logger LOGGER = LoggerFactory.getLogger(ScheduledSender.class.getName());
 
    // make sure everything is executed from the same Thread
-   private ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+   private ScheduledExecutorService executor;
    private ScheduledFuture<?> fixedRateSender;
    private long bindCloseTimeoutMillis = 0;
 
@@ -34,6 +34,10 @@ public class ScheduledSender {
    }
 
    public void connect() {
+      if(executor == null){
+         executor = Executors.newScheduledThreadPool(1);
+      }
+      
       Future<?> future = executor.submit(() -> {
          try {
             sender.connect();

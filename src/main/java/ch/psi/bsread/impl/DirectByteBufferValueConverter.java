@@ -16,7 +16,7 @@ public class DirectByteBufferValueConverter implements ValueConverter {
 	private long directThreshold;
 
 	public DirectByteBufferValueConverter() {
-		this.directThreshold = ByteBufferAllocator.DEFAULT_DIRECT_THRESHOLD;
+		this.directThreshold = ByteBufferAllocator.DIRECT_ALLOCATION_THRESHOLD;
 		this.allocator = ByteBufferAllocator.DEFAULT_ALLOCATOR;
 	}
 

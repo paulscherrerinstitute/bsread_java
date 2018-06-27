@@ -31,82 +31,93 @@ public class ConnectionCounterMonitor implements Monitor {
 
    @Override
    public void start(MonitorConfig monitorConfig) {
-      // keep and use loc refs when Monitor gets reused
-      // e.g. make sure the old Runnable will not accidentally close the executor service
-      final long runId = runIdProvider.incrementAndGet();
-      final ExecutorService executor = CommonExecutors.newSingleThreadExecutor(monitorConfig.getMonitorItentifier());
-      this.monitorConfig = monitorConfig;
-      connectionCounter.set(0);
-      // make sure first update happens in thread that setups the connection
-      updateHandlers(runId, 0);
+      // setup connection
+      final String address = "inproc://" + monitorConfig.getMonitorItentifier();
+      Socket monitorSock = null;
+      try {
+         monitorConfig.getSocket().base().monitor(address,
+               ZMQ.ZMQ_EVENT_ACCEPTED // server bind accepts
+                     | ZMQ.ZMQ_EVENT_CONNECTED // client connects
+                     | ZMQ.ZMQ_EVENT_DISCONNECTED // server/client disconnect
+                     | ZMQ.ZMQ_EVENT_MONITOR_STOPPED);
+         monitorSock = monitorConfig.getContext().socket(ZMQ.ZMQ_PAIR);
+         // monitorSock.setRcvHWM(ReceiverConfig.DEFAULT_HIGH_WATER_MARK);
+         // monitorSock.setLinger(ReceiverConfig.DEFAULT_LINGER);
+         monitorSock.connect(address);
+      } catch (final Exception e) {
+         monitorSock = null;
+         LOGGER.warn("Could not establish a connection monitor for identifier '{}'.",
+               monitorConfig.getMonitorItentifier());
+      }
 
-      executor.execute(() -> {
-         String address = "inproc://" + monitorConfig.getMonitorItentifier();
-         Socket monitorSock = null;
-         try {
-            monitorConfig.getSocket().base().monitor(address,
-                  ZMQ.ZMQ_EVENT_ACCEPTED // server bind accepts
-                        | ZMQ.ZMQ_EVENT_CONNECTED // client connects
-                        | ZMQ.ZMQ_EVENT_DISCONNECTED // server/client disconnect
-                        | ZMQ.ZMQ_EVENT_MONITOR_STOPPED);
-            monitorSock = monitorConfig.getContext().socket(ZMQ.ZMQ_PAIR);
-            // monitorSock.setRcvHWM(ReceiverConfig.DEFAULT_HIGH_WATER_MARK);
-            // monitorSock.setLinger(ReceiverConfig.DEFAULT_LINGER);
-            monitorSock.connect(address);
+      if (monitorSock != null) {
+         // keep and use loc refs when Monitor gets reused
+         // e.g. make sure the old Runnable will not accidentally close the executor service
+         final long runId = runIdProvider.incrementAndGet();
+         final ExecutorService executor = CommonExecutors.newSingleThreadExecutor(monitorConfig.getMonitorItentifier());
+         this.monitorConfig = monitorConfig;
+         connectionCounter.set(0);
+         // make sure first update happens in thread that setups the connection
+         updateHandlers(runId, 0);
 
-            boolean isRunning = true;
-            while (isRunning) {
+         final Socket monitorSockFinal = monitorSock;
+         executor.execute(() -> {
+            try {
+               boolean isRunning = true;
+               while (isRunning) {
 
-               final Event event = Event.read(monitorSock.base());
+                  final Event event = Event.read(monitorSockFinal.base());
 
-               if (event == null || monitorConfig.getSocket().base().errno() == ZError.ETERM) {
-                  // stop loop
-                  break;
+                  if (event == null || monitorConfig.getSocket().base().errno() == ZError.ETERM) {
+                     // stop loop
+                     break;
+                  }
+
+                  switch (event.event) {
+                     case zmq.ZMQ.ZMQ_EVENT_ACCEPTED:
+                     case zmq.ZMQ.ZMQ_EVENT_CONNECTED:
+                        // server bind accepts new connections
+                        // client connects
+                        updateHandlers(runId, connectionCounter.incrementAndGet());
+                        break;
+                     case zmq.ZMQ.ZMQ_EVENT_DISCONNECTED:
+                        // server and client disconnect
+                        updateHandlers(runId, connectionCounter.decrementAndGet());
+                        break;
+                     // case ZMQ.ZMQ_EVENT_CLOSED:
+                     // connectionCounter.set(0);
+                     // updateHandlers();
+                     // break;
+                     case ZMQ.ZMQ_EVENT_MONITOR_STOPPED:
+                        // stop
+                        isRunning = false;
+                        break;
+                     default:
+                        LOGGER.info("Unexpected event '{}' received for identifier '{} monitoring '{}'", event.event,
+                              monitorConfig.getMonitorItentifier(), event.addr);
+                  }
+               }
+            } catch (Throwable e) {
+               LOGGER.warn("Monitoring zmq connections failed for identifier '{}'.",
+                     monitorConfig.getMonitorItentifier(),
+                     e);
+            } finally {
+               // Clear interrupted state as this might cause problems with the
+               // rest of the remaining code - i.e. closing of the zmq socket
+               // Thread.interrupted();
+
+               LOGGER.debug("Stop ConnectionCounter for identifier '{}'.", monitorConfig.getMonitorItentifier());
+
+               if (monitorSockFinal != null) {
+                  monitorSockFinal.close();
                }
 
-               switch (event.event) {
-                  case zmq.ZMQ.ZMQ_EVENT_ACCEPTED:
-                  case zmq.ZMQ.ZMQ_EVENT_CONNECTED:
-                     // server bind accepts new connections
-                     // client connects
-                     updateHandlers(runId, connectionCounter.incrementAndGet());
-                     break;
-                  case zmq.ZMQ.ZMQ_EVENT_DISCONNECTED:
-                     // server and client disconnect
-                     updateHandlers(runId, connectionCounter.decrementAndGet());
-                     break;
-                  // case ZMQ.ZMQ_EVENT_CLOSED:
-                  // connectionCounter.set(0);
-                  // updateHandlers();
-                  // break;
-                  case ZMQ.ZMQ_EVENT_MONITOR_STOPPED:
-                     // stop
-                     isRunning = false;
-                     break;
-                  default:
-                     LOGGER.info("Unexpected event '{}' received for identifier '{} monitoring '{}'", event.event,
-                           monitorConfig.getMonitorItentifier(), event.addr);
-               }
+               updateHandlers(runId, 0);
+
+               executor.shutdown();
             }
-         } catch (Throwable e) {
-            LOGGER.warn("Monitoring zmq connections failed for identifier '{}'.", monitorConfig.getMonitorItentifier(),
-                  e);
-         } finally {
-            // Clear interrupted state as this might cause problems with the
-            // rest of the remaining code - i.e. closing of the zmq socket
-            // Thread.interrupted();
-
-            LOGGER.debug("Stop ConnectionCounter.");
-            
-            if (monitorSock != null) {
-               monitorSock.close();
-            }
-
-            updateHandlers(runId, 0);
-
-            executor.shutdown();
-         }
-      });
+         });
+      }
    }
 
    @Override

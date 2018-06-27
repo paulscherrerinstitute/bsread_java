@@ -18,7 +18,7 @@ public abstract class AbstractMonitoringExecutorService implements ExecutorServi
 		this.target = target;
 	}
 	
-	protected ThreadPoolExecutor getTarget(){
+	public ThreadPoolExecutor getTarget(){
 		return target;
 	}
 

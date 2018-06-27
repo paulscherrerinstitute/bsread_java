@@ -3,12 +3,15 @@ package ch.psi.bsread;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
@@ -33,18 +36,20 @@ import ch.psi.bsread.monitors.MonitorConfig;
 public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
    private static final Logger LOGGER = LoggerFactory.getLogger(Receiver.class);
 
-   private AtomicBoolean isRunning = new AtomicBoolean();
-   private AtomicBoolean isCleaned = new AtomicBoolean();
+   private final AtomicBoolean isRunning = new AtomicBoolean();
+   private final AtomicBoolean isCleaned = new AtomicBoolean();
    private Socket socket;
 
-   private List<Consumer<MainHeader>> mainHeaderHandlers = new ArrayList<>();
-   private List<Consumer<DataHeader>> dataHeaderHandlers = new ArrayList<>();
-   private List<Consumer<Map<String, Value<V>>>> valueHandlers = new ArrayList<>();
+   private final List<Consumer<MainHeader>> mainHeaderHandlers = new ArrayList<>();
+   private final List<Consumer<DataHeader>> dataHeaderHandlers = new ArrayList<>();
+   private final List<Consumer<Map<String, Value<V>>>> valueHandlers = new ArrayList<>();
+   private final Set<IntConsumer> connectionHandlers = new LinkedHashSet<>();
+   private final AtomicInteger connectionCountUpdate = new AtomicInteger(Integer.MIN_VALUE);
 
    private ReceiverConfig<V> receiverConfig;
-   private ReceiverState receiverState = new ReceiverState();
+   private volatile ReceiverState receiverState = new ReceiverState();
+   private ConnectionCounterMonitor connectionMonitor;
 
-   private long idleConnectionDuration = 0;
    private CompletableFuture<Void> mainLoopExitSync;
    // helps to speedup close in case main receiving thread is not blocked in
    // receiving
@@ -77,10 +82,24 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
             socket.base().setSocketOpt(zmq.ZMQ.ZMQ_MSG_ALLOCATOR, receiverConfig.getMsgAllocator());
          }
 
+         // check if interested in connection updates
+         if (!connectionHandlers.isEmpty()) {
+            connectionMonitor = new ConnectionCounterMonitor();
+            connectionMonitor.addHandler(this);
+            connectionMonitor.start(new MonitorConfig(
+                  receiverConfig.getContext(),
+                  socket,
+                  receiverConfig.getObjectMapper(),
+                  receiverConfig.getSocketType(),
+                  false,
+                  false,
+                  UUID.randomUUID().toString()));
+         }
+
          Monitor monitor = receiverConfig.getMonitor();
          if (monitor != null) {
             if (monitor instanceof ConnectionCounterMonitor) {
-               // in case user is interested in connection counts
+               // in case user is interested async update of connection counts
                // we need to make sure a new state is used after reconnect
                ((ConnectionCounterMonitor) monitor).addHandler(this);
             }
@@ -132,9 +151,8 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
          // make sure isRunning is set to false
          isRunning.set(false);
 
-         Monitor monitor = receiverConfig.getMonitor();
-         if (monitor != null) {
-            monitor.stop();
+         if (connectionMonitor != null) {
+            connectionMonitor.stop();
          }
 
          if (socket != null) {
@@ -153,10 +171,12 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
       Command command = null;
       final ObjectMapper objectMapper = receiverConfig.getObjectMapper();
       byte[] mainHeaderBytes;
-      idleConnectionDuration = 0;
+      long idleConnectionDuration = 0;
 
       try {
          while (message == null && isRunning.get()) {
+            handleConnectionChanges();
+
             mainHeaderBytes = null;
             /*
              * It can happen that bytes received do not represent the start of a new multipart
@@ -172,9 +192,9 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
                   command = objectMapper.readValue(mainHeaderBytes, Command.class);
                   message = command.process(this);
                } else {
+                  // not that exact but overflow aware and efficient
                   idleConnectionDuration += receiverConfig.getReceiveTimeout();
                   if (idleConnectionDuration > receiverConfig.getIdleConnectionTimeout()) {
-
                      switch (receiverConfig.getIdleConnectionTimeoutBehavior()) {
                         case RECONNECT:
                            LOGGER.info("Reconnect '{}' due to timeout.", receiverConfig.getAddress());
@@ -246,9 +266,26 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
 
    @Override
    public void accept(final int connectionCount) {
+      connectionCountUpdate.set(connectionCount);
+
       if (connectionCount <= 0) {
          // ensures new state after reconnect
          receiverState = new ReceiverState();
+      }
+   }
+
+   protected void handleConnectionChanges() {
+      final int connectionCount = connectionCountUpdate.getAndSet(Integer.MIN_VALUE);
+
+      if (connectionCount != Integer.MIN_VALUE) {
+         // make sure connection handlers are executed from the receiving thread
+         if (receiverConfig.isParallelHandlerProcessing()) {
+            getConnectionHandlers().parallelStream().forEach(handler -> handler.accept(connectionCount));
+         } else {
+            for (final IntConsumer handler : getConnectionHandlers()) {
+               handler.accept(connectionCount);
+            }
+         }
       }
    }
 
@@ -304,5 +341,18 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
 
    public void removeDataHeaderHandler(Consumer<DataHeader> handler) {
       dataHeaderHandlers.remove(handler);
+   }
+
+   @Override
+   public Collection<IntConsumer> getConnectionHandlers() {
+      return connectionHandlers;
+   }
+
+   public void addConnectionHandler(IntConsumer handler) {
+      connectionHandlers.add(handler);
+   }
+
+   public void removeConnectionHandler(IntConsumer handler) {
+      connectionHandlers.remove(handler);
    }
 }

@@ -17,124 +17,157 @@ import sun.misc.JavaNioAccess.BufferPool;
 import sun.misc.VM;
 
 public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
-	private static final String DEFAULT_DIRECT_THRESHOLD_PARAM = "DirectMemoryAllocationThreshold";
-	public static final Logger LOGGER = LoggerFactory.getLogger(ByteBufferAllocator.class);
+   private static final String DEFAULT_DIRECT_ALLOCATION_THRESHOLD_PARAM = "DirectMemoryAllocationThreshold";
+   private static final String DEFAULT_DIRECT_CLEANER_THRESHOLD_PARAM = "DirectMemoryCleanerThreshold";
+   public static final Logger LOGGER = LoggerFactory.getLogger(ByteBufferAllocator.class);
 
-	static {
-		long threshold = Integer.MAX_VALUE; // 64 * 1024; // 64KB
-		String thresholdStr = System.getProperty(DEFAULT_DIRECT_THRESHOLD_PARAM);
+   static {
+      long directAllocationThreshold = Integer.MAX_VALUE; // 64 * 1024; // 64KB
+      String thresholdStr = System.getProperty(DEFAULT_DIRECT_ALLOCATION_THRESHOLD_PARAM);
 
-		long multiplier = 1; // for the byte case.
-		if (thresholdStr != null) {
-			thresholdStr = thresholdStr.toLowerCase().trim();
+      long multiplier = 1; // for the byte case.
+      if (thresholdStr != null) {
+         thresholdStr = thresholdStr.toLowerCase().trim();
 
-			if (thresholdStr.contains("k")) {
-				multiplier = 1024;
-			} else if (thresholdStr.contains("m")) {
-				multiplier = 1048576;
-			} else if (thresholdStr.contains("g")) {
-				multiplier = 1073741824;
-			} else if (thresholdStr.contains("t")) {
-				multiplier = 1073741824 * 1024;
-			}
-			thresholdStr = thresholdStr.replaceAll("[^\\d]", "");
+         if (thresholdStr.contains("k")) {
+            multiplier = 1024;
+         } else if (thresholdStr.contains("m")) {
+            multiplier = 1048576;
+         } else if (thresholdStr.contains("g")) {
+            multiplier = 1073741824;
+         } else if (thresholdStr.contains("t")) {
+            multiplier = 1073741824 * 1024;
+         }
+         thresholdStr = thresholdStr.replaceAll("[^\\d]", "");
 
-			try {
-				threshold = Long.parseLong(thresholdStr) * multiplier;
-			} catch (Exception e) {
-				LOGGER.warn("Could not parse '{}' containing '{}' as bytes.", DEFAULT_DIRECT_THRESHOLD_PARAM, thresholdStr,
-						e);
-			}
-		}
-
-		DEFAULT_DIRECT_THRESHOLD = threshold;
-	}
-	public static final long DEFAULT_DIRECT_THRESHOLD;
-	public static final ByteBufferAllocator DEFAULT_ALLOCATOR = new ByteBufferAllocator(
-			ByteBufferAllocator.DEFAULT_DIRECT_THRESHOLD);
-
-	public static final long DEFAULT_DIRECT_CLEAN_THRESHOLD = (long) (0.9 * VM.maxDirectMemory());
-	private static final DirectBufferCleaner DIRECT_BUFFER_CLEANER = new DirectBufferCleaner(
-			DEFAULT_DIRECT_CLEAN_THRESHOLD);
-	private static BufferPool DIRECT_BUFFER_POOL = sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool();
-
-	private long directThreshold;
-
-	public ByteBufferAllocator() {
-		this(Integer.MAX_VALUE);
-	}
-
-	public ByteBufferAllocator(long directThreshold) {
-		this.directThreshold = directThreshold;
-	}
-
-	@Override
-	public ByteBuffer apply(int nBytes) {
-	   return allocate(nBytes);
-	}
-	
-	public ByteBuffer allocate(int nBytes){
-       if (nBytes < directThreshold) {
-          return allocateHeap(nBytes);
-      } else {
-          return allocateDirect(nBytes);
+         try {
+            directAllocationThreshold = Long.parseLong(thresholdStr) * multiplier;
+         } catch (Exception e) {
+            LOGGER.warn("Could not parse '{}' containing '{}' as bytes.", DEFAULT_DIRECT_ALLOCATION_THRESHOLD_PARAM,
+                  thresholdStr, e);
+         }
       }
-	}
-	
-	public ByteBuffer allocateHeap(int nBytes){
-	   return ByteBuffer.allocate(nBytes);
-	}
-	
-	public ByteBuffer allocateDirect(int nBytes){
-       DIRECT_BUFFER_CLEANER.allocateBytes(nBytes);
-       return ByteBuffer.allocateDirect(nBytes);
-	}
+      DIRECT_ALLOCATION_THRESHOLD = directAllocationThreshold;
+      LOGGER.info("Allocate direct memory if junks get bigger than '{}' bytes.", directAllocationThreshold);
 
-	// it happened that DirectBuffer memory was not reclaimed. The cause was was
-	// not enough gc pressure as there were not enough Object created on the jvm
-	// heap and thus gc (which indirectly reclaims DirectByteBuffer's memory)
-	// was not executed enought.
-	private static class DirectBufferCleaner {
-		private final static long DELTA_TIME = TimeUnit.SECONDS.toMillis(10);
-		private final long gcThreshold;
-		private final AtomicLong earliestNextTime = new AtomicLong(System.currentTimeMillis());
-		private final AtomicReference<Object> syncRef = new AtomicReference<>();
-		private final Object syncObj = new Object();
-		private final Runnable gcRunnable = () -> {
-			earliestNextTime.set(System.currentTimeMillis() + DELTA_TIME);
+      double directMemoryCleanerThreshold = 0.9;
+      thresholdStr = System.getProperty(DEFAULT_DIRECT_CLEANER_THRESHOLD_PARAM);
+      if (thresholdStr != null) {
+         try {
+            directMemoryCleanerThreshold = Double.parseDouble(thresholdStr);
+         } catch (Exception e) {
+            LOGGER.warn("Could not parse '{}' containing '{}' as double.", DEFAULT_DIRECT_CLEANER_THRESHOLD_PARAM,
+                  thresholdStr, e);
+         }
+      }
+      if (directMemoryCleanerThreshold > 0.9) {
+         LOGGER.warn("'{}' being '{}' is bigger than '0.9'. Redefine to that value.",
+               DEFAULT_DIRECT_CLEANER_THRESHOLD_PARAM, thresholdStr);
+         directMemoryCleanerThreshold = 0.9;
+      } else if (directMemoryCleanerThreshold < 0.25) {
+         LOGGER.warn("'{}' being '{}' is smaller than '0.25'. Redefine to that value.",
+               DEFAULT_DIRECT_CLEANER_THRESHOLD_PARAM, thresholdStr);
+         directMemoryCleanerThreshold = 0.25;
+      }
+      final long maxDirectMemory = VM.maxDirectMemory();
+      DIRECT_CLEANER_THRESHOLD = (long) (directMemoryCleanerThreshold * maxDirectMemory);
+      LOGGER.info(
+            "Run explicit GC if allocated direct memory is bigger than '{}%' of the max direct memory of '{}' bytes.",
+            (int) (directMemoryCleanerThreshold * 100), maxDirectMemory);
+   }
 
-			System.gc();
-			LOGGER.info("GC finished.");
+   public static final long DIRECT_ALLOCATION_THRESHOLD;
+   public static final ByteBufferAllocator DEFAULT_ALLOCATOR = new ByteBufferAllocator(
+         ByteBufferAllocator.DIRECT_ALLOCATION_THRESHOLD);
 
-			// inform that gc finished
-			syncRef.set(null);
-		};
-		private final Deferred<ExecutorService> gcService = new Deferred<>(
-				() -> CommonExecutors.newSingleThreadExecutor("DirectBufferCleaner"));
+   public static final long DIRECT_CLEANER_THRESHOLD;
+   private static final DirectBufferCleaner DIRECT_BUFFER_CLEANER = new DirectBufferCleaner(
+         DIRECT_CLEANER_THRESHOLD);
+   private static BufferPool DIRECT_BUFFER_POOL = sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool();
 
-		public DirectBufferCleaner(long gcThreshold) {
-			this.gcThreshold = gcThreshold;
-		}
+   private long directThreshold;
 
-		public void allocateBytes(int nBytes) {
-			// long totalDirectBytes = allocatedBytes.addAndGet(nBytes);
+   public ByteBufferAllocator() {
+      this(Integer.MAX_VALUE);
+   }
 
-			// see
-			// https://docs.oracle.com/javase/8/docs/api/java/lang/management/GarbageCollectorMXBean.html
-			// and
-			// https://docs.oracle.com/javase/8/docs/api/java/lang/management/MemoryPoolMXBean.html
-			// for more info on GC
-			if (System.currentTimeMillis() > earliestNextTime.get() && DIRECT_BUFFER_POOL.getMemoryUsed() > gcThreshold && syncRef.compareAndSet(null, syncObj)) {
-				LOGGER.info("Perform GC with '{}' direct bytes and '{}' threshold.", DIRECT_BUFFER_POOL.getMemoryUsed(), gcThreshold);
+   public ByteBufferAllocator(long directThreshold) {
+      this.directThreshold = directThreshold;
+   }
 
-				// see also:
-				// https://github.com/apache/hbase/blob/master/hbase-server/src/main/java/org/apache/hadoop/hbase/util/DirectMemoryUtils.java
-				// -> destroyDirectByteBuffer()
-				// or:
-				// https://apache.googlesource.com/flume/+/trunk/flume-ng-core/src/main/java/org/apache/flume/tools/DirectMemoryUtils.java
-				// -> clean()
-				gcService.get().execute(gcRunnable);
-			}
-		}
-	}
+   @Override
+   public ByteBuffer apply(int nBytes) {
+      return allocate(nBytes);
+   }
+
+   public ByteBuffer allocate(int nBytes) {
+      if (nBytes < directThreshold) {
+         return allocateHeap(nBytes);
+      } else {
+         return allocateDirect(nBytes);
+      }
+   }
+
+   public ByteBuffer allocateHeap(int nBytes) {
+      return ByteBuffer.allocate(nBytes);
+   }
+
+   public ByteBuffer allocateDirect(int nBytes) {
+      DIRECT_BUFFER_CLEANER.allocateBytes(nBytes);
+      return ByteBuffer.allocateDirect(nBytes);
+   }
+
+   // it happened that DirectBuffer memory was not reclaimed. The cause was was
+   // not enough gc pressure as there were not enough Object created on the jvm
+   // heap and thus gc (which indirectly reclaims DirectByteBuffer's memory)
+   // was not executed enought.
+   private static class DirectBufferCleaner {
+      private final static long DELTA_TIME = TimeUnit.SECONDS.toMillis(2);
+      private final long gcThreshold;
+      private final AtomicLong earliestNextTime = new AtomicLong(System.currentTimeMillis());
+      private final AtomicReference<Object> syncRef = new AtomicReference<>();
+      private final Object syncObj = new Object();
+      private final Runnable gcRunnable = () -> {
+         earliestNextTime.set(System.currentTimeMillis() + DELTA_TIME);
+
+         try {
+            System.gc();
+            LOGGER.info("Explicit GC finished.");
+         } catch (final Exception e) {
+            LOGGER.warn("Issues with explicit GC.", e);
+         } finally {
+            // inform that gc finished
+            syncRef.set(null);
+         }
+      };
+      private final Deferred<ExecutorService> gcService = new Deferred<>(
+            () -> CommonExecutors.newSingleThreadExecutor("DirectBufferCleaner"));
+
+      public DirectBufferCleaner(long gcThreshold) {
+         this.gcThreshold = gcThreshold;
+      }
+
+      public void allocateBytes(int nBytes) {
+         // long totalDirectBytes = allocatedBytes.addAndGet(nBytes);
+
+         // see
+         // https://docs.oracle.com/javase/8/docs/api/java/lang/management/GarbageCollectorMXBean.html
+         // and
+         // https://docs.oracle.com/javase/8/docs/api/java/lang/management/MemoryPoolMXBean.html
+         // for more info on GC
+         if (System.currentTimeMillis() > earliestNextTime.get()
+               && DIRECT_BUFFER_POOL.getMemoryUsed() + nBytes > gcThreshold
+               && syncRef.compareAndSet(null, syncObj)) {
+            LOGGER.info("Perform explicit GC.");
+
+            // see also:
+            // https://github.com/apache/hbase/blob/master/hbase-server/src/main/java/org/apache/hadoop/hbase/util/DirectMemoryUtils.java
+            // -> destroyDirectByteBuffer()
+            // or:
+            // https://apache.googlesource.com/flume/+/trunk/flume-ng-core/src/main/java/org/apache/flume/tools/DirectMemoryUtils.java
+            // -> clean()
+            gcService.get().execute(gcRunnable);
+         }
+      }
+   }
 }
