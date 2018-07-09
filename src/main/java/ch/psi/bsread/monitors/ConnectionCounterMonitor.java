@@ -112,6 +112,7 @@ public class ConnectionCounterMonitor implements Monitor {
                   monitorSockFinal.close();
                }
 
+               // only takes effect if not restarted yet (due to runId)
                updateHandlers(runId, 0);
 
                executor.shutdown();
@@ -130,6 +131,10 @@ public class ConnectionCounterMonitor implements Monitor {
    @Override
    public void stop() {
       stop(StopCommand.SENT_MESSAGES_UNKNOWN);
+   }
+
+   public void disableUpdate() {
+      runIdProvider.incrementAndGet();
    }
 
    public synchronized void addHandler(IntConsumer handler) {

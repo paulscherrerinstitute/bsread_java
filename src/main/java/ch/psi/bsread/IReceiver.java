@@ -55,9 +55,16 @@ public interface IReceiver<V> extends Closeable {
    Collection<Consumer<DataHeader>> getDataHeaderHandlers();
 
    /**
-    * Provides access to the ConnectionHandlers
+    * Provides access to the connection count handlers
     * 
     * @return Collection The handlers
     */
-   Collection<IntConsumer> getConnectionHandlers();
+   Collection<IntConsumer> getConnectionCountHandlers();
+
+   /**
+    * Provides access to the connection idle handlers
+    * 
+    * @return Collection The handlers
+    */
+   Collection<Consumer<Boolean>> getConnectionIdleHandlers();
 }

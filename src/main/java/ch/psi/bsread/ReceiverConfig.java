@@ -14,7 +14,6 @@ import ch.psi.bsread.command.PolymorphicCommandMixIn;
 import ch.psi.bsread.common.concurrent.singleton.Deferred;
 import ch.psi.bsread.configuration.Channel;
 import ch.psi.bsread.impl.StandardMessageExtractor;
-import ch.psi.bsread.monitors.Monitor;
 
 import zmq.MsgAllocator;
 
@@ -44,7 +43,6 @@ public class ReceiverConfig<V> {
    private final MsgAllocator msgAllocator;
    private int socketType = ZMQ.PULL;
    private String address = DEFAULT_ADDRESS;
-   private Monitor monitor;
    private int receiveTimeout = DEFAULT_RECEIVE_TIMEOUT;
    private int idleConnectionTimeout = ReceiverConfig.DEFAULT_IDLE_CONNECTION_TIMEOUT;
    private IdleConnectionTimeoutBehavior idleConnectionTimeoutBehavior = IdleConnectionTimeoutBehavior.RECONNECT;
@@ -170,14 +168,6 @@ public class ReceiverConfig<V> {
 
    public String getAddress() {
       return address;
-   }
-   
-   public Monitor getMonitor() {
-      return monitor;
-   }
-
-   public void setMonitor(Monitor monitor) {
-      this.monitor = monitor;
    }
 
    /**

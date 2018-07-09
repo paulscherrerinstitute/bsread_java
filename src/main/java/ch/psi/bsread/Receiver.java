@@ -12,6 +12,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
@@ -30,7 +31,6 @@ import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Value;
 import ch.psi.bsread.monitors.ConnectionCounterMonitor;
-import ch.psi.bsread.monitors.Monitor;
 import ch.psi.bsread.monitors.MonitorConfig;
 
 public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
@@ -43,8 +43,14 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
    private final List<Consumer<MainHeader>> mainHeaderHandlers = new ArrayList<>();
    private final List<Consumer<DataHeader>> dataHeaderHandlers = new ArrayList<>();
    private final List<Consumer<Map<String, Value<V>>>> valueHandlers = new ArrayList<>();
-   private final Set<IntConsumer> connectionHandlers = new LinkedHashSet<>();
+   private final Set<IntConsumer> connectionCountHandlers = new LinkedHashSet<>();
    private final AtomicInteger connectionCountUpdate = new AtomicInteger(Integer.MIN_VALUE);
+   private final AtomicInteger connectionCountPrev = new AtomicInteger(connectionCountUpdate.get());
+   private final AtomicBoolean reconnecting = new AtomicBoolean(false);
+   private final Set<Consumer<Boolean>> connectionIdleHandlers = new LinkedHashSet<>();
+   private final AtomicReference<Boolean> connectionIdleUpdate = new AtomicReference<>(Boolean.TRUE);
+   private final AtomicReference<Boolean> connectionIdlePrev = new AtomicReference<>(!connectionIdleUpdate.get());
+
 
    private ReceiverConfig<V> receiverConfig;
    private volatile ReceiverState receiverState = new ReceiverState();
@@ -83,28 +89,12 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
          }
 
          // check if interested in connection updates
-         if (!connectionHandlers.isEmpty()) {
-            connectionMonitor = new ConnectionCounterMonitor();
-            connectionMonitor.addHandler(this);
-            connectionMonitor.start(new MonitorConfig(
-                  receiverConfig.getContext(),
-                  socket,
-                  receiverConfig.getObjectMapper(),
-                  receiverConfig.getSocketType(),
-                  false,
-                  false,
-                  UUID.randomUUID().toString()));
-         }
-
-         Monitor monitor = receiverConfig.getMonitor();
-         if (monitor != null) {
-            if (monitor instanceof ConnectionCounterMonitor) {
-               // in case user is interested async update of connection counts
-               // we need to make sure a new state is used after reconnect
-               ((ConnectionCounterMonitor) monitor).addHandler(this);
+         if (!connectionCountHandlers.isEmpty()) {
+            if (connectionMonitor == null) {
+               connectionMonitor = new ConnectionCounterMonitor();
+               connectionMonitor.addHandler(this);
             }
-
-            monitor.start(new MonitorConfig(
+            connectionMonitor.start(new MonitorConfig(
                   receiverConfig.getContext(),
                   socket,
                   receiverConfig.getObjectMapper(),
@@ -125,6 +115,10 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
       if (isRunning.compareAndSet(true, false)) {
          LOGGER.info("Receiver '{}' stopping...", this.receiverConfig.getAddress());
 
+         // set idle connection
+         accept(true);
+         // set connection count
+         accept(0);
          if (Thread.currentThread().equals(receivingThread)) {
             // is receiving thread -> do cleanup
             cleanup();
@@ -146,12 +140,13 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
       }
    }
 
-   protected void cleanup() {
+   protected boolean cleanup() {
       if (isCleaned.compareAndSet(false, true)) {
          // make sure isRunning is set to false
          isRunning.set(false);
 
          if (connectionMonitor != null) {
+            connectionMonitor.disableUpdate();
             connectionMonitor.stop();
          }
 
@@ -162,6 +157,10 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
          mainLoopExitSync.complete(null);
          receivingThread = null;
          LOGGER.info("Receiver '{}' stopped.", this.receiverConfig.getAddress());
+
+         return true;
+      } else {
+         return false;
       }
    }
 
@@ -175,7 +174,8 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
 
       try {
          while (message == null && isRunning.get()) {
-            handleConnectionChanges();
+            handleConnectionIdleChanges();
+            handleConnectionCountChanges();
 
             mainHeaderBytes = null;
             /*
@@ -188,19 +188,29 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
                mainHeaderBytes = socket.recv();
 
                if (mainHeaderBytes != null) {
+                  // idle connection
+                  handleConnectionIdleChanges(false);
                   // test if mainHaderBytes can be interpreted as Command
                   command = objectMapper.readValue(mainHeaderBytes, Command.class);
                   message = command.process(this);
                } else {
                   // not that exact but overflow aware and efficient
                   idleConnectionDuration += receiverConfig.getReceiveTimeout();
-                  if (idleConnectionDuration > receiverConfig.getIdleConnectionTimeout()) {
+                  if (isRunning.get() && idleConnectionDuration > receiverConfig.getIdleConnectionTimeout()) {
+                     handleConnectionIdleChanges(true);
+
                      switch (receiverConfig.getIdleConnectionTimeoutBehavior()) {
                         case RECONNECT:
                            LOGGER.info("Reconnect '{}' due to timeout.", receiverConfig.getAddress());
                            message = null;
-                           this.cleanup();
-                           this.connect();
+                           reconnecting.set(true);
+                           // prevent reconnection if other thread closes
+                           if (cleanup()) {
+                              connect();
+                           } else {
+                              isRunning.set(false);
+                           }
+                           reconnecting.set(false);
                            receivingThread = Thread.currentThread();
                            break;
                         case STOP:
@@ -247,6 +257,8 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
          if (!isRunning.get()) {
             message = null;
             cleanup();
+            handleConnectionIdleChanges();
+            handleConnectionCountChanges();
          }
       }
 
@@ -266,24 +278,53 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
 
    @Override
    public void accept(final int connectionCount) {
-      connectionCountUpdate.set(connectionCount);
+      if (!reconnecting.get()) {
+         connectionCountUpdate.set(connectionCount);
 
-      if (connectionCount <= 0) {
-         // ensures new state after reconnect
-         receiverState = new ReceiverState();
+         if (connectionCount <= 0) {
+            // make sure disconnects (without becoming idle) provide new DataHeader
+            receiverState = new ReceiverState();
+            // make sure is idle
+            accept(true);
+         }
       }
    }
 
-   protected void handleConnectionChanges() {
+   protected void handleConnectionCountChanges() {
       final int connectionCount = connectionCountUpdate.getAndSet(Integer.MIN_VALUE);
 
-      if (connectionCount != Integer.MIN_VALUE) {
+      if (connectionCount != Integer.MIN_VALUE && connectionCountPrev.getAndSet(connectionCount) != connectionCount) {
          // make sure connection handlers are executed from the receiving thread
          if (receiverConfig.isParallelHandlerProcessing()) {
-            getConnectionHandlers().parallelStream().forEach(handler -> handler.accept(connectionCount));
+            getConnectionCountHandlers().parallelStream().forEach(handler -> handler.accept(connectionCount));
          } else {
-            for (final IntConsumer handler : getConnectionHandlers()) {
+            for (final IntConsumer handler : getConnectionCountHandlers()) {
                handler.accept(connectionCount);
+            }
+         }
+      }
+   }
+
+   public void accept(final boolean connectionIdle) {
+      connectionIdleUpdate.set(connectionIdle);
+   }
+
+   protected void handleConnectionIdleChanges(final boolean connectionIdle) {
+      accept(connectionIdle);
+      handleConnectionIdleChanges();
+   }
+
+   protected void handleConnectionIdleChanges() {
+      final Boolean connectionIdle = connectionIdleUpdate.getAndSet(null);
+
+      if (connectionIdle != null
+            && connectionIdlePrev.getAndSet(connectionIdle).booleanValue() != connectionIdle.booleanValue()) {
+         // make sure connection handlers are executed from the receiving thread
+         if (receiverConfig.isParallelHandlerProcessing()) {
+            getConnectionIdleHandlers().parallelStream().forEach(handler -> handler.accept(connectionIdle));
+         } else {
+            for (final Consumer<Boolean> handler : getConnectionIdleHandlers()) {
+               handler.accept(connectionIdle);
             }
          }
       }
@@ -344,15 +385,28 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
    }
 
    @Override
-   public Collection<IntConsumer> getConnectionHandlers() {
-      return connectionHandlers;
+   public Collection<IntConsumer> getConnectionCountHandlers() {
+      return connectionCountHandlers;
    }
 
-   public void addConnectionHandler(IntConsumer handler) {
-      connectionHandlers.add(handler);
+   public void addConnectionCountHandler(IntConsumer handler) {
+      connectionCountHandlers.add(handler);
    }
 
-   public void removeConnectionHandler(IntConsumer handler) {
-      connectionHandlers.remove(handler);
+   public void removeConnectionCountHandler(IntConsumer handler) {
+      connectionCountHandlers.remove(handler);
+   }
+
+   @Override
+   public Collection<Consumer<Boolean>> getConnectionIdleHandlers() {
+      return connectionIdleHandlers;
+   }
+
+   public void addConnectionIdleHandler(Consumer<Boolean> handler) {
+      connectionIdleHandlers.add(handler);
+   }
+
+   public void removeConnectionIdleHandler(Consumer<Boolean> handler) {
+      connectionIdleHandlers.remove(handler);
    }
 }
