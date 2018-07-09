@@ -3,7 +3,7 @@ apply plugin: 'eclipse'
 
 sourceCompatibility = 1.8
 
-version = '3.5.3'
+version = '3.5.4'
 
 repositories {
     mavenCentral()
