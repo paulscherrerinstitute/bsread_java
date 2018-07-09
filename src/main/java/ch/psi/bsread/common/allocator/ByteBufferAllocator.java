@@ -141,7 +141,8 @@ public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
          }
       };
       private final Deferred<ExecutorService> gcService = new Deferred<>(
-            () -> CommonExecutors.newSingleThreadExecutor("DirectBufferCleaner"));
+            () -> CommonExecutors.newSingleThreadExecutor(CommonExecutors.QUEUE_SIZE_UNBOUNDED, "DirectBufferCleaner",
+                  CommonExecutors.DEFAULT_IS_MONITORING, Thread.MAX_PRIORITY));
 
       public DirectBufferCleaner(long gcThreshold) {
          this.gcThreshold = gcThreshold;

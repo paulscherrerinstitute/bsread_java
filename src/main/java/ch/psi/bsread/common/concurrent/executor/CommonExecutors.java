@@ -29,6 +29,15 @@ public class CommonExecutors {
       return newFixedThreadPool(1, queueSize, poolName, DEFAULT_IS_MONITORING, Thread.NORM_PRIORITY);
    }
 
+   public static ExecutorService newSingleThreadExecutor(int queueSize, String poolName, boolean monitoring,
+         int threadPriority) {
+      return newFixedThreadPool(1, queueSize, poolName, monitoring, threadPriority);
+   }
+
+   public static ExecutorService newSingleThreadExecutor(int queueSize, String poolName, boolean monitoring) {
+      return newFixedThreadPool(1, queueSize, poolName, monitoring, Thread.NORM_PRIORITY);
+   }
+
    public static ExecutorService newFixedThreadPool(int nThreads, String poolName) {
       return newFixedThreadPool(nThreads, QUEUE_SIZE_UNBOUNDED, poolName, DEFAULT_IS_MONITORING, Thread.NORM_PRIORITY);
    }
