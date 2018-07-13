@@ -31,7 +31,7 @@ public class Timestamp implements Serializable {
 
    public void setSec(long sec) {
       if (sec > MAX_SEC) {
-         throw new IllegalArgumentException(
+         throw new IllegalTimeException(
                String.format("Seconds need to be smaller than '%s' but was '%s'", MAX_SEC, sec));
       }
       this.sec = sec;
@@ -43,7 +43,7 @@ public class Timestamp implements Serializable {
 
    public void setNs(long ns) {
       if (ns > MAX_NS || ns < 0) {
-         throw new IllegalArgumentException(String.format(
+         throw new IllegalTimeException(String.format(
                "Nanoseconds need to be in the range of '0 - %s' but was '%s'", MAX_NS, ns));
       }
       this.ns = ns;

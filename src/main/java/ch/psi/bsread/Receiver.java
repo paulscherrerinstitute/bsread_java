@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.psi.bsread.command.Command;
 import ch.psi.bsread.message.DataHeader;
+import ch.psi.bsread.message.IllegalTimeException;
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Value;
@@ -164,6 +165,18 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
       }
    }
 
+   protected void reconnect() {
+      reconnecting.set(true);
+      // prevent reconnection if other thread closes
+      if (cleanup()) {
+         connect();
+      } else {
+         isRunning.set(false);
+      }
+      reconnecting.set(false);
+      receivingThread = Thread.currentThread();
+   }
+
    public Message<V> receive() throws RuntimeException {
       receivingThread = Thread.currentThread();
       Message<V> message = null;
@@ -203,15 +216,7 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
                         case RECONNECT:
                            LOGGER.info("Reconnect '{}' due to timeout.", receiverConfig.getAddress());
                            message = null;
-                           reconnecting.set(true);
-                           // prevent reconnection if other thread closes
-                           if (cleanup()) {
-                              connect();
-                           } else {
-                              isRunning.set(false);
-                           }
-                           reconnecting.set(false);
-                           receivingThread = Thread.currentThread();
+                           reconnect();
                            break;
                         case STOP:
                            LOGGER.warn("Stop running and return null for '{}' due to idle connection.",
@@ -230,6 +235,10 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
                      message = null;
                   }
                }
+            } catch (IllegalTimeException e) {
+               LOGGER.info("Reconnect '{}' due to illegal time '{}'.", receiverConfig.getAddress(), e.getMessage());
+               message = null;
+               reconnect();
             } catch (JsonParseException | JsonMappingException e) {
                LOGGER.info("Could not parse MainHeader of '{}' due to '{}'.", receiverConfig.getAddress(),
                      e.getMessage());
