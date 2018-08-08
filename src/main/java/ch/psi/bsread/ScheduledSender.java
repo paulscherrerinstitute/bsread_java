@@ -34,10 +34,10 @@ public class ScheduledSender {
    }
 
    public void connect() {
-      if(executor == null){
+      if (executor == null) {
          executor = Executors.newScheduledThreadPool(1);
       }
-      
+
       Future<?> future = executor.submit(() -> {
          try {
             sender.connect();
@@ -82,9 +82,11 @@ public class ScheduledSender {
 
          executor.shutdown();
          try {
-            executor.awaitTermination(1000, TimeUnit.MILLISECONDS);
+            if (!executor.awaitTermination(1000, TimeUnit.MILLISECONDS)) {
+               LOGGER.warn("Could not wait for successful termination of '{}'.", sender.getSenderConfig().getAddress());
+            }
          } catch (InterruptedException e) {
-            LOGGER.warn("Could not wait for successful termination of '{}'.", sender.getSenderConfig().getAddress(), e);
+            LOGGER.warn("Interruption of '{}'.", sender.getSenderConfig().getAddress(), e);
          }
          executor = null;
       }
