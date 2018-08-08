@@ -106,11 +106,11 @@ public class MessageSynchronizerCompleteLatestLockFree<Msg> extends AbstractMess
                         pulseId, channelName, channelConfig);
                }
             } else {
-               LOGGER.info("Received message from channel '{}' but that channel is not part of the configuration.",
+               LOGGER.debug("Received message from channel '{}' but that channel is not part of the configuration.",
                      channelName);
             }
          } else {
-            LOGGER.info(
+            LOGGER.debug(
                   "Drop message of pulse '{}' from channel '{}' since it is smaller than the last send/deleted pulse '{}'",
                   pulseId, channelName, lastPulseId);
          }

@@ -118,11 +118,11 @@ public class MessageSynchronizerCompleteAllLockFree<Msg> extends AbstractMessage
                         pulseId, channelName, channelConfig);
                }
             } else {
-               LOGGER.info("Received message from channel '{}' but that channel is not part of the configuration.",
+               LOGGER.debug("Received message from channel '{}' but that channel is not part of the configuration.",
                      channelName);
             }
          } else {
-            LOGGER.info(
+            LOGGER.debug(
                   "Drop message of pulse '{}' from channel '{}' since it is smaller than the last send/deleted pulse '{}'",
                   pulseId, channelName, lastPulseId);
          }
@@ -221,7 +221,7 @@ public class MessageSynchronizerCompleteAllLockFree<Msg> extends AbstractMessage
                      LOGGER.debug("Send incomplete pulse '{}' due to eviction.", entry.getKey());
                      msgMap = entry.getValue().getMessagesMap();
                   } else {
-                     LOGGER.info(
+                     LOGGER.debug(
                            "Drop messages for pulse '{}' due to eviction. Requested number of channels '{}' but got only '{}'.",
                            entry.getKey(), nrOfExpectedChannels, entry.getValue().getMessagesMap().size());
                      // there might be more messages available ready for send
