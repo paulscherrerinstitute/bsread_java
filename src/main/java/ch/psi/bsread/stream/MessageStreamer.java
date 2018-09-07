@@ -57,6 +57,13 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
       this(socketType, address, requestedChannels, intoPastElements, intoFutureElements,
             AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE, valueConverter, null, messageMapper, dataHeaderHandler);
    }
+   
+   public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
+         int intoFutureElements, ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper,
+         Consumer<DataHeader> dataHeaderHandler, Integer receiveBufferSize) {
+      this(socketType, address, requestedChannels, intoPastElements, intoFutureElements,
+            AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE, valueConverter, null, messageMapper, dataHeaderHandler, receiveBufferSize);
+   }
 
    public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
          int intoFutureElements, ValueConverter valueConverter, MsgAllocator msgAllocator,
@@ -76,13 +83,20 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
          int intoFutureElements, int backpressure, ValueConverter valueConverter, MsgAllocator msgAllocator,
          Function<Message<Value>, Mapped> messageMapper) {
       this(socketType, address, requestedChannels, intoPastElements, intoFutureElements, backpressure, valueConverter,
-            msgAllocator,
-            messageMapper, null);
+            msgAllocator, messageMapper, null);
    }
 
    public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
          int intoFutureElements, int backpressure, ValueConverter valueConverter, MsgAllocator msgAllocator,
          Function<Message<Value>, Mapped> messageMapper, Consumer<DataHeader> dataHeaderHandler) {
+      this(socketType, address, requestedChannels, intoPastElements, intoFutureElements, backpressure, valueConverter,
+            msgAllocator, messageMapper, dataHeaderHandler, ReceiverConfig.DEFAULT_RECEIVE_BUFFER_SIZE);
+   }
+
+   public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
+         int intoFutureElements, int backpressure, ValueConverter valueConverter, MsgAllocator msgAllocator,
+         Function<Message<Value>, Mapped> messageMapper, Consumer<DataHeader> dataHeaderHandler,
+         final Integer receiveBufferSize) {
       executor = CommonExecutors.newSingleThreadExecutor("MessageStreamer for " + address);
       spliterator = new AsyncTransferSpliterator<>(intoPastElements, intoFutureElements, backpressure);
 
@@ -94,6 +108,9 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
       receiverConfig.setSocketType(socketType);
       if (requestedChannels != null) {
          receiverConfig.setRequestedChannels(requestedChannels);
+      }
+      if (receiveBufferSize != null && receiveBufferSize > 0) {
+         receiverConfig.setReceiveBufferSize(receiveBufferSize);
       }
       receiver = new Receiver<Value>(receiverConfig);
       if (dataHeaderHandler != null) {

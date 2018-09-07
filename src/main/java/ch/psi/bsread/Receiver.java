@@ -83,8 +83,10 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
          socket = receiverConfig.getContext().socket(receiverConfig.getSocketType());
          socket.setRcvHWM(receiverConfig.getHighWaterMark());
          socket.setLinger(receiverConfig.getLinger());
-         socket.setReceiveBufferSize(receiverConfig.getReceiveBufferSize());
          socket.setReceiveTimeOut((int) receiverConfig.getReceiveTimeout());
+         if (receiverConfig.getReceiveBufferSize() > 0) {
+            socket.setReceiveBufferSize(receiverConfig.getReceiveBufferSize());
+         }
          if (receiverConfig.getMsgAllocator() != null) {
             socket.base().setSocketOpt(zmq.ZMQ.ZMQ_MSG_ALLOCATOR, receiverConfig.getMsgAllocator());
          }
@@ -116,10 +118,6 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
       if (isRunning.compareAndSet(true, false)) {
          LOGGER.info("Receiver '{}' stopping...", this.receiverConfig.getAddress());
 
-         // set idle connection
-         accept(true);
-         // set connection count
-         accept(0);
          if (Thread.currentThread().equals(receivingThread)) {
             // is receiving thread -> do cleanup
             cleanup();
@@ -187,6 +185,7 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
 
       try {
          while (message == null && isRunning.get()) {
+            // make sure changes during looping are handled
             handleConnectionIdleChanges();
             handleConnectionCountChanges();
 
@@ -265,10 +264,18 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
       } finally {
          if (!isRunning.get()) {
             message = null;
+
             cleanup();
-            handleConnectionIdleChanges();
-            handleConnectionCountChanges();
+
+            // make sure idle connection and connection count is set
+            // in any case before updated
+            accept(true);
+            accept(0);
          }
+
+         // make sure changes while receiving are handled
+         handleConnectionIdleChanges();
+         handleConnectionCountChanges();
       }
 
       return message;
