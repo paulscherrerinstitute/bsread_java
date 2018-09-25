@@ -5,3 +5,4 @@ ch.psi.bsread.iml
 .project
 bin
 build
+/.nb-gradle/

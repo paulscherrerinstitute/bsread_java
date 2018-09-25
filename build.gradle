@@ -1,19 +1,29 @@
 apply plugin: 'java'
 apply plugin: 'eclipse'
 
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.4'
+    }
+}
+apply plugin: 'com.jfrog.bintray'
+apply plugin: 'maven-publish'
+
 sourceCompatibility = 1.8
 
 version = '3.5.5'
+group = 'ch.psi'
 
 repositories {
     mavenCentral()
-    maven { url "https://artifacts.psi.ch/artifactory/libs-releases-local" }
-    maven { url "https://artifacts.psi.ch/artifactory/libs-snapshots-local" }
+    maven { url "https://dl.bintray.com/paulscherrerinstitute/hltools" }  
 }
 
 dependencies {
 	compile 'ch.psi:bitshuffle-lz4:1.1.2'
-	
 	compile 'org.slf4j:slf4j-api:1.7.25'
 	compile 'com.fasterxml.jackson.core:jackson-databind:2.9.6'
 	compile 'org.zeromq:jeromq:0.4.0-PSI'
@@ -48,8 +58,36 @@ uploadArchives {
             repository(url: "https://artifacts.psi.ch/artifactory/libs-snapshots-local"){
             	authentication(userName: "upload", password: "{DESede}eWKHxAtQ2Dc=")
             }
-            pom.groupId = 'ch.psi'
-            pom.artifactId = 'bsread'
+            pom.groupId = group
+            pom.artifactId = project.name
         }
+    }
+}
+
+publishing {
+    publications {
+        MyPublication(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+            groupId group
+            artifactId project.name
+            version version
+        }
+    }
+}
+    
+bintray {
+    user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
+    key = project.hasProperty('bintrayApiKey') ? project.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
+    publications = ['MyPublication']     
+    pkg {
+        repo = 'hltools'
+        name = 'bsread_java'
+        userOrg = 'paulscherrerinstitute'
+        licenses = ['GPL-3.0']
+        vcsUrl = 'https://github.com/paulscherrerinstitute/bsread_java'
+        version {
+            name = project.version
+        }         
     }
 }
