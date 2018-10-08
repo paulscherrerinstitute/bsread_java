@@ -1,7 +1,9 @@
 package ch.psi.bsread.stream;
 
 import java.io.Closeable;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -29,75 +31,220 @@ import ch.psi.bsread.message.Message;
 public class MessageStreamer<Value, Mapped> implements Closeable {
    private static final Logger LOGGER = LoggerFactory.getLogger(MessageStreamer.class);
 
-   private Receiver<Value> receiver;
+   private List<Receiver<Value>> receivers = new ArrayList<>();
 
    private ExecutorService executor;
-   private Future<?> executorFuture;
+   private List<Future<?>> executorFutures = new ArrayList<>();
    private AtomicBoolean isRunning = new AtomicBoolean(true);
 
    private Stream<StreamSection<Mapped>> stream;
    private AsyncTransferSpliterator<Mapped> spliterator;
 
-   public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
-         int intoFutureElements, Function<Message<Value>, Mapped> messageMapper) {
-      this(socketType, address, requestedChannels, intoPastElements, intoFutureElements,
+   public MessageStreamer(
+         int socketType,
+         String address,
+         Collection<Channel> requestedChannels,
+         int intoPastElements,
+         int intoFutureElements,
+         Function<Message<Value>, Mapped> messageMapper) {
+      this(socketType,
+            address,
+            requestedChannels,
+            intoPastElements,
+            intoFutureElements,
             new DirectByteBufferValueConverter(),
             messageMapper);
    }
 
-   public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
-         int intoFutureElements, ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper) {
-      this(socketType, address, requestedChannels, intoPastElements, intoFutureElements, valueConverter, null,
+   public MessageStreamer(
+         int socketType,
+         String address,
+         Collection<Channel> requestedChannels,
+         int intoPastElements,
+         int intoFutureElements,
+         ValueConverter valueConverter,
+         Function<Message<Value>, Mapped> messageMapper) {
+      this(socketType,
+            address,
+            requestedChannels,
+            intoPastElements,
+            intoFutureElements,
+            valueConverter,
+            null,
             messageMapper);
    }
 
-   public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
-         int intoFutureElements, ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper,
+   public MessageStreamer(
+         int socketType,
+         String address,
+         Collection<Channel> requestedChannels,
+         int intoPastElements,
+         int intoFutureElements,
+         ValueConverter valueConverter,
+         Function<Message<Value>, Mapped> messageMapper,
          Consumer<DataHeader> dataHeaderHandler) {
-      this(socketType, address, requestedChannels, intoPastElements, intoFutureElements,
-            AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE, valueConverter, null, messageMapper, dataHeaderHandler);
-   }
-   
-   public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
-         int intoFutureElements, ValueConverter valueConverter, Function<Message<Value>, Mapped> messageMapper,
-         Consumer<DataHeader> dataHeaderHandler, Integer receiveBufferSize) {
-      this(socketType, address, requestedChannels, intoPastElements, intoFutureElements,
-            AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE, valueConverter, null, messageMapper, dataHeaderHandler, receiveBufferSize);
+      this(socketType,
+            address,
+            requestedChannels,
+            intoPastElements,
+            intoFutureElements,
+            AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE,
+            valueConverter,
+            null,
+            messageMapper,
+            dataHeaderHandler);
    }
 
-   public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
-         int intoFutureElements, ValueConverter valueConverter, MsgAllocator msgAllocator,
+   public MessageStreamer(
+         int socketType,
+         String address,
+         Collection<Channel> requestedChannels,
+         int intoPastElements,
+         int intoFutureElements,
+         ValueConverter valueConverter,
+         Function<Message<Value>, Mapped> messageMapper,
+         Consumer<DataHeader> dataHeaderHandler,
+         Integer receiveBufferSize) {
+      this(socketType,
+            address,
+            requestedChannels,
+            intoPastElements,
+            intoFutureElements,
+            AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE,
+            valueConverter,
+            null,
+            messageMapper,
+            dataHeaderHandler,
+            receiveBufferSize);
+   }
+
+   public MessageStreamer(
+         int socketType,
+         String address,
+         Collection<Channel> requestedChannels,
+         int intoPastElements,
+         int intoFutureElements,
+         ValueConverter valueConverter,
+         MsgAllocator msgAllocator,
          Function<Message<Value>, Mapped> messageMapper) {
-      this(socketType, address, requestedChannels, intoPastElements, intoFutureElements,
-            AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE, valueConverter, msgAllocator, messageMapper);
+      this(socketType,
+            address,
+            requestedChannels,
+            intoPastElements,
+            intoFutureElements,
+            AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE,
+            valueConverter,
+            msgAllocator,
+            messageMapper);
    }
 
-   public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
-         int intoFutureElements, int backpressure, ValueConverter valueConverter,
+   public MessageStreamer(
+         int socketType,
+         String address,
+         Collection<Channel> requestedChannels,
+         int intoPastElements,
+         int intoFutureElements,
+         int backpressure,
+         ValueConverter valueConverter,
          Function<Message<Value>, Mapped> messageMapper) {
-      this(socketType, address, requestedChannels, intoPastElements, intoFutureElements, backpressure, valueConverter,
-            null, messageMapper, null);
+      this(socketType,
+            address,
+            requestedChannels,
+            intoPastElements,
+            intoFutureElements,
+            backpressure,
+            valueConverter,
+            null,
+            messageMapper,
+            null);
    }
 
-   public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
-         int intoFutureElements, int backpressure, ValueConverter valueConverter, MsgAllocator msgAllocator,
+   public MessageStreamer(
+         int socketType,
+         String address,
+         Collection<Channel> requestedChannels,
+         int intoPastElements,
+         int intoFutureElements,
+         int backpressure,
+         ValueConverter valueConverter,
+         MsgAllocator msgAllocator,
          Function<Message<Value>, Mapped> messageMapper) {
-      this(socketType, address, requestedChannels, intoPastElements, intoFutureElements, backpressure, valueConverter,
-            msgAllocator, messageMapper, null);
+      this(socketType,
+            address,
+            requestedChannels,
+            intoPastElements,
+            intoFutureElements,
+            backpressure,
+            valueConverter,
+            msgAllocator,
+            messageMapper,
+            null);
    }
 
-   public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
-         int intoFutureElements, int backpressure, ValueConverter valueConverter, MsgAllocator msgAllocator,
-         Function<Message<Value>, Mapped> messageMapper, Consumer<DataHeader> dataHeaderHandler) {
-      this(socketType, address, requestedChannels, intoPastElements, intoFutureElements, backpressure, valueConverter,
-            msgAllocator, messageMapper, dataHeaderHandler, ReceiverConfig.DEFAULT_RECEIVE_BUFFER_SIZE);
+   public MessageStreamer(
+         int socketType,
+         String address,
+         Collection<Channel> requestedChannels,
+         int intoPastElements,
+         int intoFutureElements,
+         int backpressure,
+         ValueConverter valueConverter,
+         MsgAllocator msgAllocator,
+         Function<Message<Value>, Mapped> messageMapper,
+         Consumer<DataHeader> dataHeaderHandler) {
+      this(socketType,
+            address,
+            requestedChannels,
+            intoPastElements,
+            intoFutureElements,
+            backpressure,
+            valueConverter,
+            msgAllocator,
+            messageMapper,
+            dataHeaderHandler,
+            ReceiverConfig.DEFAULT_RECEIVE_BUFFER_SIZE);
    }
 
-   public MessageStreamer(int socketType, String address, Collection<Channel> requestedChannels, int intoPastElements,
-         int intoFutureElements, int backpressure, ValueConverter valueConverter, MsgAllocator msgAllocator,
-         Function<Message<Value>, Mapped> messageMapper, Consumer<DataHeader> dataHeaderHandler,
+   public MessageStreamer(
+         int socketType,
+         String address,
+         Collection<Channel> requestedChannels,
+         int intoPastElements,
+         int intoFutureElements,
+         int backpressure,
+         ValueConverter valueConverter,
+         MsgAllocator msgAllocator,
+         Function<Message<Value>, Mapped> messageMapper,
+         Consumer<DataHeader> dataHeaderHandler,
          final Integer receiveBufferSize) {
-      executor = CommonExecutors.newSingleThreadExecutor("MessageStreamer for " + address);
+      this(1,
+            socketType,
+            address,
+            requestedChannels,
+            intoPastElements,
+            intoFutureElements,
+            backpressure,
+            valueConverter,
+            msgAllocator,
+            messageMapper,
+            dataHeaderHandler,
+            receiveBufferSize);
+   }
+
+   public MessageStreamer(
+         int streamSplit,
+         int socketType,
+         String address,
+         Collection<Channel> requestedChannels,
+         int intoPastElements,
+         int intoFutureElements,
+         int backpressure,
+         ValueConverter valueConverter,
+         MsgAllocator msgAllocator,
+         Function<Message<Value>, Mapped> messageMapper,
+         Consumer<DataHeader> dataHeaderHandler,
+         final Integer receiveBufferSize) {
+      executor = CommonExecutors.newFixedThreadPool(streamSplit, "MessageStreamer for " + address);
       spliterator = new AsyncTransferSpliterator<>(intoPastElements, intoFutureElements, backpressure);
 
       ReceiverConfig<Value> receiverConfig =
@@ -112,30 +259,43 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
       if (receiveBufferSize != null && receiveBufferSize > 0) {
          receiverConfig.setReceiveBufferSize(receiveBufferSize);
       }
-      receiver = new Receiver<Value>(receiverConfig);
+
+      final Consumer<DataHeader> syncDataHeaderHandler;
       if (dataHeaderHandler != null) {
-         receiver.addDataHeaderHandler(dataHeaderHandler);
+         syncDataHeaderHandler = new SynchronizedDataHeaderConsumer(dataHeaderHandler);
+      } else {
+         syncDataHeaderHandler = null;
       }
-      receiver.connect();
 
-      executorFuture = executor.submit(() -> {
-         try {
-            Message<Value> message;
-            while ((message = receiver.receive()) != null) {
-               spliterator.onAvailable(message, messageMapper);
+      // streamSplit > 1 -> messages might be processed out of order
+      for (int i = 0; i < streamSplit; ++i) {
+         final Receiver<Value> receiver = new Receiver<>(receiverConfig);
+         receivers.add(receiver);
+
+         if (syncDataHeaderHandler != null) {
+            receiver.addDataHeaderHandler(syncDataHeaderHandler);
+         }
+         receiver.connect();
+
+         executorFutures.add(executor.submit(() -> {
+            try {
+               Message<Value> message;
+               while ((message = receiver.receive()) != null) {
+                  spliterator.onAvailable(message, messageMapper);
+               }
+            } catch (ZMQException e) {
+               LOGGER.debug("Close streamer since ZMQ stream closed.", e);
+            } catch (Exception e) {
+               LOGGER.error("Close streamer since Receiver encountered a problem.", e);
             }
-         } catch (ZMQException e) {
-            LOGGER.debug("Close streamer since ZMQ stream closed.", e);
-         } catch (Exception e) {
-            LOGGER.error("Close streamer since Receiver encountered a problem.", e);
-         }
 
-         try {
-            close();
-         } catch (Exception e) {
-            LOGGER.warn("Exception while closing streamer.", e);
-         }
-      });
+            try {
+               close();
+            } catch (Exception e) {
+               LOGGER.warn("Exception while closing streamer.", e);
+            }
+         }));
+      }
    }
 
    public Stream<StreamSection<Mapped>> getStream() {
@@ -154,14 +314,18 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
    @Override
    public void close() {
       if (isRunning.compareAndSet(true, false)) {
-         if (receiver != null) {
-            receiver.close();
-            receiver = null;
+         if (receivers != null) {
+            for (final Receiver<Value> receiver : receivers) {
+               receiver.close();
+            }
+            receivers = null;
          }
 
-         if (executorFuture != null) {
-            executorFuture.cancel(true);
-            executorFuture = null;
+         if (executorFutures != null) {
+            for (final Future<?> executorFuture : executorFutures) {
+               executorFuture.cancel(true);
+            }
+            executorFutures = null;
          }
          if (executor != null) {
             executor.shutdown();

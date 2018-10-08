@@ -14,7 +14,7 @@ apply plugin: 'maven-publish'
 
 sourceCompatibility = 1.8
 
-version = '3.5.5'
+version = '3.5.6'
 group = 'ch.psi'
 
 repositories {
@@ -58,8 +58,8 @@ uploadArchives {
             repository(url: artifactoryUrlLibSnap){
             	authentication(userName: artifactoryUser, password: artifactoryPwd)
             }
-            pom.groupId = group
-            pom.artifactId = project.name
+            pom.groupId = 'ch.psi'
+            pom.artifactId = 'bsread'
         }
     }
 }
@@ -69,8 +69,8 @@ publishing {
         MyPublication(MavenPublication) {
             from components.java
             artifact sourcesJar
-            groupId group
-            artifactId project.name
+            groupId 'ch.psi'
+            artifactId 'bsread'
             version version
         }
     }
