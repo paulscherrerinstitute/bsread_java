@@ -15,7 +15,6 @@ apply plugin: 'maven-publish'
 sourceCompatibility = 1.8
 
 version = '3.5.6'
-group = 'ch.psi'
 
 repositories {
     mavenCentral()
