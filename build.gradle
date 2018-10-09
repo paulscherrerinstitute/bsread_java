@@ -81,7 +81,7 @@ bintray {
     publications = ['MyPublication']     
     pkg {
         repo = 'hltools'
-        name = 'bsread_java'
+        name = 'bsread'
         userOrg = 'paulscherrerinstitute'
         licenses = ['GPL-3.0']
         vcsUrl = 'https://github.com/paulscherrerinstitute/bsread_java'
