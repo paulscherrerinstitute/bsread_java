@@ -586,9 +586,9 @@ public class MessageStreamerTest {
 
       try (MessageStreamer<Long, Message<Long>> messageStreamer =
             new MessageStreamer<>(
-                  streamSplit,
                   ZMQ.PULL,
                   ReceiverConfig.DEFAULT_ADDRESS,
+                  streamSplit,
                   null,
                   pastElements,
                   futureElements,

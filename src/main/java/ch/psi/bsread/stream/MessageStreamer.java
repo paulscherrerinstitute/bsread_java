@@ -14,6 +14,7 @@ import java.util.stream.StreamSupport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.zeromq.ZMQ;
 import org.zeromq.ZMQException;
 
 import zmq.MsgAllocator;
@@ -95,6 +96,7 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
             dataHeaderHandler);
    }
 
+
    public MessageStreamer(
          int socketType,
          String address,
@@ -107,6 +109,31 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
          Integer receiveBufferSize) {
       this(socketType,
             address,
+            requestedChannels,
+            intoPastElements,
+            intoFutureElements,
+            AsyncTransferSpliterator.DEFAULT_BACKPRESSURE_SIZE,
+            valueConverter,
+            null,
+            messageMapper,
+            dataHeaderHandler,
+            receiveBufferSize);
+   }
+
+   public MessageStreamer(
+         int socketType,
+         String address,
+         int streamSplit,
+         Collection<Channel> requestedChannels,
+         int intoPastElements,
+         int intoFutureElements,
+         ValueConverter valueConverter,
+         Function<Message<Value>, Mapped> messageMapper,
+         Consumer<DataHeader> dataHeaderHandler,
+         Integer receiveBufferSize) {
+      this(socketType,
+            address,
+            streamSplit,
             requestedChannels,
             intoPastElements,
             intoFutureElements,
@@ -181,6 +208,7 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
             null);
    }
 
+
    public MessageStreamer(
          int socketType,
          String address,
@@ -217,9 +245,9 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
          Function<Message<Value>, Mapped> messageMapper,
          Consumer<DataHeader> dataHeaderHandler,
          final Integer receiveBufferSize) {
-      this(1,
-            socketType,
+      this(socketType,
             address,
+            1,
             requestedChannels,
             intoPastElements,
             intoFutureElements,
@@ -232,9 +260,9 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
    }
 
    public MessageStreamer(
-         int streamSplit,
          int socketType,
          String address,
+         int streamSplit,
          Collection<Channel> requestedChannels,
          int intoPastElements,
          int intoFutureElements,
@@ -244,6 +272,14 @@ public class MessageStreamer<Value, Mapped> implements Closeable {
          Function<Message<Value>, Mapped> messageMapper,
          Consumer<DataHeader> dataHeaderHandler,
          final Integer receiveBufferSize) {
+      if (streamSplit > 1 && socketType != ZMQ.PULL) {
+         final String message = String.format(
+               "Stream splits bigger than 1 ('%d') without using push/pull ('%d') will result in duplicates.",
+               streamSplit, socketType);
+         LOGGER.error(message);
+         throw new IllegalStateException(message);
+      }
+
       executor = CommonExecutors.newFixedThreadPool(streamSplit, "MessageStreamer for " + address);
       spliterator = new AsyncTransferSpliterator<>(intoPastElements, intoFutureElements, backpressure);
 
