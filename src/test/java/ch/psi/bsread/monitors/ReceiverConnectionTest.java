@@ -103,7 +103,7 @@ public class ReceiverConnectionTest {
    // connectionMonitor.addHandler((count) -> connectionCounter.set(count));
    // config1.setMonitor(connectionMonitor);
    // final int reconnectTimeoutMS = (int)(5 * waitTime);
-   // config1.setIdleConnectionTimeout(reconnectTimeoutMS);
+   // config1.setInactiveConnectionTimeout(reconnectTimeoutMS);
    // Receiver<Object> receiver1 = new BasicReceiver(config1);
    // AtomicLong mainHeaderCounter1 = new AtomicLong();
    // AtomicLong dataHeaderCounter1 = new AtomicLong();
@@ -242,7 +242,7 @@ public class ReceiverConnectionTest {
                   new StandardMessageExtractor<Object>(new MatlabByteConverter()));
       config1.setSocketType(ZMQ.PULL);
       final int reconnectTimeoutMS = (int) (5 * waitTime);
-      config1.setIdleConnectionTimeout(reconnectTimeoutMS);
+      config1.setInactiveConnectionTimeout(reconnectTimeoutMS);
       Receiver<Object> receiver1 = new BasicReceiver(config1);
       AtomicLong mainHeaderCounter1 = new AtomicLong();
       AtomicLong dataHeaderCounter1 = new AtomicLong();
@@ -257,7 +257,7 @@ public class ReceiverConnectionTest {
       });
       final List<Integer> expectedConnectionCounts = new ArrayList<>();
 
-      long waitTime = (long) (1.5 * config1.getIdleConnectionTimeout());
+      long waitTime = (long) (1.5 * config1.getInactiveConnectionTimeout());
       ExecutorService receiverService = Executors.newFixedThreadPool(2);
 
       try {
@@ -576,6 +576,218 @@ public class ReceiverConnectionTest {
 
          TimeUnit.MILLISECONDS.sleep(waitTime);
          assertEquals(expectedIdleStates, idleStates);
+      } finally {
+         receiver1.close();
+         sender.close();
+
+         receiverService.shutdown();
+      }
+   }
+   
+   @Test
+   public void testInactiveState_Sync() throws Exception {
+      SenderConfig senderConfig = new SenderConfig(
+            SenderConfig.DEFAULT_ADDRESS,
+            new StandardPulseIdProvider(),
+            new TimeProvider() {
+
+               @Override
+               public Timestamp getTime(long pulseId) {
+                  return new Timestamp(pulseId, 0L);
+               }
+
+
+            },
+            new MatlabByteConverter());
+      senderConfig.setSocketType(ZMQ.PUSH);
+
+      ScheduledSender sender = new ScheduledSender(senderConfig);
+
+      int size = 2048;
+      Random rand = new Random(0);
+      // Register data sources ...
+      sender.addSource(new DataChannel<double[]>(new ChannelConfig("ABC", Type.Float64, new int[] {size}, 1, 0,
+            ChannelConfig.DEFAULT_ENCODING, Compression.bitshuffle_lz4)) {
+         @Override
+         public double[] getValue(long pulseId) {
+            double[] val = new double[size];
+            for (int i = 0; i < size; ++i) {
+               val[i] = rand.nextDouble();
+            }
+
+            return val;
+         }
+
+         @Override
+         public Timestamp getTime(long pulseId) {
+            return new Timestamp(pulseId, 0L);
+         }
+      });
+      sender.addSource(new DataChannel<double[]>(new ChannelConfig("ABB", Type.Float64, new int[] {size}, 1, 0,
+            ChannelConfig.DEFAULT_ENCODING, Compression.bitshuffle_lz4)) {
+         @Override
+         public double[] getValue(long pulseId) {
+            double[] val = new double[size];
+            for (int i = 0; i < size; ++i) {
+               val[i] = rand.nextDouble();
+            }
+
+            return val;
+         }
+
+         @Override
+         public Timestamp getTime(long pulseId) {
+            return new Timestamp(pulseId, 0L);
+         }
+      });
+
+      ReceiverConfig<Object> config1 =
+            new ReceiverConfig<Object>(
+                  ReceiverConfig.DEFAULT_ADDRESS,
+                  new StandardMessageExtractor<Object>(new MatlabByteConverter()));
+      config1.setSocketType(ZMQ.PULL);
+      final int reconnectTimeoutMS = (int) (5 * waitTime);
+      config1.setInactiveConnectionTimeout(reconnectTimeoutMS);
+      Receiver<Object> receiver1 = new BasicReceiver(config1);
+      AtomicLong mainHeaderCounter1 = new AtomicLong();
+      AtomicLong dataHeaderCounter1 = new AtomicLong();
+      AtomicLong valCounter1 = new AtomicLong();
+      AtomicLong loopCounter1 = new AtomicLong();
+      receiver1.addMainHeaderHandler(header -> mainHeaderCounter1.incrementAndGet());
+      receiver1.addDataHeaderHandler(header -> dataHeaderCounter1.incrementAndGet());
+      receiver1.addValueHandler(values -> valCounter1.incrementAndGet());
+      final List<Boolean> inactiveStates = Collections.synchronizedList(new ArrayList<>());
+      receiver1.addConnectionInactiveHandler((state) -> {
+         inactiveStates.add(state);
+      });
+      final List<Boolean> expectedInactiveStates = new ArrayList<>();
+
+      long waitTime = (long) (1.5 * config1.getInactiveConnectionTimeout());
+      ExecutorService receiverService = Executors.newFixedThreadPool(2);
+
+      try {
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         receiver1.connect();
+         TimeUnit.MILLISECONDS.sleep(2 * reconnectTimeoutMS);
+         // updates are done in receiving thread
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         receiverService.execute(() -> {
+            try {
+               while (receiver1.receive() != null) {
+                  loopCounter1.incrementAndGet();
+               }
+            } catch (Throwable t) {
+               System.out.println("Receiver1 executor: " + t.getMessage());
+               t.printStackTrace();
+            }
+         });
+
+         TimeUnit.MILLISECONDS.sleep(2 * reconnectTimeoutMS);
+         expectedInactiveStates.add(Boolean.TRUE);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         sender.connect();
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         // send/receive data
+         int sendCount = 40;
+         for (int i = 0; i < sendCount; ++i) {
+            sender.send();
+            TimeUnit.MILLISECONDS.sleep(1);
+         }
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+
+         assertEquals(1, dataHeaderCounter1.get());
+         assertEquals(sendCount, mainHeaderCounter1.get());
+         assertEquals(sendCount, valCounter1.get());
+         assertEquals(sendCount, loopCounter1.get());
+
+         TimeUnit.MILLISECONDS.sleep(2 * reconnectTimeoutMS);
+         expectedInactiveStates.add(Boolean.FALSE);
+         expectedInactiveStates.add(Boolean.TRUE);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         TimeUnit.MILLISECONDS.sleep(2 * reconnectTimeoutMS);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         sender.send();
+         TimeUnit.MILLISECONDS.sleep(2 * reconnectTimeoutMS);
+         expectedInactiveStates.add(Boolean.FALSE);
+         expectedInactiveStates.add(Boolean.TRUE);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         sender.send();
+         sender.close();
+         TimeUnit.MILLISECONDS.sleep(2 * reconnectTimeoutMS);
+         expectedInactiveStates.add(Boolean.FALSE);
+         expectedInactiveStates.add(Boolean.TRUE);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         TimeUnit.MILLISECONDS.sleep(2 * reconnectTimeoutMS);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         sender.connect();
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         TimeUnit.MILLISECONDS.sleep(2 * reconnectTimeoutMS);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         sender.send();
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+         receiver1.close();
+         TimeUnit.MILLISECONDS.sleep(2 * reconnectTimeoutMS);
+         expectedInactiveStates.add(Boolean.FALSE);
+         expectedInactiveStates.add(Boolean.TRUE);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         TimeUnit.MILLISECONDS.sleep(2 * reconnectTimeoutMS);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         receiver1.connect();
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+         // updates are done in receiving loop/thread
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         receiverService.execute(() -> {
+            try {
+               while (receiver1.receive() != null) {
+                  loopCounter1.incrementAndGet();
+               }
+            } catch (Throwable t) {
+               System.out.println("Receiver1 executor: " + t.getMessage());
+               t.printStackTrace();
+            }
+         });
+
+         TimeUnit.MILLISECONDS.sleep(2 * waitTime);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         sender.send();
+
+         TimeUnit.MILLISECONDS.sleep(2 * reconnectTimeoutMS);
+         expectedInactiveStates.add(Boolean.FALSE);
+         expectedInactiveStates.add(Boolean.TRUE);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         sender.send();
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+         receiver1.close();
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+         expectedInactiveStates.add(Boolean.FALSE);
+         expectedInactiveStates.add(Boolean.TRUE);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         TimeUnit.MILLISECONDS.sleep(2 * reconnectTimeoutMS);
+         assertEquals(expectedInactiveStates, inactiveStates);
+
+         sender.close();
+
+         TimeUnit.MILLISECONDS.sleep(waitTime);
+         assertEquals(expectedInactiveStates, inactiveStates);
       } finally {
          receiver1.close();
          sender.close();

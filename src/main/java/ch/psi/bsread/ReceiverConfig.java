@@ -25,6 +25,7 @@ public class ReceiverConfig<V> {
    // drop pending messages immediately when socket is closed
    public static final int DEFAULT_LINGER = 100;
    public static final int DEFAULT_IDLE_CONNECTION_TIMEOUT = Integer.MAX_VALUE;
+   public static final int DEFAULT_INACTIVE_CONNECTION_TIMEOUT = Integer.MAX_VALUE;
    public static final int DEFAULT_RECEIVE_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(1);
 
    // share context due to "too many open files" issue
@@ -43,9 +44,17 @@ public class ReceiverConfig<V> {
    private final MsgAllocator msgAllocator;
    private int socketType = ZMQ.PULL;
    private String address = DEFAULT_ADDRESS;
+   // the time zmq receiver thread should block on receive
+   // (receiveTimeout <= idleTimeout <= inactiveTimeout)
    private int receiveTimeout = DEFAULT_RECEIVE_TIMEOUT;
+   // the time after which a connection is considered idle
+   // (receiveTimeout <= idleTimeout <= inactiveTimeout)
    private int idleConnectionTimeout = ReceiverConfig.DEFAULT_IDLE_CONNECTION_TIMEOUT;
-   private IdleConnectionTimeoutBehavior idleConnectionTimeoutBehavior = IdleConnectionTimeoutBehavior.RECONNECT;
+   // the time after which a connection is considered inactive and actions like reconnect should
+   // take place
+   // (receiveTimeout <= idleTimeout <= inactiveTimeout)
+   private int inactiveConnectionTimeout = ReceiverConfig.DEFAULT_INACTIVE_CONNECTION_TIMEOUT;
+   private InactiveConnectionBehavior inactiveConnectionBehavior = InactiveConnectionBehavior.RECONNECT;
    private Collection<Channel> requestedChannels;
 
    public ReceiverConfig() {
@@ -123,7 +132,7 @@ public class ReceiverConfig<V> {
    public void setLinger(int linger) {
       this.linger = linger;
    }
-   
+
    public int getReceiveBufferSize() {
       return receiveBufferSize;
    }
@@ -172,8 +181,7 @@ public class ReceiverConfig<V> {
 
    /**
     * Setter for the receive timeout in millis (use -1 for blocking receive - this is not
-    * recommended). In case no message is received within this time limit, a reconnect will be
-    * triggered.
+    * recommended - receiveTimeout &le; idleTimeout &le; inactiveTimeout).
     * 
     * @param receiveTimeout The receive timeout
     */
@@ -191,7 +199,17 @@ public class ReceiverConfig<V> {
    }
 
    /**
-    * Getter for the idle connection timeout in millis.
+    * Setter for the idle timeout in millis (receiveTimeout &le; idleTimeout &le; inactiveTimeout).
+    * 
+    * @param idleConnectionTimeout The idle timeout
+    */
+   public void setIdleConnectionTimeout(int idleConnectionTimeout) {
+      this.idleConnectionTimeout = idleConnectionTimeout;
+   }
+
+   /**
+    * Getter for the idle connection timeout in millis (receiveTimeout &le; idleTimeout &le;
+    * inactiveTimeout).
     * 
     * @return int The idle connection timeout
     */
@@ -199,16 +217,32 @@ public class ReceiverConfig<V> {
       return idleConnectionTimeout;
    }
 
-   public void setIdleConnectionTimeout(int idleConnectionTimeout) {
-      this.idleConnectionTimeout = idleConnectionTimeout;
+   /**
+    * Setter for the inactive timeout in millis (receiveTimeout &le; idleTimeout &le; inactiveTimeout).
+    * After this timeout actions (defined by InactiveConnectionBehavior) will take place.
+    * 
+    * @param inactiveConnectionTimeout The inactive timeout
+    */
+   public void setInactiveConnectionTimeout(int inactiveConnectionTimeout) {
+      this.inactiveConnectionTimeout = inactiveConnectionTimeout;
    }
 
-   public void setIdleConnectionTimeoutBehavior(IdleConnectionTimeoutBehavior idleConnectionTimeoutBehavior) {
-      this.idleConnectionTimeoutBehavior = idleConnectionTimeoutBehavior;
+   /**
+    * Getter for the inactive timeout in millis (receiveTimeout &le;idleTimeout &le; inactiveTimeout).
+    * After this timeout actions (defined by InactiveConnectionBehavior) will take place.
+    * 
+    * @return int The inactive connection timeout
+    */
+   public int getInactiveConnectionTimeout() {
+      return inactiveConnectionTimeout;
    }
 
-   public IdleConnectionTimeoutBehavior getIdleConnectionTimeoutBehavior() {
-      return idleConnectionTimeoutBehavior;
+   public void setInactiveConnectionBehavior(InactiveConnectionBehavior inactiveConnectionBehavior) {
+      this.inactiveConnectionBehavior = inactiveConnectionBehavior;
+   }
+
+   public InactiveConnectionBehavior getInactiveConnectionBehavior() {
+      return inactiveConnectionBehavior;
    }
 
    public Collection<Channel> getRequestedChannels() {
@@ -230,7 +264,7 @@ public class ReceiverConfig<V> {
       objectMapper.addMixIn(Command.class, PolymorphicCommandMixIn.class);
    }
 
-   public enum IdleConnectionTimeoutBehavior {
+   public enum InactiveConnectionBehavior {
       RECONNECT, KEEP_RUNNING,
       /* Returns null */
       STOP;

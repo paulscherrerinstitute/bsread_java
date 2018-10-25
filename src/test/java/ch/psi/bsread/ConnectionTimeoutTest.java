@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
-import ch.psi.bsread.ReceiverConfig.IdleConnectionTimeoutBehavior;
+import ch.psi.bsread.ReceiverConfig.InactiveConnectionBehavior;
 import ch.psi.bsread.converter.MatlabByteConverter;
 import ch.psi.bsread.impl.StandardPulseIdProvider;
 import ch.psi.bsread.message.ChannelConfig;
@@ -20,7 +20,7 @@ import ch.psi.bsread.message.Message;
 import ch.psi.bsread.message.Timestamp;
 import ch.psi.bsread.message.Type;
 
-public class IdleConnectionTimeoutTest {
+public class ConnectionTimeoutTest {
 
    @Test
    public void testReceiveTimeoutDefaultSettings() {
@@ -28,8 +28,9 @@ public class IdleConnectionTimeoutTest {
       ReceiverConfig<ByteBuffer> receiverConfig = new ReceiverConfig<>();
       assertEquals(ReceiverConfig.DEFAULT_RECEIVE_TIMEOUT, receiverConfig.getReceiveTimeout());
       assertEquals(ReceiverConfig.DEFAULT_IDLE_CONNECTION_TIMEOUT, receiverConfig.getIdleConnectionTimeout());
-      assertEquals(ReceiverConfig.IdleConnectionTimeoutBehavior.RECONNECT,
-            receiverConfig.getIdleConnectionTimeoutBehavior());
+      assertEquals(ReceiverConfig.DEFAULT_INACTIVE_CONNECTION_TIMEOUT, receiverConfig.getInactiveConnectionTimeout());
+      assertEquals(ReceiverConfig.InactiveConnectionBehavior.RECONNECT,
+            receiverConfig.getInactiveConnectionBehavior());
    }
 
    @Test
@@ -60,12 +61,12 @@ public class IdleConnectionTimeoutTest {
          }
       });
 
-      int idleConnectionTimeout = (int) TimeUnit.MILLISECONDS.toMillis(500);
-      int receiveTimeout = idleConnectionTimeout / 4;
+      int inactiveConnectionTimeout = (int) TimeUnit.MILLISECONDS.toMillis(500);
+      int receiveTimeout = inactiveConnectionTimeout / 4;
       ReceiverConfig<ByteBuffer> receiverConfig = new ReceiverConfig<>();
       receiverConfig.setReceiveTimeout(receiveTimeout);
-      receiverConfig.setIdleConnectionTimeout(idleConnectionTimeout);
-      receiverConfig.setIdleConnectionTimeoutBehavior(IdleConnectionTimeoutBehavior.RECONNECT);
+      receiverConfig.setInactiveConnectionTimeout(inactiveConnectionTimeout);
+      receiverConfig.setInactiveConnectionBehavior(InactiveConnectionBehavior.RECONNECT);
       Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(receiverConfig);
 
       // Send/Receive data
@@ -86,7 +87,7 @@ public class IdleConnectionTimeoutTest {
          assertSame(lastDataHeader, message.getDataHeader());
          lastDataHeader = message.getDataHeader();
 
-         sender.send((long) (1.5 * idleConnectionTimeout), TimeUnit.MILLISECONDS);
+         sender.send((long) (1.5 * inactiveConnectionTimeout), TimeUnit.MILLISECONDS);
          // should reconnect and wait for new messages
          message = receiver.receive();
          assertNotNull(message);
@@ -105,7 +106,7 @@ public class IdleConnectionTimeoutTest {
          assertSame(lastDataHeader, message.getDataHeader());
          lastDataHeader = message.getDataHeader();
 
-         sender.send((long) (2.0 * idleConnectionTimeout), TimeUnit.MILLISECONDS);
+         sender.send((long) (2.0 * inactiveConnectionTimeout), TimeUnit.MILLISECONDS);
          // should reconnect and wait for new messages
          message = receiver.receive();
          assertNotNull(message);
@@ -124,7 +125,7 @@ public class IdleConnectionTimeoutTest {
          assertSame(lastDataHeader, message.getDataHeader());
          lastDataHeader = message.getDataHeader();
 
-         sender.send((long) (3.0 * idleConnectionTimeout), TimeUnit.MILLISECONDS);
+         sender.send((long) (3.0 * inactiveConnectionTimeout), TimeUnit.MILLISECONDS);
          // should reconnect and wait for new messages
          message = receiver.receive();
          assertNotNull(message);
@@ -176,12 +177,12 @@ public class IdleConnectionTimeoutTest {
          }
       });
 
-      int idleConnectionTimeout = (int) TimeUnit.MILLISECONDS.toMillis(500);
-      int receiveTimeout = idleConnectionTimeout / 4;
+      int inactiveConnectionTimeout = (int) TimeUnit.MILLISECONDS.toMillis(500);
+      int receiveTimeout = inactiveConnectionTimeout / 4;
       ReceiverConfig<ByteBuffer> receiverConfig = new ReceiverConfig<>();
       receiverConfig.setReceiveTimeout(receiveTimeout);
-      receiverConfig.setIdleConnectionTimeout(idleConnectionTimeout);
-      receiverConfig.setIdleConnectionTimeoutBehavior(IdleConnectionTimeoutBehavior.STOP);
+      receiverConfig.setInactiveConnectionTimeout(inactiveConnectionTimeout);
+      receiverConfig.setInactiveConnectionBehavior(InactiveConnectionBehavior.STOP);
       Receiver<ByteBuffer> receiver = new Receiver<ByteBuffer>(receiverConfig);
 
       // Send/Receive data

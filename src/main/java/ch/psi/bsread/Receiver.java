@@ -51,6 +51,9 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
    private final Set<Consumer<Boolean>> connectionIdleHandlers = new LinkedHashSet<>();
    private final AtomicReference<Boolean> connectionIdleUpdate = new AtomicReference<>(Boolean.TRUE);
    private final AtomicReference<Boolean> connectionIdlePrev = new AtomicReference<>(!connectionIdleUpdate.get());
+   private final Set<Consumer<Boolean>> connectionInactiveHandlers = new LinkedHashSet<>();
+   private final AtomicReference<Boolean> connectionInactiveUpdate = new AtomicReference<>(Boolean.TRUE);
+   private final AtomicReference<Boolean> connectionInactivePrev = new AtomicReference<>(!connectionIdleUpdate.get());
 
 
    private ReceiverConfig<V> receiverConfig;
@@ -181,12 +184,15 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
       Command command = null;
       final ObjectMapper objectMapper = receiverConfig.getObjectMapper();
       byte[] mainHeaderBytes;
-      long idleConnectionDuration = 0;
+      long currentTime = System.currentTimeMillis();
+      long idleConnectionTime = currentTime + receiverConfig.getIdleConnectionTimeout();
+      long inactiveConnectionTime = currentTime + receiverConfig.getInactiveConnectionTimeout();
 
       try {
          while (message == null && isRunning.get()) {
             // make sure changes during looping are handled
             handleConnectionIdleChanges();
+            handleConnectionInactiveChanges();
             handleConnectionCountChanges();
 
             mainHeaderBytes = null;
@@ -200,21 +206,31 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
                mainHeaderBytes = socket.recv();
 
                if (mainHeaderBytes != null) {
-                  // idle connection
+                  // connection not idle (anymore)
                   handleConnectionIdleChanges(false);
+                  // connection not inactive (anymore)
+                  handleConnectionInactiveChanges(false);
                   // test if mainHaderBytes can be interpreted as Command
                   command = objectMapper.readValue(mainHeaderBytes, Command.class);
                   message = command.process(this);
                } else {
-                  // not that exact but overflow aware and efficient
-                  idleConnectionDuration += receiverConfig.getReceiveTimeout();
-                  if (isRunning.get() && idleConnectionDuration > receiverConfig.getIdleConnectionTimeout()) {
-                     handleConnectionIdleChanges(true);
+                  final boolean running = isRunning.get();
+                  currentTime = System.currentTimeMillis();
 
-                     switch (receiverConfig.getIdleConnectionTimeoutBehavior()) {
+                  if (running && currentTime > idleConnectionTime) {
+                     handleConnectionIdleChanges(true);
+                     idleConnectionTime =
+                           currentTime + receiverConfig.getIdleConnectionTimeout();
+                  }
+
+                  if (running && currentTime > inactiveConnectionTime) {
+                     handleConnectionInactiveChanges(true);
+                     inactiveConnectionTime =
+                           currentTime + receiverConfig.getInactiveConnectionTimeout();
+
+                     switch (receiverConfig.getInactiveConnectionBehavior()) {
                         case RECONNECT:
                            LOGGER.info("Reconnect '{}' due to timeout.", receiverConfig.getAddress());
-                           message = null;
                            reconnect();
                            break;
                         case STOP:
@@ -225,14 +241,11 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
                         case KEEP_RUNNING:
                         default:
                            LOGGER.info("Idle connection timeout for '{}'. Keep running.", receiverConfig.getAddress());
-                           message = null;
                            break;
                      }
-
-                     idleConnectionDuration = 0;
-                  } else {
-                     message = null;
                   }
+
+                  message = null;
                }
             } catch (IllegalTimeException e) {
                LOGGER.info("Reconnect '{}' due to illegal time '{}'.", receiverConfig.getAddress(), e.getMessage());
@@ -267,14 +280,16 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
 
             cleanup();
 
-            // make sure idle connection and connection count is set
+            // make sure idle/inactive connection and connection count is set
             // in any case before updated
-            accept(true);
+            setConnectionIdle(true);
+            setConnectionInactive(true);
             accept(0);
          }
 
          // make sure changes while receiving are handled
          handleConnectionIdleChanges();
+         handleConnectionInactiveChanges();
          handleConnectionCountChanges();
       }
 
@@ -301,7 +316,9 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
             // make sure disconnects (without becoming idle) provide new DataHeader
             receiverState = new ReceiverState();
             // make sure is idle
-            accept(true);
+            setConnectionIdle(true);
+            // make sure is inactive
+            setConnectionInactive(true);
          }
       }
    }
@@ -321,12 +338,12 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
       }
    }
 
-   public void accept(final boolean connectionIdle) {
+   public void setConnectionIdle(final boolean connectionIdle) {
       connectionIdleUpdate.set(connectionIdle);
    }
 
    protected void handleConnectionIdleChanges(final boolean connectionIdle) {
-      accept(connectionIdle);
+      setConnectionIdle(connectionIdle);
       handleConnectionIdleChanges();
    }
 
@@ -341,6 +358,32 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
          } else {
             for (final Consumer<Boolean> handler : getConnectionIdleHandlers()) {
                handler.accept(connectionIdle);
+            }
+         }
+      }
+   }
+
+   public void setConnectionInactive(final boolean connectionInactive) {
+      connectionInactiveUpdate.set(connectionInactive);
+   }
+
+   protected void handleConnectionInactiveChanges(final boolean connectionInactive) {
+      setConnectionInactive(connectionInactive);
+      handleConnectionInactiveChanges();
+   }
+
+   protected void handleConnectionInactiveChanges() {
+      final Boolean connectionInactive = connectionInactiveUpdate.getAndSet(null);
+
+      if (connectionInactive != null
+            && connectionInactivePrev.getAndSet(connectionInactive).booleanValue() != connectionInactive
+                  .booleanValue()) {
+         // make sure connection handlers are executed from the receiving thread
+         if (receiverConfig.isParallelHandlerProcessing()) {
+            getConnectionInactiveHandlers().parallelStream().forEach(handler -> handler.accept(connectionInactive));
+         } else {
+            for (final Consumer<Boolean> handler : getConnectionInactiveHandlers()) {
+               handler.accept(connectionInactive);
             }
          }
       }
@@ -424,5 +467,18 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
 
    public void removeConnectionIdleHandler(Consumer<Boolean> handler) {
       connectionIdleHandlers.remove(handler);
+   }
+
+   @Override
+   public Collection<Consumer<Boolean>> getConnectionInactiveHandlers() {
+      return connectionInactiveHandlers;
+   }
+
+   public void addConnectionInactiveHandler(Consumer<Boolean> handler) {
+      connectionInactiveHandlers.add(handler);
+   }
+
+   public void removeConnectionInactiveHandler(Consumer<Boolean> handler) {
+      connectionInactiveHandlers.remove(handler);
    }
 }

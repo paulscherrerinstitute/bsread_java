@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
 
-import ch.psi.bsread.ReceiverConfig.IdleConnectionTimeoutBehavior;
+import ch.psi.bsread.ReceiverConfig.InactiveConnectionBehavior;
 import ch.psi.bsread.converter.ByteConverter;
 import ch.psi.bsread.converter.MatlabByteConverter;
 import ch.psi.bsread.impl.StandardPulseIdProvider;
@@ -505,8 +505,8 @@ public class ReceiverTest {
       ReceiverConfig<ByteBuffer> receiverConfig = new ReceiverConfig<>();
       receiverConfig.setHighWaterMark(receiveHWM);
       receiverConfig.setLinger(linger);
-      receiverConfig.setIdleConnectionTimeout(1);
-      receiverConfig.setIdleConnectionTimeoutBehavior(IdleConnectionTimeoutBehavior.STOP);
+      receiverConfig.setInactiveConnectionTimeout(1);
+      receiverConfig.setInactiveConnectionBehavior(InactiveConnectionBehavior.STOP);
       Receiver<ByteBuffer> receiver = new Receiver<>(receiverConfig);
       // Optional - register callbacks
       receiver.addMainHeaderHandler(header -> setMainHeader(header));

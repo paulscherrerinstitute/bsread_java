@@ -67,4 +67,11 @@ public interface IReceiver<V> extends Closeable {
     * @return Collection The handlers
     */
    Collection<Consumer<Boolean>> getConnectionIdleHandlers();
+   
+   /**
+    * Provides access to the connection inactive handlers
+    * 
+    * @return Collection The handlers
+    */
+   Collection<Consumer<Boolean>> getConnectionInactiveHandlers();
 }
