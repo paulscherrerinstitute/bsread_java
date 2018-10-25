@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 
-import ch.psi.bsread.common.allocator.ThreadLocalByteBufferAllocator;
+import ch.psi.bsread.common.allocator.ByteBufferAllocator;
 import ch.psi.bsread.common.helper.ByteBufferHelper;
 import ch.psi.bsread.message.ChannelConfig;
 import ch.psi.bsread.message.DataHeader;
@@ -30,8 +30,7 @@ import ch.psi.bsread.message.Type;
  * of the byte_converters package!
  */
 public class MatlabByteConverter extends AbstractByteConverter {
-	private static final ThreadLocalByteBufferAllocator TMP_DECOMPRESS_BYTEBUFFER_ALLOCATOR =
-			new ThreadLocalByteBufferAllocator();
+	private static final ByteBufferAllocator TMP_DECOMPRESS_BYTEBUFFER_ALLOCATOR = new ByteBufferAllocator();
 	// must be the same as in BooleanByteValueConverter.BOOLEAN_POSITION
 	private static final int BOOLEAN_POSITION = 0;
 

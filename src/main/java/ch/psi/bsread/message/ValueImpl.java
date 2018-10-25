@@ -6,12 +6,12 @@ import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import ch.psi.bsread.common.allocator.ThreadLocalByteArrayAllocator;
+import ch.psi.bsread.common.allocator.ByteArrayAllocator;
 
 public class ValueImpl<V> implements Value<V> {
 	private static final long serialVersionUID = -3889961098156334653L;
 	public static final long DEFAULT_TIMEOUT_IN_MILLIS = 30000;
-	private static final ThreadLocalByteArrayAllocator TMP_SERIALIZATION_ALLOCATOR = new ThreadLocalByteArrayAllocator();
+	private static final ByteArrayAllocator TMP_SERIALIZATION_ALLOCATOR = new ByteArrayAllocator();
 
 	private static final byte IS_JAVA_VALUE_POSITION = 0;
 	private static final byte DIRECT_POSITION = 1;

@@ -12,8 +12,8 @@ import java.util.function.IntFunction;
 import net.jpountz.lz4.LZ4BlockInputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
 
+import ch.psi.bsread.common.allocator.ByteArrayAllocator;
 import ch.psi.bsread.common.allocator.ByteBufferAllocator;
-import ch.psi.bsread.common.allocator.ThreadLocalByteArrayAllocator;
 import ch.psi.bsread.compression.Compressor;
 
 /**
@@ -24,7 +24,7 @@ public class ByteBufferHelper {
    private static final byte DIRECT_POSITION = 1;
    private static final byte ORDER_POSITION = 2;
    private static final byte COMPRESS_POSITION = 3;
-   private static final ThreadLocalByteArrayAllocator TMP_SERIALIZATION_ALLOCATOR = new ThreadLocalByteArrayAllocator();
+   private static final ByteArrayAllocator TMP_SERIALIZATION_ALLOCATOR = new ByteArrayAllocator();
 
    public static void write(ByteBuffer buffer, OutputStream os) throws IOException {
       ByteBufferHelper.write(buffer, os, buffer.remaining() > Compressor.DEFAULT_COMPRESS_THRESHOLD);
@@ -459,8 +459,7 @@ public class ByteBufferHelper {
     * Converts the received ByteBuffer into a direct ByteBuffer (might return the same reference in
     * case buffer is already direct).
     * 
-    * @param buffer The ByteBuffer private static final ThreadLocalByteArrayAllocator
-    *        TMP_COMPRESSION_ALLOCATOR = new ThreadLocalByteArrayAllocator();
+    * @param buffer The ByteBuffer
     * 
     * @return Buffer The direct ByteBuffer
     */

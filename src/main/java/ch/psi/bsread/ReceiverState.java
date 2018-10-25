@@ -4,13 +4,12 @@ import java.nio.ByteBuffer;
 import java.util.function.IntFunction;
 
 import ch.psi.bsread.common.allocator.ByteBufferAllocator;
-import ch.psi.bsread.common.allocator.ReuseByteBufferAllocator;
 import ch.psi.bsread.message.DataHeader;
 
 public class ReceiverState {
 	private String dataHeaderHash = "unknown";
 	private DataHeader dataHeader = null;
-	private final IntFunction<ByteBuffer> dataHeaderAllocator = new ReuseByteBufferAllocator(ByteBufferAllocator.DEFAULT_ALLOCATOR);
+	private final IntFunction<ByteBuffer> dataHeaderAllocator = ByteBufferAllocator.DEFAULT_ALLOCATOR;
 
 	public ReceiverState() {
 	}
