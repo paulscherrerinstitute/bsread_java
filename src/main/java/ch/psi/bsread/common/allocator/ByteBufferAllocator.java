@@ -1,11 +1,21 @@
 package ch.psi.bsread.common.allocator;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntFunction;
+
+import javax.management.JMException;
+import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,13 +23,15 @@ import org.slf4j.LoggerFactory;
 import ch.psi.bsread.common.concurrent.executor.CommonExecutors;
 import ch.psi.bsread.common.concurrent.singleton.Deferred;
 
-import sun.misc.JavaNioAccess.BufferPool;
-import sun.misc.VM;
-
 public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
    private static final String DEFAULT_DIRECT_ALLOCATION_THRESHOLD_PARAM = "DirectMemoryAllocationThreshold";
    private static final String DEFAULT_DIRECT_CLEANER_THRESHOLD_PARAM = "DirectMemoryCleanerThreshold";
    public static final Logger LOGGER = LoggerFactory.getLogger(ByteBufferAllocator.class);
+
+   private static final String MEMORY_USED = "MemoryUsed";
+   private static final MBeanServer BEAN_SERVER;
+   private static final ObjectName NIO_DIRECT_POOL;
+   private static final boolean HAS_MEMORY_USED_ATTRIBUTE;
 
    static {
       long directAllocationThreshold = Integer.MAX_VALUE; // 64 * 1024; // 64KB
@@ -47,6 +59,7 @@ public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
                   thresholdStr, e);
          }
       }
+
       DIRECT_ALLOCATION_THRESHOLD = directAllocationThreshold;
       LOGGER.info("Allocate direct memory if junks get bigger than '{}' bytes.", directAllocationThreshold);
 
@@ -69,11 +82,38 @@ public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
                DEFAULT_DIRECT_CLEANER_THRESHOLD_PARAM, thresholdStr);
          directMemoryCleanerThreshold = 0.25;
       }
-      final long maxDirectMemory = VM.maxDirectMemory();
+      final long maxDirectMemory = getDirectMemorySize();
       DIRECT_CLEANER_THRESHOLD = (long) (directMemoryCleanerThreshold * maxDirectMemory);
       LOGGER.info(
             "Run explicit GC if allocated direct memory is bigger than '{}%' of the max direct memory of '{}' bytes.",
             (int) (directMemoryCleanerThreshold * 100), maxDirectMemory);
+
+      ObjectName n = null;
+      MBeanServer s = null;
+      Object a = null;
+      try {
+         n = new ObjectName("java.nio:type=BufferPool,name=direct");
+      } catch (MalformedObjectNameException e) {
+         LOGGER.warn("Unable to initialize ObjectName for DirectByteBuffer allocations.", e);
+      } finally {
+         NIO_DIRECT_POOL = n;
+      }
+      if (NIO_DIRECT_POOL != null) {
+         s = ManagementFactory.getPlatformMBeanServer();
+      }
+      BEAN_SERVER = s;
+      if (BEAN_SERVER != null) {
+         try {
+            a = BEAN_SERVER.getAttribute(NIO_DIRECT_POOL, MEMORY_USED);
+         } catch (final JMException e) {
+            LOGGER.debug("Failed to retrieve nio.BufferPool direct MemoryUsed attribute: " + e);
+         }
+      }
+      HAS_MEMORY_USED_ATTRIBUTE = a != null;
+
+      if (!HAS_MEMORY_USED_ATTRIBUTE) {
+         LOGGER.error("Cannot retrieve direct memory usage.");
+      }
    }
 
    public static final long DIRECT_ALLOCATION_THRESHOLD;
@@ -81,9 +121,7 @@ public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
          ByteBufferAllocator.DIRECT_ALLOCATION_THRESHOLD);
 
    public static final long DIRECT_CLEANER_THRESHOLD;
-   private static final DirectBufferCleaner DIRECT_BUFFER_CLEANER = new DirectBufferCleaner(
-         DIRECT_CLEANER_THRESHOLD);
-   private static BufferPool DIRECT_BUFFER_POOL = sun.misc.SharedSecrets.getJavaNioAccess().getDirectBufferPool();
+   private static final DirectBufferCleaner DIRECT_BUFFER_CLEANER = new DirectBufferCleaner(DIRECT_CLEANER_THRESHOLD);
 
    private long directThreshold;
 
@@ -115,6 +153,67 @@ public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
    public ByteBuffer allocateDirect(int nBytes) {
       DIRECT_BUFFER_CLEANER.allocateBytes(nBytes);
       return ByteBuffer.allocateDirect(nBytes);
+   }
+
+   public static long getDirectMemoryUsage() {
+      if (BEAN_SERVER == null || NIO_DIRECT_POOL == null || !HAS_MEMORY_USED_ATTRIBUTE) {
+         return 0;
+      }
+      try {
+         final Long value = (Long) BEAN_SERVER.getAttribute(NIO_DIRECT_POOL, MEMORY_USED);
+         return value == null ? 0 : value;
+      } catch (JMException e) {
+         // should print further diagnostic information?
+         return 0;
+      }
+   }
+
+   private static long getDirectMemorySize() {
+      final RuntimeMXBean runtimemxBean = ManagementFactory.getRuntimeMXBean();
+      final List<String> arguments = runtimemxBean.getInputArguments();
+      for (final String s : arguments) {
+         if (s.contains("-XX:MaxDirectMemorySize=")) {
+            String memSize = s.toLowerCase(Locale.ROOT).replace("-xx:maxdirectmemorysize=", "").trim();
+            final long multiplier = getMultiplier(memSize);
+            memSize = memSize.replaceAll("[^\\d]", "");
+
+            try {
+               return Long.parseLong(memSize) * multiplier;
+            } catch (final Exception e) {
+               LOGGER.warn("Could not parse '{}'.", memSize, e);
+            }
+         }
+      }
+
+      try {
+         final Class<?> VM = Class.forName("sun.misc.VM");
+         final Method maxDirectMemory = VM.getMethod("maxDirectMemory");
+         final Object result = maxDirectMemory.invoke(null, (Object[]) null);
+         if (result != null && result instanceof Long) {
+            return (Long) result;
+         }
+      } catch (Exception e) {
+         LOGGER.info("Unable to get maxDirectMemory from VM due to '{}'.", e.getMessage());
+      }
+      // default according to VM.maxDirectMemory()
+      return Runtime.getRuntime().maxMemory();
+   }
+
+   private static long getMultiplier(final String byteStr) {
+      // for the byte case
+      int multiplier = 1;
+
+      if (byteStr.contains("k")) {
+         multiplier = 1024;
+      } else if (byteStr.contains("m")) {
+         multiplier = 1048576;
+      } else if (byteStr.contains("g")) {
+         multiplier = 1073741824;
+      } else if (byteStr.contains("t")) {
+         multiplier = 1073741824 * 1024;
+      }
+
+      return multiplier;
    }
 
    // it happened that DirectBuffer memory was not reclaimed. The cause was was
@@ -157,7 +256,7 @@ public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
          // https://docs.oracle.com/javase/8/docs/api/java/lang/management/MemoryPoolMXBean.html
          // for more info on GC
          if (System.currentTimeMillis() > earliestNextTime.get()
-               && DIRECT_BUFFER_POOL.getMemoryUsed() + nBytes > gcThreshold
+               && getDirectMemoryUsage() + nBytes > gcThreshold
                && syncRef.compareAndSet(null, syncObj)) {
             LOGGER.info("Perform explicit GC.");
 
