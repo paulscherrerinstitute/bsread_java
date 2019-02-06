@@ -77,15 +77,21 @@ public abstract class AbstractMessageExtractor<V> implements MessageExtractor<V>
                throw new RuntimeException(errorMessage);
             }
             final Msg timeMsg = receiveMsg(socket);
-            ByteBuffer timestampBytes = timeMsg.buf().order(byteOrder);
+            ByteBuffer timestampBytes = timeMsg.buf();
 
             // Create value object
             if (receivedValueBytes != null && receivedValueBytes.remaining() > 0) {
                // c-implementation uses a unsigned long (Json::UInt64,
                // uint64_t) for time -> decided to ignore this here
-               final Timestamp iocTimestamp = new Timestamp(
-                     timestampBytes.getLong(timestampBytes.position()),
-                     timestampBytes.getLong(timestampBytes.position() + Long.BYTES));
+               final Timestamp iocTimestamp;
+               if (timestampBytes != null && timestampBytes.remaining() == 2 * Long.BYTES) {
+                  timestampBytes = timestampBytes.order(byteOrder);
+                  iocTimestamp = new Timestamp(
+                        timestampBytes.getLong(timestampBytes.position()),
+                        timestampBytes.getLong(timestampBytes.position() + Long.BYTES));
+               } else {
+                  iocTimestamp = mainHeader.getGlobalTimestamp();
+               }
 
                final Value<V> value = valueConverter.getMessageValue(mainHeader, dataHeader, currentConfig,
                      receivedValueBytes, iocTimestamp);
