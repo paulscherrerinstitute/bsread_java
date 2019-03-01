@@ -19,7 +19,8 @@ public class CommonExecutors {
    public static final int QUEUE_SIZE_UNBOUNDED = -1;
    public static final int DEFAULT_CORE_POOL_SIZE = Math.max(4, Runtime.getRuntime().availableProcessors());
    public static final int DEFAULT_MAX_POOL_SIZE = Integer.MAX_VALUE; // 10 * DEFAULT_CORE_POOL_SIZE
-   private static final RejectedExecutionHandler DEFAULT_HANDLER = new AbortPolicy();
+   public static final long DEFAULT_TTL_SECONDS = TimeUnit.MINUTES.toSeconds(5);
+   public static final RejectedExecutionHandler DEFAULT_HANDLER = new AbortPolicy();
 
    public static ExecutorService newSingleThreadExecutor(String poolName) {
       return newSingleThreadExecutor(QUEUE_SIZE_UNBOUNDED, poolName);
@@ -76,7 +77,7 @@ public class CommonExecutors {
                   rejectedExecutionHandler);
 
       if (monitoring) {
-         return new MonitoringExecutorService(executor, 0);
+         return new MonitoringExecutorService(executor, () -> executor.getQueue().size(), 0);
       } else {
          return executor;
       }
@@ -130,7 +131,7 @@ public class CommonExecutors {
                   rejectedExecutionHandler);
 
       if (monitoring) {
-         return new MonitoringExecutorService(executor, 0);
+         return new MonitoringExecutorService(executor, () -> executor.getQueue().size(), 0);
       } else {
          return executor;
       }
@@ -165,7 +166,49 @@ public class CommonExecutors {
             new ScheduledThreadPoolExecutor(nThreads, threadFactory, rejectedExecutionHandler);
 
       if (monitoring) {
-         return new MonitoringScheduledExecutorService(executor, 0);
+         return new MonitoringScheduledExecutorService(executor, () -> executor.getQueue().size(), 0);
+      } else {
+         return executor;
+      }
+   }
+
+   public static ExecutorService newElasticThreadPool(int corePoolSize, int maximumPoolSize, String poolName) {
+      return newElasticThreadPool(corePoolSize, maximumPoolSize, DEFAULT_TTL_SECONDS, poolName, DEFAULT_IS_MONITORING,
+            Thread.NORM_PRIORITY);
+   }
+
+   public static ExecutorService newElasticThreadPool(int corePoolSize, int maximumPoolSize, long ttlSeconds,
+         String poolName, boolean monitoring) {
+      return newElasticThreadPool(corePoolSize, maximumPoolSize, ttlSeconds, poolName, monitoring,
+            Thread.NORM_PRIORITY);
+   }
+
+   public static ExecutorService newElasticThreadPool(int corePoolSize, int maximumPoolSize, long ttlSeconds,
+         String poolName, boolean monitoring, int threadPriority) {
+      ThreadFactory threadFactory =
+            new BasicThreadFactory.Builder()
+                  .namingPattern(poolName + "-%d")
+                  .priority(threadPriority)
+                  .build();
+
+      if (monitoring) {
+         threadFactory = new ExceptionCatchingThreadFactory(threadFactory);
+      }
+
+      RejectedExecutionHandler rejectedExecutionHandler = DEFAULT_HANDLER;
+
+      // always monitor rejections
+      rejectedExecutionHandler = new MonitoringRejectedExecutionHandler(rejectedExecutionHandler, poolName);
+
+      ElasticExecutorService executor =
+            new ElasticExecutorService(
+                  corePoolSize, maximumPoolSize,
+                  threadFactory,
+                  ttlSeconds,
+                  rejectedExecutionHandler);
+
+      if (monitoring) {
+         return new MonitoringExecutorService(executor, () -> executor.getQueue().size(), 0);
       } else {
          return executor;
       }

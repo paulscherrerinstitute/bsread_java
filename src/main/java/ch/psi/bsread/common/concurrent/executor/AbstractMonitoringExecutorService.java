@@ -6,20 +6,26 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.IntSupplier;
 import java.util.stream.Collectors;
 
 public abstract class AbstractMonitoringExecutorService implements ExecutorService {
-	private final ThreadPoolExecutor target;
+	private final ExecutorService target;
+	private final IntSupplier queueSizeProvider;
 
-	public AbstractMonitoringExecutorService(ThreadPoolExecutor target) {
+	public AbstractMonitoringExecutorService(ExecutorService target, IntSupplier queueSizeProvider) {
 		this.target = target;
+		this.queueSizeProvider = queueSizeProvider;
 	}
 	
-	public ThreadPoolExecutor getTarget(){
+	public ExecutorService getTarget(){
 		return target;
+	}
+	
+	public int getQueueSize(){
+	   return queueSizeProvider.getAsInt();
 	}
 
 	@Override
