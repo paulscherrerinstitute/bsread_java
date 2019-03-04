@@ -203,6 +203,7 @@ public class CommonExecutors {
       ElasticExecutorService executor =
             new ElasticExecutorService(
                   corePoolSize, maximumPoolSize,
+                  poolName,
                   threadFactory,
                   ttlSeconds,
                   rejectedExecutionHandler);

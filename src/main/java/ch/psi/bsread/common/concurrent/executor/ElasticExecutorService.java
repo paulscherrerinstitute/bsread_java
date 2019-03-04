@@ -28,20 +28,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * In contrast to other ExecutorService this has the advantages: 
- * - Threads are dynamically created up to a predefined upper limit and destroyed if they are not used anymore (e.g. situation with high initial load) 
- * - If the max number of threads are created, further tasks are cached and executed when threads become available (no exception is thrown as in other ExecutorServices)
+ * In contrast to other ExecutorService this has the advantages: - Threads are dynamically created
+ * up to a predefined upper limit and destroyed if they are not used anymore (e.g. situation with
+ * high initial load) - If the max number of threads are created, further tasks are cached and
+ * executed when threads become available (no exception is thrown as in other ExecutorServices)
  */
 // Inspired by reactor.core.scheduler.ElasticScheduler
 public class ElasticExecutorService extends AbstractExecutorService implements Supplier<ExecutorService> { // ScheduledExecutorService
    private static final Logger LOGGER = LoggerFactory.getLogger(ElasticExecutorService.class); // {
    private static final AtomicLong COUNTER = new AtomicLong();
 
-   static final ThreadFactory EVICTOR_FACTORY = r -> {
-      Thread t = new Thread(r, "ElasticExecutorEvictor-" + COUNTER.incrementAndGet());
-      t.setDaemon(true);
-      return t;
-   };
+   // static final ThreadFactory EVICTOR_FACTORY = r -> {
+   // Thread t = new Thread(r, "ElasticExecutorEvictor-" + COUNTER.incrementAndGet());
+   // t.setDaemon(true);
+   // return t;
+   // };
 
    public static final int DEFAULT_TTL_SECONDS = 60;
 
@@ -69,6 +70,7 @@ public class ElasticExecutorService extends AbstractExecutorService implements S
       this(
             corePoolSize,
             maxPoolSize,
+            poolName,
             new BasicThreadFactory.Builder()
                   .namingPattern(poolName + "-%d")
                   .priority(Thread.NORM_PRIORITY)
@@ -79,10 +81,12 @@ public class ElasticExecutorService extends AbstractExecutorService implements S
    public ElasticExecutorService(
          final int corePoolSize,
          final int maxPoolSize,
+         final String poolName,
          final ThreadFactory factory,
          final long ttlSeconds) {
       this(corePoolSize,
             maxPoolSize,
+            poolName,
             factory,
             ttlSeconds,
             CommonExecutors.DEFAULT_HANDLER);
@@ -91,6 +95,7 @@ public class ElasticExecutorService extends AbstractExecutorService implements S
    public ElasticExecutorService(
          final int corePoolSize,
          final int maxPoolSize,
+         final String poolName,
          final ThreadFactory factory,
          final long ttlSeconds,
          final RejectedExecutionHandler rejectedExecutionHandler) {
@@ -110,7 +115,11 @@ public class ElasticExecutorService extends AbstractExecutorService implements S
       this.shutdown = new AtomicBoolean();
       this.terminated = new AtomicBoolean();
       this.awaitTermination = new ArrayList<>();
-      this.evictor = Executors.newScheduledThreadPool(1, EVICTOR_FACTORY);
+      this.evictor = Executors.newScheduledThreadPool(1, r -> {
+         Thread t = new Thread(r, poolName + "-ElasticExecutorEvictor-" + COUNTER.incrementAndGet());
+         t.setDaemon(true);
+         return t;
+      });
       this.evictor.scheduleAtFixedRate(this::eviction,
             ttlSeconds,
             ttlSeconds,
