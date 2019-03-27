@@ -87,6 +87,11 @@ public class CommonExecutors {
       return newCachedThreadPool(corePoolSize, maximumPoolSize, QUEUE_SIZE_UNBOUNDED, poolName, DEFAULT_IS_MONITORING,
             Thread.NORM_PRIORITY);
    }
+   
+   public static ExecutorService newCachedThreadPool(int corePoolSize, int maximumPoolSize, String poolName, boolean monitoring) {
+      return newCachedThreadPool(corePoolSize, maximumPoolSize, QUEUE_SIZE_UNBOUNDED, poolName, monitoring,
+            Thread.NORM_PRIORITY);
+   }
 
    public static ExecutorService newCachedThreadPool(int corePoolSize, int maximumPoolSize, int queueSize,
          String poolName, boolean monitoring) {
@@ -174,6 +179,11 @@ public class CommonExecutors {
 
    public static ExecutorService newElasticThreadPool(int corePoolSize, int maximumPoolSize, String poolName) {
       return newElasticThreadPool(corePoolSize, maximumPoolSize, DEFAULT_TTL_SECONDS, poolName, DEFAULT_IS_MONITORING,
+            Thread.NORM_PRIORITY);
+   }
+   
+   public static ExecutorService newElasticThreadPool(int corePoolSize, int maximumPoolSize, String poolName, boolean monitoring) {
+      return newElasticThreadPool(corePoolSize, maximumPoolSize, DEFAULT_TTL_SECONDS, poolName, monitoring,
             Thread.NORM_PRIORITY);
    }
 
