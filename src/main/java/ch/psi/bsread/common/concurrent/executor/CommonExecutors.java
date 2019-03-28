@@ -13,8 +13,11 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CommonExecutors {
+   private static Logger LOGGER = LoggerFactory.getLogger(CommonExecutors.class);
    public static final boolean DEFAULT_IS_MONITORING = false;
    public static final int QUEUE_SIZE_UNBOUNDED = -1;
    public static final int DEFAULT_CORE_POOL_SIZE = Math.max(4, Runtime.getRuntime().availableProcessors());
@@ -41,6 +44,10 @@ public class CommonExecutors {
 
    public static ExecutorService newFixedThreadPool(int nThreads, String poolName) {
       return newFixedThreadPool(nThreads, QUEUE_SIZE_UNBOUNDED, poolName, DEFAULT_IS_MONITORING, Thread.NORM_PRIORITY);
+   }
+   
+   public static ExecutorService newFixedThreadPool(int nThreads, String poolName, boolean monitoring) {
+      return newFixedThreadPool(nThreads, QUEUE_SIZE_UNBOUNDED, poolName, monitoring, Thread.NORM_PRIORITY);
    }
 
    public static ExecutorService newFixedThreadPool(int nThreads, int queueSize, String poolName,
@@ -257,6 +264,7 @@ public class CommonExecutors {
 
       public Thread newThread(final Runnable r) {
          Thread t = delegate.newThread(r);
+         LOGGER.info("'{}' created new Thread '{}'.", Thread.currentThread().getName(), t.getName());
          t.setUncaughtExceptionHandler((trd, ex) -> {
             ex.printStackTrace(); // replace with your handling logic.
          });

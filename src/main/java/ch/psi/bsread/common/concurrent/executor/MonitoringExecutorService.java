@@ -1,6 +1,9 @@
 package ch.psi.bsread.common.concurrent.executor;
 
+import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.IntSupplier;
 
@@ -11,6 +14,8 @@ public class MonitoringExecutorService extends AbstractMonitoringExecutorService
    private static Logger LOGGER = LoggerFactory.getLogger(MonitoringExecutorService.class);
 
    private final int logMessageAtQueueSize;
+   private final Set<String> threadIds = Collections.newSetFromMap(
+         new ConcurrentHashMap<>(8, 0.75f, Runtime.getRuntime().availableProcessors()));
 
    public MonitoringExecutorService(ExecutorService target, IntSupplier queueSizeProvider, int logMessageAtQueueSize) {
       super(target, queueSizeProvider);
@@ -22,6 +27,8 @@ public class MonitoringExecutorService extends AbstractMonitoringExecutorService
       final Exception clientStack = clientTrace();
       final String clientThreadName = Thread.currentThread().getName();
       final long startTime = System.nanoTime();
+
+      log(clientThreadName, clientStack);
 
       int submitSize = getQueueSize();
       if (submitSize >= logMessageAtQueueSize) {
@@ -48,6 +55,8 @@ public class MonitoringExecutorService extends AbstractMonitoringExecutorService
       final String clientThreadName = Thread.currentThread().getName();
       final long startTime = System.nanoTime();
 
+      log(clientThreadName, clientStack);
+
       int submitSize = getQueueSize();
       if (submitSize >= logMessageAtQueueSize) {
          LOGGER.info("Submit runnable '{}' at queue size '{}'.", run, submitSize, clientStack);
@@ -65,5 +74,11 @@ public class MonitoringExecutorService extends AbstractMonitoringExecutorService
             throw e;
          }
       };
+   }
+
+   protected void log(final String threadName, final Exception clientStack) {
+      if (threadIds.add(threadName)) {
+         LOGGER.info("{} got added by '{}'.", threadName, Thread.currentThread().getName(), clientStack);
+      }
    }
 }
