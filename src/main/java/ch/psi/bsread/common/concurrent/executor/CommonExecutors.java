@@ -84,7 +84,7 @@ public class CommonExecutors {
                   rejectedExecutionHandler);
 
       if (monitoring) {
-         return new MonitoringExecutorService(executor, () -> executor.getQueue().size(), 0);
+         return new MonitoringExecutorService(executor, () -> executor.getQueue().size(), 1);
       } else {
          return executor;
       }
@@ -143,7 +143,7 @@ public class CommonExecutors {
                   rejectedExecutionHandler);
 
       if (monitoring) {
-         return new MonitoringExecutorService(executor, () -> executor.getQueue().size(), 0);
+         return new MonitoringExecutorService(executor, () -> executor.getQueue().size(), 1);
       } else {
          return executor;
       }
@@ -226,7 +226,7 @@ public class CommonExecutors {
                   rejectedExecutionHandler);
 
       if (monitoring) {
-         return new MonitoringExecutorService(executor, () -> executor.getQueue().size(), 0);
+         return new MonitoringExecutorService(executor, () -> executor.getQueue().size(), 1);
       } else {
          return executor;
       }
