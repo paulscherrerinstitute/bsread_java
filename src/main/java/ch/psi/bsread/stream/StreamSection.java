@@ -17,14 +17,14 @@ public interface StreamSection<T> {
    /**
     * Provides the value which was the current value in the last iteration.
     * 
-    * @return the value or <tt>null</tt>
+    * @return the value or null
     */
    public T getPreviousCurrent();
 
    /**
     * Provides the value which will become the current value in the next iteration.
     * 
-    * @return the value or <tt>null</tt>
+    * @return the value or null
     */
    public T getNextCurrent();
 
@@ -53,7 +53,7 @@ public interface StreamSection<T> {
    /**
     * Provides a view on all elements in the section (past, current, and future)
     * 
-    * @param ascending <tt>true</tt> orders from oldest to the youngest value, <tt>false</tt> orders
+    * @param ascending true orders from oldest to the youngest value, false orders
     *        from youngest to the oldest value.
     * @return Stream the values
     */
@@ -70,7 +70,7 @@ public interface StreamSection<T> {
    /**
     * Provides a view on all elements older than the current value.
     * 
-    * @param ascending <tt>true</tt> orders from oldest to the youngest value, <tt>false</tt> orders
+    * @param ascending true orders from oldest to the youngest value, false orders
     *        from youngest to the oldest value.
     * @return Stream the values
     */
@@ -87,7 +87,7 @@ public interface StreamSection<T> {
    /**
     * Provides a view on all elements younger than the current value.
     * 
-    * @param ascending <tt>true</tt> orders from oldest to the youngest value, <tt>false</tt> orders
+    * @param ascending true orders from oldest to the youngest value, false orders
     *        from youngest to the oldest value.
     * @return Stream the values
     */

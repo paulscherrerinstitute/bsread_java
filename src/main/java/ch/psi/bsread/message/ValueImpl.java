@@ -166,7 +166,7 @@ public class ValueImpl<V> implements Value<V> {
 	 *            The descriptor
 	 * @param position
 	 *            The position
-	 * @return boolean <tt>true</tt> if the bit is set, <tt>false</tt> otherwise
+	 * @return boolean true if the bit is set, false otherwise
 	 */
 	public static boolean isPositionSet(byte descriptor, byte position) {
 		return (descriptor & (1 << position)) != 0;

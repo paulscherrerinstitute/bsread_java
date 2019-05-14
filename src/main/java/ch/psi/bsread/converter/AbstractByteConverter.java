@@ -16,7 +16,7 @@ public abstract class AbstractByteConverter implements ByteConverter {
 	 * 
 	 * @param shape
 	 *            The shape
-	 * @return boolean <tt>true</tt> if it is an array, <tt>false</tt> otherwise
+	 * @return boolean true if it is an array, false otherwise
 	 */
 	public static boolean isArray(int[] shape) {
 		if (shape != null) {

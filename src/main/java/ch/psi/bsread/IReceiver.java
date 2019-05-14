@@ -25,10 +25,10 @@ public interface IReceiver<V> extends Closeable {
 
    /**
     * Receive the next message (blocks for the next). Users must not call Thread.interrupt() to stop
-    * (see: https://github.com/zeromq/jeromq/issues/116) but use close() and check for <tt>null</tt>
+    * (see: https://github.com/zeromq/jeromq/issues/116) but use close() and check for null
     * as termination condition.
     * 
-    * @return Message The next message or <tt>null</tt> for termination.
+    * @return Message The next message or null for termination.
     * @throws RuntimeException Might throw a RuntimeException
     */
    Message<V> receive() throws RuntimeException;

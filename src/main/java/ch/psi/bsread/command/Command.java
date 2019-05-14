@@ -12,7 +12,7 @@ public interface Command extends Serializable{
     * 
     * @param <V> The JAVA type
     * @param receiver Object to retrieve the information from
-    * @return Message The extracted message or <tt>null</tt> if the command does not extract 
+    * @return Message The extracted message or null if the command does not extract
     */
    public <V> Message<V> process(ConfigIReceiver<V> receiver);
 }

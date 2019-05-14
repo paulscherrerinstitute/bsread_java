@@ -397,7 +397,7 @@ public class ByteBufferHelper {
     * 
     * @param descriptor The descriptor
     * @param position The position
-    * @return boolean <tt>true</tt> if the bit is set, <tt>false</tt> otherwise
+    * @return boolean true if the bit is set, false otherwise
     */
    public static boolean isPositionSet(byte descriptor, int position) {
       return position < Byte.SIZE && (descriptor & (1 << position)) != 0;
@@ -408,7 +408,7 @@ public class ByteBufferHelper {
     * 
     * @param descriptor The descriptor
     * @param position The position
-    * @return boolean <tt>true</tt> if the bit is set, <tt>false</tt> otherwise
+    * @return boolean true if the bit is set, false otherwise
     */
    public static boolean isPositionSet(short descriptor, int position) {
       return position < Short.SIZE && (descriptor & (1 << position)) != 0;
@@ -419,7 +419,7 @@ public class ByteBufferHelper {
     * 
     * @param descriptor The descriptor
     * @param position The position
-    * @return boolean <tt>true</tt> if the bit is set, <tt>false</tt> otherwise
+    * @return boolean true if the bit is set, false otherwise
     */
    public static boolean isPositionSet(int descriptor, int position) {
       return position < Integer.SIZE && (descriptor & (1 << position)) != 0;
@@ -430,7 +430,7 @@ public class ByteBufferHelper {
     * 
     * @param descriptor The descriptor
     * @param position The position
-    * @return boolean <tt>true</tt> if the bit is set, <tt>false</tt> otherwise
+    * @return boolean true if the bit is set, false otherwise
     */
    public static boolean isPositionSet(long descriptor, int position) {
       return position < Long.SIZE && (descriptor & (1 << position)) != 0;
