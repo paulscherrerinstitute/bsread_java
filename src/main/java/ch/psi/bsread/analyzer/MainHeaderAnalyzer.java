@@ -21,6 +21,8 @@ public class MainHeaderAnalyzer {
     private MainHeader lastValid = null;
     private final String streamName;
 
+    private boolean createHistograms = false;
+
     private long validTimeDelta = TimeUnit.SECONDS.toMillis(10);
 
     private AnalyzerReport report;
@@ -131,10 +133,12 @@ public class MainHeaderAnalyzer {
                 return false;
             }
 
-            // Update pulse-id increment histogram
-            report.updateHistogramPulseIdIncrements((int)(headerPulseId-validPulseId)); // cast to int needed
-            // Update delay histogram
-            report.updateHistogramDelays((int)(currentTime-headerTimestamp));
+            if(createHistograms) {
+                // Update pulse-id increment histogram
+                report.updateHistogramPulseIdIncrements((int) (headerPulseId - validPulseId)); // cast to int needed
+                // Update delay histogram
+                report.updateHistogramDelays((int) (currentTime - headerTimestamp));
+            }
 
 
             report.incrementNumberOfCorrectMessages();
@@ -167,6 +171,14 @@ public class MainHeaderAnalyzer {
 
     public void setValidTimeDelta(long validTimeDelta) {
         this.validTimeDelta = validTimeDelta;
+    }
+
+    public boolean isCreateHistograms() {
+        return createHistograms;
+    }
+
+    public void setCreateHistograms(boolean createHistograms) {
+        this.createHistograms = createHistograms;
     }
 
     public AnalyzerReport getReport() {
