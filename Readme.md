@@ -78,3 +78,9 @@ To upload the built jar to the artifact repository use:
 ```bash
 ./gradlew uploadArchives
 ```
+
+There is a Docker build container that should be used for production build (to ensure 1.8 compatiblity). The container can be used/started as follows:
+```bash
+docker run -it --rm -v $(pwd):/data -v$HOME:/root paulscherrerinstitute/centos_build_java:1.8
+```
+
