@@ -18,14 +18,19 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.SignStyle;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
 
 import ch.psi.bsread.message.Timestamp;
 
 public class Utils {
+
+   private static final Logger logger = LoggerFactory.getLogger(Utils.class);
+
    private static final String BIND_IDENTIFIER = "*";
-   private static final String DEFULT_TOPIC = "";
+   private static final String DEFAULT_TOPIC = "";
 
    // keep in sync with TimeUtils.ISO_OFFSET_DATE_TIME
    public static final DateTimeFormatter ISO_OFFSET_DATE_TIME;
@@ -101,7 +106,7 @@ public class Utils {
     * @param socketType The socket type
     */
    public static void connect(final Socket socket, final String address, final int socketType) {
-      connect(socket, address, socketType, DEFULT_TOPIC);
+      connect(socket, address, socketType, DEFAULT_TOPIC);
    }
 
    /**
@@ -112,7 +117,19 @@ public class Utils {
     * @param socketType The socket type
     * @param topic The topic to subscribe
     */
-   public static void connect(final Socket socket, final String address, final int socketType, final String topic) {
+   public static void connect(final Socket socket, String address, final int socketType, final String topic) {
+
+      // Check if address starts with tcp:// otherwise add this to the address
+      if(! address.startsWith("tcp://")){
+         logger.info("Add tcp:// prefix to address {}", address);
+         address = "tcp://"+address;
+      }
+
+      if(! address.matches(".*:[0-9]+$")){
+         logger.info("Add default port :9999 to address {}", address);
+         address = address + ":9999";
+      }
+
       if (address.contains(BIND_IDENTIFIER)) {
          socket.bind(address);
       } else {
