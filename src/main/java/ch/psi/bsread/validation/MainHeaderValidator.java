@@ -38,6 +38,20 @@ public class MainHeaderValidator {
      * @return Returns true if header is valid based on the validators state (messages validated before)
      */
     public boolean validate(MainHeader header) {
+        return validateReason(header) > 0 ? false : true;
+    }
+
+    /**
+     * Validate pulse-id and global-timestamp. If header is not valid returns a reason for not
+     * @param header    Header to be analyzed
+     * @return  Integer indicating the reason why the header is not valid. Returns
+     *          0 - valid header
+     *          1 - 0 pulse-id
+     *          2 - global-time of message out of valid time range
+     *          3 - pulse-id before last valid pulse-id
+     *          4 - global-time before last valid global-time
+     */
+    public int validateReason(MainHeader header){
 
         final long currentTime = System.currentTimeMillis();
 
@@ -52,7 +66,7 @@ public class MainHeaderValidator {
                     headerPulseId,
                     header.getGlobalTimestamp());
 
-            return false;
+            return 1;
         }
 
         // Check if global timestamp send from the IOC largely differs from current time
@@ -66,7 +80,7 @@ public class MainHeaderValidator {
                     currentTime,
                     validTimeDelta);
 
-            return false;
+            return 2;
         }
 
         // For the following checks a last valid header is necessary
@@ -85,7 +99,7 @@ public class MainHeaderValidator {
                         header.getGlobalTimestamp(),
                         validPulseId);
 
-                return false;
+                return 3;
             }
 
             // Check if timestamp is after last valid message
@@ -98,13 +112,13 @@ public class MainHeaderValidator {
                         header.getGlobalTimestamp(),
                         lastValid.getGlobalTimestamp());
 
-                return false;
+                return 4;
             }
         }
 
         lastValid = header;
 
-        return true;
+        return 0;
     }
 
     /**
