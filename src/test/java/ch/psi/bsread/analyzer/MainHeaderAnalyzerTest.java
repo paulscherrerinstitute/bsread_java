@@ -1,4 +1,4 @@
-package ch.psi.bsread.validation;
+package ch.psi.bsread.analyzer;
 
 import ch.psi.bsread.message.MainHeader;
 import ch.psi.bsread.message.Timestamp;
@@ -8,12 +8,12 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 
-public class MainHeaderValidatorTest {
+public class MainHeaderAnalyzerTest {
 
     @Test
-    public void validate() {
+    public void analyze() {
 
-        MainHeaderValidator validator = new MainHeaderValidator("tcp://teststream");
+        MainHeaderAnalyzer validator = new MainHeaderAnalyzer("tcp://teststream");
         MainHeader header;
 
         // Check 0 pulse-id detection
@@ -23,7 +23,7 @@ public class MainHeaderValidatorTest {
         header.setPulseId(0);
         header.setGlobalTimestamp(Timestamp.ofMillis(System.currentTimeMillis()));
 
-        assertFalse(validator.validate(header));
+        assertFalse(validator.analyze(header));
         assertFalse(validator.reset());  // validator must not have a state as failing the check must not modify the state of the validator
 
 
@@ -34,7 +34,7 @@ public class MainHeaderValidatorTest {
         header.setPulseId(10);
         header.setGlobalTimestamp(Timestamp.ofMillis(System.currentTimeMillis()));
 
-        assertTrue(validator.validate(header));
+        assertTrue(validator.analyze(header));
         assertTrue(validator.reset());  // validator have a state
 
         validator.reset();
@@ -43,7 +43,7 @@ public class MainHeaderValidatorTest {
         header.setPulseId(10);
         header.setGlobalTimestamp(Timestamp.ofMillis(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(8)));
 
-        assertTrue(validator.validate(header));
+        assertTrue(validator.analyze(header));
         assertTrue(validator.reset());  // validator have a state
 
         validator.reset();
@@ -52,7 +52,7 @@ public class MainHeaderValidatorTest {
         header.setPulseId(10);
         header.setGlobalTimestamp(Timestamp.ofMillis(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(8)));
 
-        assertTrue(validator.validate(header));
+        assertTrue(validator.analyze(header));
         assertTrue(validator.reset());  // validator have a state
 
 
@@ -63,7 +63,8 @@ public class MainHeaderValidatorTest {
         header.setPulseId(10);
         header.setGlobalTimestamp(Timestamp.ofMillis(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(12)));
 
-        assertFalse(validator.validate(header));
+        assertFalse(validator.analyze(header));
+        assertEquals(1, validator.getReport().getGlobalTimestampOutOfValidTimeRange());
         assertFalse(validator.reset());  // validator must not have a state as failing the check must not modify the state of the validator
 
         validator.reset();
@@ -72,7 +73,8 @@ public class MainHeaderValidatorTest {
         header.setPulseId(10);
         header.setGlobalTimestamp(Timestamp.ofMillis(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(12)));
 
-        assertFalse(validator.validate(header));
+        assertFalse(validator.analyze(header));
+        assertEquals(1, validator.getReport().getGlobalTimestampOutOfValidTimeRange());
         assertFalse(validator.reset());  // validator must not have a state as failing the check must not modify the state of the validator
 
 
@@ -83,11 +85,12 @@ public class MainHeaderValidatorTest {
         header = new MainHeader();
         header.setPulseId(2);
         header.setGlobalTimestamp(Timestamp.ofMillis(timestamp));
-        assertTrue(validator.validate(header));
+        assertTrue(validator.analyze(header));
         header = new MainHeader();
         header.setPulseId(3);
         header.setGlobalTimestamp(Timestamp.ofMillis(timestamp - 1)); // one millisecond before
-        assertFalse(validator.validate(header));
+        assertFalse(validator.analyze(header));
+        assertEquals(1, validator.getReport().getGlobalTimestampBeforeLastValid());
 
         // Check for correct increase
         validator.reset();
@@ -96,11 +99,11 @@ public class MainHeaderValidatorTest {
         header = new MainHeader();
         header.setPulseId(1);
         header.setGlobalTimestamp(Timestamp.ofMillis(timestamp));
-        assertTrue(validator.validate(header));
+        assertTrue(validator.analyze(header));
         header = new MainHeader();
         header.setPulseId(2);
         header.setGlobalTimestamp(Timestamp.ofMillis(timestamp+1)); // one millisecond after
-        assertTrue(validator.validate(header));
+        assertTrue(validator.analyze(header));
 
         // Check invalid due to same or previous pulse-id in header
         validator.reset();
@@ -109,28 +112,30 @@ public class MainHeaderValidatorTest {
         header = new MainHeader();
         header.setPulseId(1);
         header.setGlobalTimestamp(Timestamp.ofMillis(timestamp));
-        assertTrue(validator.validate(header));
+        assertTrue(validator.analyze(header));
 
         header = new MainHeader();
         header.setPulseId(2);
         header.setGlobalTimestamp(Timestamp.ofMillis(timestamp+1));
-        assertTrue(validator.validate(header));
+        assertTrue(validator.analyze(header));
 
         header = new MainHeader();
         header.setPulseId(1);
         header.setGlobalTimestamp(Timestamp.ofMillis(timestamp+3));
-        assertFalse(validator.validate(header));
+        assertFalse(validator.analyze(header));
+        assertEquals(1, validator.getReport().getPulseIdsBeforeLastValid());
 
         header = new MainHeader();
         header.setPulseId(2);
         header.setGlobalTimestamp(Timestamp.ofMillis(timestamp+4));
-        assertFalse(validator.validate(header)); // last valid pulse-id was already 2
+        assertFalse(validator.analyze(header)); // last valid pulse-id was already 2
+        assertEquals(1, validator.getReport().getDuplicatedPulseIds());
 
         //continue normally again
         header = new MainHeader();
         header.setPulseId(3);
         header.setGlobalTimestamp(Timestamp.ofMillis(timestamp+5));
-        assertTrue(validator.validate(header));
+        assertTrue(validator.analyze(header));
 
         assertTrue(validator.reset());
     }

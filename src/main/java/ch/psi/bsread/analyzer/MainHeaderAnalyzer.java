@@ -1,4 +1,4 @@
-package ch.psi.bsread.validation;
+package ch.psi.bsread.analyzer;
 
 import ch.psi.bsread.message.MainHeader;
 import org.slf4j.Logger;
@@ -14,21 +14,24 @@ import java.util.concurrent.TimeUnit;
  * correct - to have rough idea of correctness we check if pulse-id is not 0 and the global time is within
  * a reasonable timerange around the current time.
  */
-public class MainHeaderValidator {
+public class MainHeaderAnalyzer {
 
-    private static final Logger logger = LoggerFactory.getLogger(MainHeaderValidator.class);
+    private static final Logger logger = LoggerFactory.getLogger(MainHeaderAnalyzer.class);
 
     private MainHeader lastValid = null;
     private final String streamName;
 
     private long validTimeDelta = TimeUnit.SECONDS.toMillis(10);
 
+    private AnalyzerReport report;
+
     /**
      * Create validator
      * @param streamName Name of the stream - used for logging purposes only
      */
-    public MainHeaderValidator(String streamName) {
+    public MainHeaderAnalyzer(String streamName) {
         this.streamName = streamName;
+        this.report = new AnalyzerReport();
     }
 
     /**
@@ -37,42 +40,31 @@ public class MainHeaderValidator {
      * @param header Message header to analyze
      * @return Returns true if header is valid based on the validators state (messages validated before)
      */
-    public boolean validate(MainHeader header) {
-        return validateReason(header) > 0 ? false : true;
-    }
-
-    /**
-     * Validate pulse-id and global-timestamp. If header is not valid returns a reason for not
-     * @param header    Header to be analyzed
-     * @return  Integer indicating the reason why the header is not valid. Returns
-     *          0 - valid header
-     *          1 - 0 pulse-id
-     *          2 - global-time of message out of valid time range
-     *          3 - pulse-id before last valid pulse-id
-     *          4 - global-time before last valid global-time
-     */
-    public int validateReason(MainHeader header){
+    public boolean analyze(MainHeader header) {
 
         final long currentTime = System.currentTimeMillis();
 
         final long headerTimestamp = header.getGlobalTimestamp().getAsMillis();
         final long headerPulseId = header.getPulseId();
 
+        report.incrementNumberOfMessages();
 
         // Check for 0 pulse-id
         if (headerPulseId == 0) {
+            report.incrementZeroPulseIds();
             logger.warn("stream: {} - pulse-id: {} at timestamp: {} - 0 pulse-id",
                     streamName,
                     headerPulseId,
                     header.getGlobalTimestamp());
 
-            return 1;
+            return false;
         }
 
         // Check if global timestamp send from the IOC largely differs from current time
         // Note: this check might lead to problems if the receiving nodes local time largely differs
         // from the actual time of the other systems
         if (headerTimestamp < (currentTime - validTimeDelta) || headerTimestamp > (currentTime + validTimeDelta)) {
+            report.incrementGlobalTimestampOutOfValidTimeRange();
             logger.warn("stream: {} - pulse-id: {} at timestamp: {} - out of valid time range {} +/- {} ms",
                     streamName,
                     headerPulseId,
@@ -80,7 +72,7 @@ public class MainHeaderValidator {
                     currentTime,
                     validTimeDelta);
 
-            return 2;
+            return false;
         }
 
         // For the following checks a last valid header is necessary
@@ -90,35 +82,67 @@ public class MainHeaderValidator {
             final long validPulseId = lastValid.getPulseId();
             final long validTimestamp = lastValid.getGlobalTimestamp().getAsMillis();
 
-            // Check for equal or smaller pulse-id
-            if (validPulseId >= headerPulseId) {
-
-                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - pulse-id before or equal last valid pulse-id {}",
+            // Check for duplicated pulse-id
+            if (validPulseId == headerPulseId) {
+                report.incrementDuplicatedPulseIds();
+                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - duplicate pulse-id {}",
                         streamName,
                         headerPulseId,
                         header.getGlobalTimestamp(),
                         validPulseId);
 
-                return 3;
+                return false;
+            }
+
+
+            // Check for equal or smaller pulse-id
+            if (validPulseId > headerPulseId) {
+                report.incrementPulseIdsBeforeLastValid();
+                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - pulse-id before last valid pulse-id {}",
+                        streamName,
+                        headerPulseId,
+                        header.getGlobalTimestamp(),
+                        validPulseId);
+
+                return false;
             }
 
             // Check if timestamp is after last valid message
             // We ignore the nanoseconds part as it is invalid anyway i.e. it is used to hold parts of the pulse-id
-            if (validTimestamp >= headerTimestamp ) {
-
-                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - global-timestamp before or equal last valid timestamp {}",
+            if (validTimestamp == headerTimestamp ) {
+                report.incrementDuplicatedGlobalTimestamp();
+                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - duplicate global-timestamp {}",
                         streamName,
                         headerPulseId,
                         header.getGlobalTimestamp(),
                         lastValid.getGlobalTimestamp());
 
-                return 4;
+                return false;
             }
+
+            if (validTimestamp > headerTimestamp ) {
+                report.incrementGlobalTimestampBeforeLastValid();
+                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - global-timestamp before last valid timestamp {}",
+                        streamName,
+                        headerPulseId,
+                        header.getGlobalTimestamp(),
+                        lastValid.getGlobalTimestamp());
+
+                return false;
+            }
+
+            // Update pulse-id increment histogram
+            report.updateHistogramPulseIdIncrements((int)(headerPulseId-validPulseId)); // cast to int needed
+            // Update delay histogram
+            report.updateHistogramDelays((int)(currentTime-headerTimestamp));
+
+
+            report.incrementNumberOfCorrectMessages();
         }
 
         lastValid = header;
 
-        return 0;
+        return true;
     }
 
     /**
@@ -126,9 +150,13 @@ public class MainHeaderValidator {
      * @return true if a state was reset, false if no reset was needed
      */
     public boolean reset(){
+        // Always reset the report
+        report = new AnalyzerReport();
+
         if(lastValid == null){
             return false;
         }
+
         lastValid = null;
         return true;
     }
@@ -139,5 +167,9 @@ public class MainHeaderValidator {
 
     public void setValidTimeDelta(long validTimeDelta) {
         this.validTimeDelta = validTimeDelta;
+    }
+
+    public AnalyzerReport getReport() {
+        return report;
     }
 }
