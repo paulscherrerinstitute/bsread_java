@@ -1,20 +1,14 @@
-apply plugin: 'java'
-apply plugin: 'eclipse'
-
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.4'
-    }
+plugins {
+    id "java"
+    id "eclipse"
+    id "maven"
+    id "maven-publish"
+    id "com.jfrog.bintray" version "1.8.4"
 }
-apply plugin: 'com.jfrog.bintray'
-apply plugin: 'maven-publish'
+
+version = '3.5.14'
 
 sourceCompatibility = 1.8
-
-version = '3.5.13'
 
 repositories {
     mavenCentral()
@@ -47,9 +41,6 @@ artifacts {
     archives sourcesJar
     archives javadocJar
 }
-
-
-apply plugin: 'maven'
 
 uploadArchives {
     repositories {
