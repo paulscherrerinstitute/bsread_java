@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQException;
 
-import zmq.MsgAllocator;
+import zmq.msg.MsgAllocator;
 
 import ch.psi.bsread.Receiver;
 import ch.psi.bsread.ReceiverConfig;

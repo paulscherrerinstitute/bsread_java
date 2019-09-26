@@ -4,7 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.function.IntFunction;
 
 import zmq.Msg;
-import zmq.MsgAllocator;
+import zmq.msg.MsgAllocator;
 
 public class HeaderReservingMsgAllocator implements MsgAllocator {
    private int maxHeaderBytes;

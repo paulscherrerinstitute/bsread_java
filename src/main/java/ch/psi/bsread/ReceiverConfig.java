@@ -15,7 +15,7 @@ import ch.psi.bsread.common.concurrent.singleton.Deferred;
 import ch.psi.bsread.configuration.Channel;
 import ch.psi.bsread.impl.StandardMessageExtractor;
 
-import zmq.MsgAllocator;
+import zmq.msg.MsgAllocator;
 
 public class ReceiverConfig<V> {
    public static final String DEFAULT_ADDRESS = "tcp://localhost:9999";
