@@ -12,7 +12,7 @@ import zmq.ZMQ;
 public class ReceiverProductionDebuggingTest {
    private static final Logger logger = LoggerFactory.getLogger(ReceiverProductionDebuggingTest.class);
 
-//   @Ignore
+   @Ignore
    @Test
    public void testReceiver(){
       String sourceAddress = "tcp://SIN-CVME-DBPM0421:9000";
