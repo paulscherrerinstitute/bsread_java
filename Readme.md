@@ -67,7 +67,15 @@ The library can also be used within Matlab to receive data. The documentation on
 
 # Development
 
-This project can be build by executing
+To be able to use gradle following attributes should be defined in your $HOME/.gradle/gradle.properties file:
+```
+artifactoryUser=
+artifactoryPwd=
+artifactoryUrlRel=
+artifactoryUrlLibSnap=
+```
+
+The project can be build by executing
 
 ```bash
 ./gradlew build

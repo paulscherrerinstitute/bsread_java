@@ -1,9 +1,11 @@
 bsread_java.iml
 ch.psi.bsread.iml
+.settings
 .idea
 .gradle
 .classpath
 .project
+.settings
 bin
 build
 out/
