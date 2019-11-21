@@ -22,7 +22,7 @@ public class NoneCompressor implements Compressor {
 			dest.position(srcOff - destOff);
 			return dest;
 		} else {
-			LOGGER.info("Need to copy received ByteBuffer. This could be avoided with correct Msg header allocation (srcOff '{}' destOff '{}').", srcOff, destOff);
+			//LOGGER.info("Need to copy received ByteBuffer. This could be avoided with correct Msg header allocation (srcOff '{}' destOff '{}').", srcOff, destOff);
 
 			ByteBuffer dest = bufferAllocator.apply(destOff + src.remaining()).order(src.order());
 			dest.position(destOff);
