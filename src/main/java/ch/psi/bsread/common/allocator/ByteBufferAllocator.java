@@ -196,7 +196,7 @@ public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
     private static final Pattern MAX_DIRECT_MEMORY_SIZE_ARG_PATTERN = Pattern.compile(
             "\\s*-XX:MaxDirectMemorySize\\s*=\\s*([0-9]+)\\s*([kKmMgG]?)\\s*$");
 
-    private static long maxDirectMemory0() {
+    public static long maxDirectMemory0() {
         long maxDirectMemory = 0;
 
         ClassLoader systemClassLoader = getSystemClassLoader();
@@ -260,4 +260,38 @@ public class ByteBufferAllocator implements IntFunction<ByteBuffer> {
         }
     }
     
+    /*
+    public static void main(String[] args) throws Throwable{
+        try{
+            final int allocate = 40000;
+            long usage = ByteBufferAllocator.getDirectMemoryUsage();
+            long max= ByteBufferAllocator.maxDirectMemory0();
+            System.out.println("Max: " + max);
+            long size  = max- usage;
+            List<ByteBuffer> buffers = new java.util.ArrayList<>();
+            int index = 0;
+             while (size > 0){         
+                System.out.println("Index: " + index + "\tUsage: " + usage + "\tRemain: " + size);
+                ByteBuffer buf = ByteBufferAllocator.DEFAULT_ALLOCATOR.allocateDirect(allocate);
+                buffers.add(buf);
+                long newUsage=ByteBufferAllocator.getDirectMemoryUsage();
+                if((usage + allocate) != newUsage){
+                    String msg = "Invalid size: " +  newUsage + " and not: " + (usage + allocate);
+                    System.out.println(msg);
+                    throw new Exception (msg);
+                }
+             usage  = newUsage;
+             size-=allocate;
+             index++;
+            }
+        } catch (OutOfMemoryError t){
+            t.printStackTrace();
+            //System.exit(0);
+        } catch (Throwable t){
+            t.printStackTrace();
+            //throw t;
+        }
+        DIRECT_BUFFER_CLEANER.gcService.get().shutdownNow();
+    }
+    */
 }

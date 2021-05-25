@@ -18,12 +18,13 @@ public class ChannelConfig implements Serializable {
    public static final String ENCODING_BIG_ENDIAN = "big";
    public static final String ENCODING_LITTLE_ENDIAN = "little";
    public static final String DEFAULT_ENCODING = ENCODING_LITTLE_ENDIAN;
+   private static final Type DEFAULT_TYPE = Type.Float64;
 
    private String name;
-   private Type type = Type.Float64;
-   private int[] shape = DEFAULT_SHAPE;
    private int modulo = 1;
    private int offset = 0;
+   private Type type = DEFAULT_TYPE;
+   private int[] shape = DEFAULT_SHAPE;
    private String encoding = DEFAULT_ENCODING;
    private Compression compression = Compression.none;
 
@@ -31,7 +32,7 @@ public class ChannelConfig implements Serializable {
 
    public ChannelConfig(String name, Type type) {
       this.name = name;
-      this.type = type;
+      setType(type);
    }
 
    public ChannelConfig(String name, Type type, int modulo, int offset) {
@@ -44,7 +45,7 @@ public class ChannelConfig implements Serializable {
    public ChannelConfig(String name, Type type, int[] shape, int modulo, int offset) {
       this(name, type, modulo, offset);
 
-      this.shape = shape;
+      setShape(shape);
 
       // if (type.getBytes() == ValueConverter.DYNAMIC_NUMBER_OF_BYTES ||
       // Compressor.DEFAULT_COMPRESS_THRESHOLD < type.getBytes() *
@@ -56,14 +57,14 @@ public class ChannelConfig implements Serializable {
    public ChannelConfig(String name, Type type, int[] shape, int modulo, int offset, String encoding) {
       this(name, type, shape, modulo, offset);
 
-      this.encoding = encoding;
+      setEncoding(encoding);
    }
 
    public ChannelConfig(String name, Type type, int[] shape, int modulo, int offset, String encoding,
          Compression compression) {
       this(name, type, shape, modulo, offset, encoding);
 
-      this.compression = compression;
+      setCompression(compression);
    }
 
    public ChannelConfig(ChannelConfig config) {
@@ -71,13 +72,13 @@ public class ChannelConfig implements Serializable {
    }
 
    public void copy(ChannelConfig other) {
-      this.name = other.name;
-      this.type = other.type;
-      this.shape = other.shape;
+      this.name = other.name;      
       this.modulo = other.modulo;
       this.offset = other.offset;
-      this.encoding = other.encoding;
-      this.compression = other.compression;
+      setType(other.type);
+      setShape(other.shape);
+      setEncoding (other.encoding);
+      setCompression(other.compression);
    }
 
    public String getName() {
@@ -93,7 +94,7 @@ public class ChannelConfig implements Serializable {
    }
 
    public void setType(Type type) {
-      this.type = type;
+      this.type =  (type == null) ? DEFAULT_TYPE : type;
    }
 
    public int[] getShape() {
@@ -101,7 +102,7 @@ public class ChannelConfig implements Serializable {
    }
 
    public void setShape(int[] shape) {
-      this.shape = shape;
+      this.shape = (shape == null) ? DEFAULT_SHAPE : shape;
    }
 
    public int getModulo() {
@@ -125,7 +126,7 @@ public class ChannelConfig implements Serializable {
    }
 
    public void setEncoding(String encoding) {
-      this.encoding = encoding;
+      this.encoding = (encoding == null) ? DEFAULT_ENCODING : encoding;
    }
 
    public Compression getCompression() {
@@ -133,7 +134,7 @@ public class ChannelConfig implements Serializable {
    }
 
    public void setCompression(Compression compression) {
-      this.compression = compression;
+      this.compression = (compression == null) ? Compression.none : compression;
    }
 
    /**
