@@ -1,18 +1,17 @@
 plugins {
-    id "java"
+    id "java-library"
     id "eclipse"
-    id "maven"
     id "maven-publish"
-    id "com.jfrog.bintray" version "1.8.4"
 }
 
-version = '4.0.3'
+version = '4.0.4'
 
 sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
-    maven { url "https://dl.bintray.com/paulscherrerinstitute/hltools" }  
+    maven { url "https://artifacts.psi.ch/artifactory/libs-releases" }
+    maven { url "https://artifacts.psi.ch/artifactory/libs-snapshots" }    
 }
 
 dependencies {
@@ -46,24 +45,26 @@ task fatJar(type: Jar, dependsOn: jar) {
     with jar
 }
 
-artifacts {
-    archives sourcesJar
-    archives javadocJar
-}
-
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            repository(url: artifactoryUrlLibSnap){
-            	authentication(userName: artifactoryUser, password: artifactoryPwd)
-            }
-            pom.groupId = 'ch.psi'
-            pom.artifactId = 'bsread'
-        }
-    }
-}
 
 publishing {
+    repositories {
+        maven {
+            credentials {
+                username artifactoryUser 
+                password artifactoryPwd
+            }
+            name = "Artifactory"
+            url = artifactoryUrlLibSnap
+        }    
+        maven {
+            credentials {
+                username githubUser 
+                password githubPwd
+            }
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/paulscherrerinstitute/bsread_java"
+        }      
+    }
     publications {
         MyPublication(MavenPublication) {
             from components.java
@@ -74,19 +75,4 @@ publishing {
         }
     }
 }
-    
-bintray {
-    user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
-    key = project.hasProperty('bintrayApiKey') ? project.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
-    publications = ['MyPublication']     
-    pkg {
-        repo = 'hltools'
-        name = 'bsread'
-        userOrg = 'paulscherrerinstitute'
-        licenses = ['GPL-3.0']
-        vcsUrl = 'https://github.com/paulscherrerinstitute/bsread_java'
-        version {
-            name = project.version
-        }         
-    }
-}
+
