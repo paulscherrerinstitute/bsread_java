@@ -10,6 +10,7 @@ import ch.psi.bitshuffle.BitShuffleLZ4JNICompressor;
 import ch.psi.bitshuffle.BitShuffleLZ4JNIDecompressor;
 import ch.psi.bsread.compression.Compressor;
 import ch.psi.bsread.converter.ValueConverter;
+import java.util.Arrays;
 
 public class BitshuffleLZ4Compressor implements Compressor {
 
@@ -62,9 +63,21 @@ public class BitshuffleLZ4Compressor implements Compressor {
             compressor.compress(src, srcOff, dest, startCompressedPos, nElements, nBytesPerElement, blockSize);
       // make buffer ready for read
       dest.position(0);
-      dest.limit(startCompressedPos + compressedLength);
+      dest.limit(startCompressedPos + compressedLength);        
 
-      return dest;
+      //### Alternativelly fixing bug of ZMQ 0.5.x in EncoderBase
+      //dest = dest.slice(0, startCompressedPos + compressedLength); //Only Java>13  
+      /* Java<13
+        if (dest.hasArray()) {
+            dest =  ByteBuffer.wrap(Arrays.copyOf(dest.array(), startCompressedPos + compressedLength));
+        } else {
+            byte[] arr = new byte[startCompressedPos + compressedLength];
+            dest.get(arr, 0, startCompressedPos + compressedLength);            
+            dest =  ByteBuffer.wrap(arr);
+        }      
+        */
+      
+        return dest;
    }
 
    protected ByteBuffer decompress(ByteBuffer src, int srcOff, ByteOrder sizeOrder,
@@ -106,7 +119,7 @@ public class BitshuffleLZ4Compressor implements Compressor {
 
       decompressor.decompress(src, srcOff + startCompressedPos, dest, 0, nElements, nBytesPerElement, blockSize);
       dest.position(0);
-      dest.limit(uncompressedSize);
+      dest.limit(uncompressedSize);      
       return dest;
    }
 
