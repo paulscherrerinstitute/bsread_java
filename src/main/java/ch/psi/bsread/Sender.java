@@ -124,10 +124,16 @@ public class Sender {
             }
 
             // Send header
-            socket.send(senderConfig.getObjectMapper().writeValueAsBytes(mainHeader), blockingFlag | ZMQ.SNDMORE);
+            if (!socket.send(senderConfig.getObjectMapper().writeValueAsBytes(mainHeader), blockingFlag | ZMQ.SNDMORE)){
+               LOGGER.error("Error sending main header for pulse '{}'.",mainHeader.getPulseId());            
+               return;
+            }
 
             // Send data header
-            socket.send(dataHeaderBytes, blockingFlag | ZMQ.SNDMORE);
+            if (!socket.send(dataHeaderBytes, blockingFlag | ZMQ.SNDMORE)){
+               LOGGER.error("Error sending data header for pulse '{}'.",mainHeader.getPulseId());            
+               return;
+            }
 
             // Send data
             int lastSendMore;
@@ -151,18 +157,29 @@ public class Sender {
                         .getCompressor()
                         .compressData(valueBuffer, valueBuffer.position(), valueBuffer.remaining(), 0,
                               senderConfig.getCompressedValueAllocator(), channel.getConfig().getType().getBytes());
-                  socket.sendByteBuffer(valueBuffer, ZMQ.SNDMORE | blockingFlag);
-
+                  if (socket.sendByteBuffer(valueBuffer, ZMQ.SNDMORE | blockingFlag)<0){
+                    LOGGER.error("Error sending value of channel {}  for pulse '{}'.", channel.getConfig().getName(), mainHeader.getPulseId());            
+                    return;
+                  }
                   Timestamp timestamp = channel.getTime(pulseId);
                   // c-implementation uses a unsigned long (Json::UInt64,
                   // uint64_t) for time -> decided to ignore this here
                   ByteBuffer timeBuffer = senderConfig.getByteConverter().getBytes(timestamp.getAsLongArray(),
                         Type.Int64, byteOrder, senderConfig.getValueAllocator());
-                  socket.sendByteBuffer(timeBuffer, lastSendMore);
+                  if (socket.sendByteBuffer(timeBuffer, lastSendMore)<0){
+                    LOGGER.error("Error sending timestamp of channel {}  for pulse '{}'.", channel.getConfig().getName(), mainHeader.getPulseId());            
+                    return;                      
+                  }
                } else {
                   // Send placeholder
-                  socket.send((byte[]) null, ZMQ.SNDMORE | blockingFlag);
-                  socket.send((byte[]) null, lastSendMore);
+                  if (!socket.send((byte[]) null, ZMQ.SNDMORE | blockingFlag)){
+                     LOGGER.error("Error sending placeholder for pulse '{}'.",mainHeader.getPulseId());            
+                     return;
+                  }                  
+                  if (!socket.send((byte[]) null, lastSendMore)){
+                     LOGGER.error("Error sending closing for pulse '{}'.",mainHeader.getPulseId());            
+                     return;
+                  }                  
                }
             }
 

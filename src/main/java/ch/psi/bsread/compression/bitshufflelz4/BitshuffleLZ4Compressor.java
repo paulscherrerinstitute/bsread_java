@@ -65,17 +65,14 @@ public class BitshuffleLZ4Compressor implements Compressor {
       dest.position(0);
       dest.limit(startCompressedPos + compressedLength);        
 
-      //### Alternativelly fixing bug of ZMQ 0.5.x in EncoderBase
       //dest = dest.slice(0, startCompressedPos + compressedLength); //Only Java>13  
-      /* Java<13
-        if (dest.hasArray()) {
+      if (dest.hasArray()) {
             dest =  ByteBuffer.wrap(Arrays.copyOf(dest.array(), startCompressedPos + compressedLength));
         } else {
             byte[] arr = new byte[startCompressedPos + compressedLength];
             dest.get(arr, 0, startCompressedPos + compressedLength);            
             dest =  ByteBuffer.wrap(arr);
         }      
-        */
       
         return dest;
    }
