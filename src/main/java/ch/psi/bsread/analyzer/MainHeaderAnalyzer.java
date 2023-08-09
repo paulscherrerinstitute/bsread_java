@@ -62,6 +62,8 @@ public class MainHeaderAnalyzer {
             return false;
         }
 
+        /*
+        ### Removed as generates many errors.
         // Check if global timestamp send from the IOC largely differs from current time
         // Note: this check might lead to problems if the receiving nodes local time largely differs
         // from the actual time of the other systems
@@ -76,6 +78,7 @@ public class MainHeaderAnalyzer {
 
             return false;
         }
+        */
 
         // For the following checks a last valid header is necessary
         // Note: Assumption first message we get is correct - if this is not true all following checks might fail
