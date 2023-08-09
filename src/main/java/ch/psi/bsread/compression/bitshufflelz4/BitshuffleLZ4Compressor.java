@@ -63,18 +63,8 @@ public class BitshuffleLZ4Compressor implements Compressor {
             compressor.compress(src, srcOff, dest, startCompressedPos, nElements, nBytesPerElement, blockSize);
       // make buffer ready for read
       dest.position(0);
-      dest.limit(startCompressedPos + compressedLength);        
-
-      //dest = dest.slice(0, startCompressedPos + compressedLength); //Only Java>13  
-      if (dest.hasArray()) {
-            dest =  ByteBuffer.wrap(Arrays.copyOf(dest.array(), startCompressedPos + compressedLength));
-        } else {
-            byte[] arr = new byte[startCompressedPos + compressedLength];
-            dest.get(arr, 0, startCompressedPos + compressedLength);            
-            dest =  ByteBuffer.wrap(arr);
-        }      
-      
-        return dest;
+      dest.limit(startCompressedPos + compressedLength);
+      return dest;
    }
 
    protected ByteBuffer decompress(ByteBuffer src, int srcOff, ByteOrder sizeOrder,

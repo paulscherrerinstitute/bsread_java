@@ -43,18 +43,8 @@ public class LZ4Compressor implements Compressor {
                 //compressedLength = ((compressedLength + 7) & ~7);   //Round to next multiple of 8
 		// make buffer ready for read
 		dest.position(0);
-                dest.limit(startCompressedPos + compressedLength);         
-
-                //dest = dest.slice(0, startCompressedPos + compressedLength); //Only Java>13  
-                if (dest.hasArray()) {
-                      dest =  ByteBuffer.wrap(Arrays.copyOf(dest.array(), startCompressedPos + compressedLength));
-                  } else {
-                      byte[] arr = new byte[startCompressedPos + compressedLength];
-                      dest.get(arr, 0, startCompressedPos + compressedLength);            
-                      dest =  ByteBuffer.wrap(arr);
-                 }         
-                
-                return dest;
+		dest.limit(startCompressedPos + compressedLength);
+		return dest;
 	}
 
 	protected ByteBuffer decompress(ByteBuffer src, int srcOff, ByteOrder sizeOrder, IntFunction<ByteBuffer> bufferAllocator) {

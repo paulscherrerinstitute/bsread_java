@@ -26,6 +26,8 @@ import ch.psi.bsread.message.Type;
 import ch.psi.bsread.monitors.Monitor;
 import ch.psi.bsread.monitors.MonitorConfig;
 
+import static ch.psi.bsread.common.helper.ByteBufferHelper.getBufferFromPosition;
+
 public class Sender {
    private static final Logger LOGGER = LoggerFactory.getLogger(Sender.class);
 
@@ -157,7 +159,8 @@ public class Sender {
                         .getCompressor()
                         .compressData(valueBuffer, valueBuffer.position(), valueBuffer.remaining(), 0,
                               senderConfig.getCompressedValueAllocator(), channel.getConfig().getType().getBytes());
-                  if (socket.sendByteBuffer(valueBuffer, ZMQ.SNDMORE | blockingFlag)<0){
+                  //Use getBufferFromPosition because ZMQ 0.5.3 does not support buffers with position/limit
+                  if (socket.sendByteBuffer(getBufferFromPosition(valueBuffer), ZMQ.SNDMORE | blockingFlag)<0){
                     LOGGER.error("Error sending value of channel {}  for pulse '{}'.", channel.getConfig().getName(), mainHeader.getPulseId());            
                     return;
                   }
@@ -166,7 +169,7 @@ public class Sender {
                   // uint64_t) for time -> decided to ignore this here
                   ByteBuffer timeBuffer = senderConfig.getByteConverter().getBytes(timestamp.getAsLongArray(),
                         Type.Int64, byteOrder, senderConfig.getValueAllocator());
-                  if (socket.sendByteBuffer(timeBuffer, lastSendMore)<0){
+                  if (socket.sendByteBuffer(getBufferFromPosition(timeBuffer), lastSendMore)<0){
                     LOGGER.error("Error sending timestamp of channel {}  for pulse '{}'.", channel.getConfig().getName(), mainHeader.getPulseId());            
                     return;                      
                   }
