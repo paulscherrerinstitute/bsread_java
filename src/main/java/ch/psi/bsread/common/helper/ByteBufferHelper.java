@@ -7,7 +7,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
 import java.util.function.IntFunction;
 
 import net.jpountz.lz4.LZ4BlockInputStream;
@@ -515,44 +514,12 @@ public class ByteBufferHelper {
       buffer.limit(buffer.capacity());
    }
 
-
-   public static ByteBuffer copyByteBuffer(ByteBuffer buffer, int lenght){
-      //return dest.slice(0, startCompressedPos + compressedLength); //Only Java>13
-      if (buffer.hasArray()) {
-         return  ByteBuffer.wrap(Arrays.copyOf(buffer.array(), lenght));
-      } else {
-         byte[] arr = new byte[lenght];
-         buffer.get(arr, 0, lenght);
-         return  ByteBuffer.wrap(arr);
-      }
-   }
-
-   public static ByteBuffer copyByteBuffer(ByteBuffer buffer, int offset, int lenght){
-      //return dest.slice(0, startCompressedPos + compressedLength); //Only Java>13
-      if (buffer.hasArray()) {
-         return  ByteBuffer.wrap(Arrays.copyOfRange(buffer.array(), offset, offset+lenght));
-      } else {
-         byte[] arr = new byte[lenght];
-         buffer.get(arr, 0, lenght);
-         return  ByteBuffer.wrap(arr);
-      }
-   }
-
-   //Copies from current position, if not 0
+   //Copies from position, if position is not 0
    public static ByteBuffer getBufferFromPosition(ByteBuffer buffer){
       if (buffer.position()<=0){
          return buffer;
       }
-      //return dest.slice(0, startCompressedPos + compressedLength); //Only Java>13
-      int offset = buffer.position();
-      int lenght = buffer.limit() - buffer.position();
-      if (buffer.hasArray()) {
-         return  ByteBuffer.wrap(Arrays.copyOfRange(buffer.array(), offset, offset+lenght));
-      } else {
-         byte[] arr = new byte[lenght];
-         buffer.get(arr, 0, lenght);
-         return  ByteBuffer.wrap(arr);
-      }
+      return copy(buffer);
    }
 
    /**
