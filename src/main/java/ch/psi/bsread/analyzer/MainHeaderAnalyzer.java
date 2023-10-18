@@ -23,7 +23,7 @@ public class MainHeaderAnalyzer {
 
     private boolean createHistograms = false;
 
-    private long validTimeDelta = TimeUnit.SECONDS.toMillis(10);
+    private long validTimeDelta = TimeUnit.MINUTES.toMillis(10);
 
     private AnalyzerReport report;
 
@@ -62,12 +62,21 @@ public class MainHeaderAnalyzer {
             return false;
         }
 
-        /*
-        ### Removed as generates many errors.
         // Check if global timestamp send from the IOC largely differs from current time
         // Note: this check might lead to problems if the receiving nodes local time largely differs
         // from the actual time of the other systems
-        if (headerTimestamp < (currentTime - validTimeDelta) || headerTimestamp > (currentTime + validTimeDelta)) {
+        // Only logging old messages, but accept them. refusing messages in the future.
+        if (headerTimestamp < (currentTime - validTimeDelta) ) {
+            //report.incrementGlobalTimestampOutOfValidTimeRange();
+            logger.warn("stream: {} - pulse-id: {} at timestamp: {} - too old {} +/- {} ms",
+                    streamName,
+                    headerPulseId,
+                    header.getGlobalTimestamp(),
+                    currentTime,
+                    validTimeDelta);
+
+            //return false;
+        } else if ( headerTimestamp > (currentTime + validTimeDelta)) {
             report.incrementGlobalTimestampOutOfValidTimeRange();
             logger.warn("stream: {} - pulse-id: {} at timestamp: {} - out of valid time range {} +/- {} ms",
                     streamName,
@@ -77,9 +86,8 @@ public class MainHeaderAnalyzer {
                     validTimeDelta);
 
             return false;
-        }
-        */
-
+        }        
+        
         // For the following checks a last valid header is necessary
         // Note: Assumption first message we get is correct - if this is not true all following checks might fail
         if(lastValid != null) {
@@ -174,6 +182,9 @@ public class MainHeaderAnalyzer {
 
     public void setValidTimeDelta(long validTimeDelta) {
         this.validTimeDelta = validTimeDelta;
+        logger.info("stream: {}  - changed validTimeDelta-id: {}",
+                    streamName,
+                    validTimeDelta);        
     }
 
     public boolean isCreateHistograms() {

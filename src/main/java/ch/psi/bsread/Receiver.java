@@ -112,14 +112,14 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
 
          Utils.connect(socket, receiverConfig.getAddress(), receiverConfig.getSocketType());
 
-         LOGGER.info("Receiver '{}' connected", this.receiverConfig.getAddress());
+         LOGGER.debug("Receiver '{}' connected", this.receiverConfig.getAddress());
       }
    }
 
    @Override
    public void close() {
       if (isRunning.compareAndSet(true, false)) {
-         LOGGER.info("Receiver '{}' stopping...", this.receiverConfig.getAddress());
+         LOGGER.debug("Receiver '{}' stopping...", this.receiverConfig.getAddress());
 
          if (Thread.currentThread().equals(receivingThread)) {
             // is receiving thread -> do cleanup
@@ -158,7 +158,7 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
          }
          mainLoopExitSync.complete(null);
          receivingThread = null;
-         LOGGER.info("Receiver '{}' stopped.", this.receiverConfig.getAddress());
+         LOGGER.debug("Receiver '{}' stopped.", this.receiverConfig.getAddress());
 
          return true;
       } else {
@@ -230,7 +230,7 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
 
                      switch (receiverConfig.getInactiveConnectionBehavior()) {
                         case RECONNECT:
-                           LOGGER.info("Reconnect '{}' due to timeout.", receiverConfig.getAddress());
+                           LOGGER.debug("Reconnect '{}' due to timeout.", receiverConfig.getAddress());
                            reconnect();
                            break;
                         case STOP:
@@ -240,7 +240,7 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
                            break;
                         case KEEP_RUNNING:
                         default:
-                           LOGGER.info("Idle connection timeout for '{}'. Keep running.", receiverConfig.getAddress());
+                           LOGGER.debug("Idle connection timeout for '{}'. Keep running.", receiverConfig.getAddress());
                            break;
                      }
                   }
@@ -248,7 +248,7 @@ public class Receiver<V> implements ConfigIReceiver<V>, IntConsumer {
                   message = null;
                }
             } catch (IllegalTimeException e) {
-               LOGGER.info("Reconnect '{}' due to illegal time '{}'.", receiverConfig.getAddress(), e.getMessage());
+               LOGGER.debug("Reconnect '{}' due to illegal time '{}'.", receiverConfig.getAddress(), e.getMessage());
                message = null;
                reconnect();
             } catch (JsonParseException | JsonMappingException e) {
