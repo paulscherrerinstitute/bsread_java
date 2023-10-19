@@ -59,7 +59,7 @@ public class MainHeaderAnalyzer {
         // Check for 0 pulse-id
         if (headerPulseId == 0) {
             report.incrementZeroPulseIds();
-            logger.warn("stream: {} - pulse-id: {} at timestamp: {} - 0 pulse-id",
+            warn("stream: {} - pulse-id: {} at timestamp: {} - 0 pulse-id",
                     streamName,
                     headerPulseId,
                     header.getGlobalTimestamp());
@@ -73,7 +73,7 @@ public class MainHeaderAnalyzer {
         // Only logging old messages, but accept them. refusing messages in the future.
         if (headerTimestamp < (currentTime - validTimeDelta) ) {
             //report.incrementGlobalTimestampOutOfValidTimeRange();
-            logger.warn("stream: {} - pulse-id: {} at timestamp: {} - too old {} +/- {} ms",
+            warn("stream: {} - pulse-id: {} at timestamp: {} - too old {} +/- {} ms",
                     streamName,
                     headerPulseId,
                     header.getGlobalTimestamp(),
@@ -83,7 +83,7 @@ public class MainHeaderAnalyzer {
             //return false;
         } else if ( headerTimestamp > (currentTime + validTimeDelta)) {
             report.incrementGlobalTimestampOutOfValidTimeRange();
-            logger.warn("stream: {} - pulse-id: {} at timestamp: {} - out of valid time range {} +/- {} ms",
+            warn("stream: {} - pulse-id: {} at timestamp: {} - out of valid time range {} +/- {} ms",
                     streamName,
                     headerPulseId,
                     header.getGlobalTimestamp(),
@@ -97,7 +97,7 @@ public class MainHeaderAnalyzer {
             
             long timestampNanos =  header.getGlobalTimestamp().getAsLongArray()[1] % 1000000;
             if (!checkPulseId(headerPulseId,timestampNanos)){
-                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - pulse-id does not match timestamp nanos {}",
+                warn("stream: {} - pulse-id: {} at timestamp: {} - pulse-id does not match timestamp nanos {}",
                     streamName,
                     headerPulseId,
                     header.getGlobalTimestamp(),
@@ -107,7 +107,7 @@ public class MainHeaderAnalyzer {
             
             
             if ((headerPulseId - getSimulatedPulseId()) > validPulseIdDelta) {
-                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - out of valid pulse-id time range +{} ms",
+                warn("stream: {} - pulse-id: {} at timestamp: {} - out of valid pulse-id time range +{} ms",
                     streamName,
                     headerPulseId,
                     header.getGlobalTimestamp(),                    
@@ -126,7 +126,7 @@ public class MainHeaderAnalyzer {
             // Check for duplicated pulse-id
             if (validPulseId == headerPulseId) {
                 report.incrementDuplicatedPulseIds();
-                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - duplicate pulse-id {}",
+                warn("stream: {} - pulse-id: {} at timestamp: {} - duplicate pulse-id {}",
                         streamName,
                         headerPulseId,
                         header.getGlobalTimestamp(),
@@ -139,7 +139,7 @@ public class MainHeaderAnalyzer {
             // Check for equal or smaller pulse-id
             if (validPulseId > headerPulseId) {
                 report.incrementPulseIdsBeforeLastValid();
-                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - pulse-id before last valid pulse-id {}",
+                warn("stream: {} - pulse-id: {} at timestamp: {} - pulse-id before last valid pulse-id {}",
                         streamName,
                         headerPulseId,
                         header.getGlobalTimestamp(),
@@ -152,7 +152,7 @@ public class MainHeaderAnalyzer {
             // We ignore the nanoseconds part as it is invalid anyway i.e. it is used to hold parts of the pulse-id
             if (validTimestamp == headerTimestamp ) {
                 report.incrementDuplicatedGlobalTimestamp();
-                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - duplicate global-timestamp {}",
+                warn("stream: {} - pulse-id: {} at timestamp: {} - duplicate global-timestamp {}",
                         streamName,
                         headerPulseId,
                         header.getGlobalTimestamp(),
@@ -163,7 +163,7 @@ public class MainHeaderAnalyzer {
 
             if (validTimestamp > headerTimestamp ) {
                 report.incrementGlobalTimestampBeforeLastValid();
-                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - global-timestamp before last valid timestamp {}",
+                warn("stream: {} - pulse-id: {} at timestamp: {} - global-timestamp before last valid timestamp {}",
                         streamName,
                         headerPulseId,
                         header.getGlobalTimestamp(),
@@ -186,6 +186,10 @@ public class MainHeaderAnalyzer {
         lastValid = header;
 
         return true;
+    }
+    
+    protected void warn(String string, Object... os){
+        logger.warn(string, os);
     }
 
     /**
