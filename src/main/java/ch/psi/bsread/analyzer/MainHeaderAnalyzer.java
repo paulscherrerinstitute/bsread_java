@@ -1,6 +1,8 @@
 package ch.psi.bsread.analyzer;
 
 import ch.psi.bsread.message.MainHeader;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,8 +24,11 @@ public class MainHeaderAnalyzer {
     private final String streamName;
 
     private boolean createHistograms = false;
+    private boolean checkPulseIdTime = true;
+    
 
     private long validTimeDelta = TimeUnit.MINUTES.toMillis(10);
+    private long validPulseIdDelta = TimeUnit.DAYS.toSeconds(1) *100;
 
     private AnalyzerReport report;
 
@@ -86,8 +91,31 @@ public class MainHeaderAnalyzer {
                     validTimeDelta);
 
             return false;
-        }        
+        }      
         
+        if (checkPulseIdTime){
+            
+            long timestampNanos =  header.getGlobalTimestamp().getAsLongArray()[1] % 1000000;
+            if (!checkPulseId(headerPulseId,timestampNanos)){
+                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - pulse-id does not match timestamp nanos {}",
+                    streamName,
+                    headerPulseId,
+                    header.getGlobalTimestamp(),
+                    timestampNanos);
+                return false;                
+            }
+            
+            
+            if ((headerPulseId - getSimulatedPulseId()) > validPulseIdDelta) {
+                logger.warn("stream: {} - pulse-id: {} at timestamp: {} - out of valid pulse-id time range +{} ms",
+                    streamName,
+                    headerPulseId,
+                    header.getGlobalTimestamp(),                    
+                    validPulseIdDelta);
+                return false;
+            }        
+        }
+
         // For the following checks a last valid header is necessary
         // Note: Assumption first message we get is correct - if this is not true all following checks might fail
         if(lastValid != null) {
@@ -182,10 +210,8 @@ public class MainHeaderAnalyzer {
 
     public void setValidTimeDelta(long validTimeDelta) {
         this.validTimeDelta = validTimeDelta;
-        logger.info("stream: {}  - changed validTimeDelta-id: {}",
-                    streamName,
-                    validTimeDelta);        
     }
+    
 
     public boolean isCreateHistograms() {
         return createHistograms;
@@ -194,8 +220,40 @@ public class MainHeaderAnalyzer {
     public void setCreateHistograms(boolean createHistograms) {
         this.createHistograms = createHistograms;
     }
+    
+    public boolean isCheckPulseIdTime() {
+        return checkPulseIdTime;
+    }
+
+    public void setCheckPulseIdTime(boolean checkPulseIdTime) {
+        this.checkPulseIdTime = checkPulseIdTime;
+    }
+    
+    public long getValidPulseIdDelta() {
+        return validPulseIdDelta;
+    }
+
+    public void setValidPidDelta(long validPulseIdDelta) {
+        this.validPulseIdDelta = validPulseIdDelta;
+    }
+    
+    
 
     public AnalyzerReport getReport() {
         return report;
     }
+    
+    public static final LocalDateTime startPulseId = LocalDateTime.of(2017, 9, 4, 11, 11, 18);     
+    
+    public static long getSimulatedPulseId() {
+        LocalDateTime now = LocalDateTime.now();
+        long  millis = ChronoUnit.MILLIS.between(startPulseId, now); 
+        long pid = millis/10;
+        return pid;
+    }
+        
+    public static boolean checkPulseId(long pulseId, long timestampNanos) {
+        return ((pulseId % 1000000) == (timestampNanos % 1000000));
+    }       
+    
 }
